@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: 'Vazir';
+  src: url('/fonts/Vazir.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Vazir';
+  src: url('/fonts/Vazir-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* اعمال فونت وزیر به کل سایت */
+body {
+  font-family: 'Vazir', 'Tahoma', 'Arial', sans-serif;
+  direction: rtl;
+  text-align: right;
+}
+
+/* کلاس‌های سفارشی */
+.vazir-font {
+  font-family: 'Vazir', 'Tahoma', 'Arial', sans-serif;
+}
+
+.vazir-medium {
+  font-family: 'Vazir', 'Tahoma', 'Arial', sans-serif;
+  font-weight: 500;
+}
+
+/* بهبود خوانایی فارسی */
+* {
+  font-feature-settings: "liga" 1, "kern" 1;
+}
+
+/* بهبود رندرینگ فونت */
+body, input, textarea, button {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
