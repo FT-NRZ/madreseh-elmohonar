@@ -1,0 +1,367 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model attendances {
+  id           Int      @id @default(autoincrement())
+  student_id   Int
+  class_id     Int
+  date         DateTime @db.Date
+  status       String   @db.VarChar(10)
+  reason       String?
+  is_justified Boolean  @default(false)
+  notes        String?
+  created_by   Int?
+  created_at   DateTime @default(now()) @db.Timestamp(6)
+  updated_at   DateTime @default(now()) @db.Timestamp(6)
+  classes      classes  @relation(fields: [class_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users        users?   @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  students     students @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([student_id, date], map: "uq_attendance_per_student_date")
+}
+
+model class_news {
+  id           Int      @id @default(autoincrement())
+  class_id     Int
+  title        String   @db.VarChar(200)
+  content      String
+  is_important Boolean  @default(false)
+  author_id    Int?
+  created_at   DateTime @default(now()) @db.Timestamp(6)
+  updated_at   DateTime @default(now()) @db.Timestamp(6)
+  users        users?   @relation(fields: [author_id], references: [id], onUpdate: NoAction)
+  classes      classes  @relation(fields: [class_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model classes {
+  id              Int               @id @default(autoincrement())
+  class_name      String            @db.VarChar(50)
+  class_number    String            @db.VarChar(10)
+  grade_id        Int
+  teacher_id      Int?
+  capacity        Int               @default(30)
+  description     String?
+  academic_year   String            @db.VarChar(10)
+  created_at      DateTime          @default(now()) @db.Timestamp(6)
+  updated_at      DateTime          @default(now()) @db.Timestamp(6)
+  attendances     attendances[]
+  class_news      class_news[]
+  grades          grades            @relation(fields: [grade_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  teachers        teachers?         @relation(fields: [teacher_id], references: [id], onUpdate: NoAction)
+  exams           exams[]
+  gallery_images  gallery_images[]
+  students        students[]
+  weekly_schedule weekly_schedule[]
+
+  @@unique([grade_id, class_number, academic_year], map: "uq_class_number_per_grade_year")
+}
+
+model comments_suggestions {
+  id           Int      @id @default(autoincrement())
+  user_id      Int
+  subject      String?  @db.VarChar(200)
+  content      String
+  is_anonymous Boolean  @default(false)
+  is_approved  Boolean  @default(false)
+  created_at   DateTime @default(now()) @db.Timestamp(6)
+  users        users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model entrances {
+  id                Int                 @id @default(autoincrement())
+  user_id           Int                 @unique
+  national_code     String              @unique @db.VarChar(10)
+  password_hash     String              @db.VarChar(255)
+  role              String              @db.VarChar(20)
+  last_login_at     DateTime?           @db.Timestamp(6)
+  failed_attempts   Int                 @default(0)
+  locked_until      DateTime?           @db.Timestamp(6)
+  is_active         Boolean             @default(true)
+  created_at        DateTime            @default(now()) @db.Timestamp(6)
+  updated_at        DateTime            @default(now()) @db.Timestamp(6)
+  users             users               @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  password_recovery password_recovery[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model exam_questions {
+  id               Int                @id @default(autoincrement())
+  exam_id          Int
+  question_text    String
+  question_type    String             @default("multiple_choice") @db.VarChar(20)
+  marks            Decimal            @db.Decimal(5, 2)
+  sort_order       Int                @default(0)
+  created_at       DateTime           @default(now()) @db.Timestamp(6)
+  updated_at       DateTime           @default(now()) @db.Timestamp(6)
+  exams            exams              @relation(fields: [exam_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  question_options question_options[]
+  student_answers  student_answers[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model exam_results {
+  id              Int               @id @default(autoincrement())
+  exam_id         Int
+  student_id      Int
+  marks_obtained  Decimal           @db.Decimal(6, 2)
+  status          String            @db.VarChar(10)
+  attempt_number  Int               @default(1)
+  completed_at    DateTime?         @db.Timestamp(6)
+  created_at      DateTime          @default(now()) @db.Timestamp(6)
+  updated_at      DateTime          @default(now()) @db.Timestamp(6)
+  exams           exams             @relation(fields: [exam_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  students        students          @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  student_answers student_answers[]
+
+  @@unique([exam_id, student_id, attempt_number], map: "uq_exam_attempt")
+}
+
+model exams {
+  id                      Int              @id @default(autoincrement())
+  title                   String           @db.VarChar(200)
+  description             String?
+  subject                 String?          @db.VarChar(100)
+  class_id                Int?
+  teacher_id              Int?
+  duration_minutes        Int
+  total_marks             Decimal          @db.Decimal(6, 2)
+  start_time              DateTime?        @db.Timestamp(6)
+  end_time                DateTime?        @db.Timestamp(6)
+  is_active               Boolean          @default(true)
+  show_result_immediately Boolean          @default(true)
+  max_attempts            Int              @default(1)
+  created_at              DateTime         @default(now()) @db.Timestamp(6)
+  updated_at              DateTime         @default(now()) @db.Timestamp(6)
+  exam_questions          exam_questions[]
+  exam_results            exam_results[]
+  classes                 classes?         @relation(fields: [class_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  teachers                teachers?        @relation(fields: [teacher_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model gallery_categories {
+  id                       Int                  @id @default(autoincrement())
+  name                     String               @db.VarChar(100)
+  description              String?
+  parent_id                Int?
+  is_active                Boolean              @default(true)
+  sort_order               Int                  @default(0)
+  created_at               DateTime             @default(now()) @db.Timestamp(6)
+  updated_at               DateTime             @default(now()) @db.Timestamp(6)
+  gallery_categories       gallery_categories?  @relation("gallery_categoriesTogallery_categories", fields: [parent_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  other_gallery_categories gallery_categories[] @relation("gallery_categoriesTogallery_categories")
+  gallery_images           gallery_images[]
+}
+
+model gallery_images {
+  id                 Int                @id @default(autoincrement())
+  category_id        Int
+  class_id           Int?
+  title              String?            @db.VarChar(200)
+  description        String?
+  image_path         String             @db.VarChar(255)
+  alt_text           String?            @db.VarChar(200)
+  is_featured        Boolean            @default(false)
+  created_at         DateTime           @default(now()) @db.Timestamp(6)
+  updated_at         DateTime           @default(now()) @db.Timestamp(6)
+  gallery_categories gallery_categories @relation(fields: [category_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  classes            classes?           @relation(fields: [class_id], references: [id], onUpdate: NoAction)
+}
+
+model grades {
+  id                Int                 @id @default(autoincrement())
+  grade_name        String              @db.VarChar(50)
+  grade_level       Int                 @unique
+  description       String?
+  created_at        DateTime            @default(now()) @db.Timestamp(6)
+  updated_at        DateTime            @default(now()) @db.Timestamp(6)
+  classes           classes[]
+  pre_registrations pre_registrations[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model meal_schedule {
+  id          Int      @id @default(autoincrement())
+  date        DateTime @db.Date
+  meal_type   String   @db.VarChar(10)
+  meal_name   String   @db.VarChar(200)
+  description String?
+  created_by  Int?
+  created_at  DateTime @default(now()) @db.Timestamp(6)
+  updated_at  DateTime @default(now()) @db.Timestamp(6)
+  users       users?   @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+
+  @@unique([date, meal_type], map: "uq_meal_per_day")
+}
+
+model news_announcements {
+  id           Int       @id @default(autoincrement())
+  title        String    @db.VarChar(200)
+  content      String
+  is_published Boolean   @default(false)
+  publish_date DateTime? @db.Date
+  author_id    Int?
+  created_at   DateTime  @default(now()) @db.Timestamp(6)
+  updated_at   DateTime  @default(now()) @db.Timestamp(6)
+  users        users?    @relation(fields: [author_id], references: [id], onUpdate: NoAction)
+}
+
+model password_recovery {
+  id                Int        @id @default(autoincrement())
+  entrance_id       Int?
+  phone             String     @db.VarChar(20)
+  verification_code String     @db.VarChar(10)
+  expiration_time   DateTime   @db.Timestamp(6)
+  is_used           Boolean    @default(false)
+  used_at           DateTime?  @db.Timestamp(6)
+  attempts          Int        @default(0)
+  created_at        DateTime   @default(now()) @db.Timestamp(6)
+  entrances         entrances? @relation(fields: [entrance_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model pre_registrations {
+  id             Int      @id @default(autoincrement())
+  first_name     String   @db.VarChar(100)
+  last_name      String   @db.VarChar(100)
+  phone          String   @db.VarChar(20)
+  grade_interest Int?
+  status         String   @default("pending") @db.VarChar(20)
+  notes          String?
+  created_at     DateTime @default(now()) @db.Timestamp(6)
+  updated_at     DateTime @default(now()) @db.Timestamp(6)
+  grades         grades?  @relation(fields: [grade_interest], references: [id], onUpdate: NoAction)
+}
+
+model question_options {
+  id              Int               @id @default(autoincrement())
+  question_id     Int
+  option_text     String
+  is_correct      Boolean           @default(false)
+  sort_order      Int               @default(0)
+  created_at      DateTime          @default(now()) @db.Timestamp(6)
+  updated_at      DateTime          @default(now()) @db.Timestamp(6)
+  exam_questions  exam_questions    @relation(fields: [question_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  student_answers student_answers[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model report_cards {
+  id            Int       @id @default(autoincrement())
+  student_id    Int
+  semester      String    @db.VarChar(10)
+  academic_year String    @db.VarChar(10)
+  subject       String    @db.VarChar(100)
+  midterm_score Decimal?  @db.Decimal(5, 2)
+  final_score   Decimal?  @db.Decimal(5, 2)
+  total_score   Decimal?  @db.Decimal(5, 2)
+  grade         String?   @db.VarChar(5)
+  teacher_id    Int?
+  created_at    DateTime  @default(now()) @db.Timestamp(6)
+  updated_at    DateTime  @default(now()) @db.Timestamp(6)
+  students      students  @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  teachers      teachers? @relation(fields: [teacher_id], references: [id], onUpdate: NoAction)
+
+  @@unique([student_id, academic_year, semester, subject], map: "uq_report_card")
+}
+
+model student_answers {
+  id                 Int               @id @default(autoincrement())
+  result_id          Int
+  question_id        Int
+  selected_option_id Int?
+  answer_text        String?
+  is_correct         Boolean           @default(false)
+  marks_awarded      Decimal           @default(0) @db.Decimal(5, 2)
+  created_at         DateTime          @default(now()) @db.Timestamp(6)
+  exam_questions     exam_questions    @relation(fields: [question_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  exam_results       exam_results      @relation(fields: [result_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  question_options   question_options? @relation(fields: [selected_option_id], references: [id], onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model students {
+  id              Int            @id @default(autoincrement())
+  user_id         Int            @unique
+  student_number  String         @unique @db.VarChar(20)
+  class_id        Int?
+  father_name     String?        @db.VarChar(100)
+  mother_name     String?        @db.VarChar(100)
+  parent_phone    String?        @db.VarChar(20)
+  enrollment_date DateTime       @db.Date
+  status          String         @default("active") @db.VarChar(20)
+  created_at      DateTime       @default(now()) @db.Timestamp(6)
+  updated_at      DateTime       @default(now()) @db.Timestamp(6)
+  attendances     attendances[]
+  exam_results    exam_results[]
+  report_cards    report_cards[]
+  classes         classes?       @relation(fields: [class_id], references: [id], onUpdate: NoAction)
+  users           users          @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model teachers {
+  id              Int               @id @default(autoincrement())
+  user_id         Int               @unique
+  teacher_code    String            @unique @db.VarChar(20)
+  hire_date       DateTime          @db.Date
+  subject         String?           @db.VarChar(100)
+  education_level String?           @db.VarChar(100)
+  status          String            @default("active") @db.VarChar(20)
+  created_at      DateTime          @default(now()) @db.Timestamp(6)
+  updated_at      DateTime          @default(now()) @db.Timestamp(6)
+  classes         classes[]
+  exams           exams[]
+  report_cards    report_cards[]
+  users           users             @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  weekly_schedule weekly_schedule[]
+}
+
+model users {
+  id                   Int                    @id @default(autoincrement())
+  username             String?                @unique @db.VarChar(50)
+  first_name           String                 @db.VarChar(100)
+  last_name            String                 @db.VarChar(100)
+  phone                String?                @unique @db.VarChar(20)
+  email                String?                @unique @db.VarChar(100)
+  address              String?
+  profile_image        String?                @db.VarChar(255)
+  birth_date           DateTime?              @db.Date
+  is_active            Boolean                @default(true)
+  created_at           DateTime               @default(now()) @db.Timestamp(6)
+  updated_at           DateTime               @default(now()) @db.Timestamp(6)
+  attendances          attendances[]
+  class_news           class_news[]
+  comments_suggestions comments_suggestions[]
+  entrances            entrances?
+  meal_schedule        meal_schedule[]
+  news_announcements   news_announcements[]
+  students             students?
+  teachers             teachers?
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model weekly_schedule {
+  id          Int       @id @default(autoincrement())
+  class_id    Int
+  day_of_week String    @db.VarChar(10)
+  start_time  DateTime  @db.Time(6)
+  end_time    DateTime  @db.Time(6)
+  subject     String    @db.VarChar(100)
+  teacher_id  Int?
+  room_number String?   @db.VarChar(20)
+  created_at  DateTime  @default(now()) @db.Timestamp(6)
+  updated_at  DateTime  @default(now()) @db.Timestamp(6)
+  classes     classes   @relation(fields: [class_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  teachers    teachers? @relation(fields: [teacher_id], references: [id], onUpdate: NoAction)
+
+  @@unique([class_id, day_of_week, start_time], map: "uq_schedule_slot")
+}

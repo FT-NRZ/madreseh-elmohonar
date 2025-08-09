@@ -16,6 +16,14 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: 'Haftad';
+  src: url('/fonts/Haftad/ttf');
+   font-weight: normal; /* یا وزن دلخواه فونت */
+  font-style: normal;
+  font-display: swap; 
+}
+
 /* اعمال فونت وزیر به کل سایت */
 body {
   font-family: 'Vazir', 'Tahoma', 'Arial', sans-serif;
