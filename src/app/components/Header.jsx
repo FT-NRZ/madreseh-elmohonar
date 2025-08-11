@@ -1,16 +1,34 @@
 'use client'
-import React, { useState, useEffect } from 'react';
-import { Search, Menu, X, User } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, Menu, X, User, LogOut, UserCircle, Settings } from 'lucide-react';
 import Link from 'next/link';
 
-// کامپوننت onLoginClick را به عنوان prop دریافت می‌کند
 export default function Header({ onLoginClick }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [user, setUser] = useState(null);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const userMenuRef = useRef();
 
-  // Effect for scroll detection
+  useEffect(() => {
+    const userData = localStorage.getItem('user');
+    if (userData) setUser(JSON.parse(userData));
+  }, []);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+        setShowUserMenu(false);
+      }
+    }
+    if (showUserMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showUserMenu]);
+
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
@@ -35,39 +53,65 @@ export default function Header({ onLoginClick }) {
     ${isScrolled ? 'bg-white/85 backdrop-blur-xl shadow-2xl' : 'bg-white/95'}
   `;
 
+  const goToPanel = () => {
+    if (!user) return;
+    if (user.role === 'admin') window.location.href = '/admin/dashboard';
+    else if (user.role === 'teacher') window.location.href = '/teacher/dashboard';
+    else window.location.href = '/student/dashboard';
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/Login';
+  };
+
+  // فقط پروفایل من، پنل مدیریت (برای مدیر)، خروج
+  const userMenuItems = [
+    {
+      name: 'پروفایل من',
+      icon: <UserCircle className="w-5 h-5 ml-2 text-green-600" />,
+      href: user?.role === 'admin'
+        ? '/admin/profile'
+        : user?.role === 'teacher'
+        ? '/teacher/profile'
+        : '/student/profile'
+    },
+    {
+      name: 'پنل مدیریت',
+      icon: <Settings className="w-5 h-5 ml-2 text-blue-600" />,
+      action: () => window.location.href = '/admin/dashboard',
+      show: user?.role === 'admin'
+    },
+    {
+      name: 'خروج',
+      icon: <LogOut className="w-5 h-5 ml-2 text-red-600" />,
+      action: handleLogout
+    }
+  ];
+
   return (
     <>
       <header className={headerClasses}>
-        {/* هلال‌های تزئینی پس‌زمینه */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
           <div className={`absolute -top-1/2 -right-1/4 w-1/2 h-[150%] bg-gradient-to-bl from-[#399918]/15 to-transparent rounded-full blur-3xl transition-opacity duration-1000 ${isScrolled ? 'opacity-40' : 'opacity-100'}`}></div>
           <div className={`absolute -bottom-1/2 -left-1/4 w-1/2 h-[150%] bg-gradient-to-tr from-green-200/15 to-transparent rounded-full blur-3xl transition-opacity duration-1000 ${isScrolled ? 'opacity-20' : 'opacity-70'}`}></div>
         </div>
-
         <div className="w-full px-4 sm:px-6 lg:px-8 relative">
           <div className="flex items-center justify-between h-24">
-            
-            {/* Layout برای دسکتاپ */}
             <div className="hidden lg:flex items-center justify-between w-full">
-              {/* لوگوی متنی ساده و جذاب - سمت راست دسکتاپ */}
-      
-               <Link href="/" className="flex items-center group cursor-pointer">
+              <Link href="/" className="flex items-center group cursor-pointer">
                 <div className="relative">
-                  {/* لوگوی حرفه‌ای و ساده */}
                   <h1 className="text-2xl font-haftad text-[#399918] tracking-wide leading-none font-semibold">
                     <span className="transition-all duration-300 group-hover:text-green-700">
                       علم و هنر
                     </span>
                   </h1>
-                  
-                  {/* متن انگلیسی ساده */}
                   <p className="text-sm font-medium text-gray-400 tracking-[0.15em] mt-1 text-right group-hover:text-gray-600 transition-colors duration-300">
                     SCIENCE & ART
                   </p>
                 </div>
               </Link>
-
-              {/* منو - وسط دسکتاپ */}
               <nav className="flex items-center justify-center">
                 <div className="flex items-center space-x-2 space-x-reverse bg-white/60 backdrop-blur-md rounded-full px-4 py-3 border border-gray-200/80 shadow-xl hover:shadow-2xl transition-all duration-300">
                   {menuItems.map((item) => (
@@ -94,11 +138,7 @@ export default function Header({ onLoginClick }) {
                   ))}
                 </div>
               </nav>
-
-              {/* جستجو و ورود - سمت چپ دسکتاپ */}
               <div className="flex items-center space-x-4">
-                
-                {/* نوار جستجوی پیشرفته */}
                 <div className="flex items-center">
                   <div className={`flex items-center transition-all duration-500 ease-out ${
                     isSearchOpen ? 'w-80' : 'w-12'
@@ -116,7 +156,6 @@ export default function Header({ onLoginClick }) {
                           isSearchOpen ? 'text-[#399918]' : 'text-gray-600 group-hover:text-[#399918]'
                         }`} />
                       </button>
-                      
                       <div className={`flex items-center bg-white/90 backdrop-blur-md shadow-lg border border-gray-200/80 border-r-0 rounded-l-2xl transition-all duration-500 overflow-hidden ${
                         isSearchOpen ? 'w-full opacity-100' : 'w-0 opacity-0 border-opacity-0'
                       }`}>
@@ -149,29 +188,74 @@ export default function Header({ onLoginClick }) {
                     </div>
                   </div>
                 </div>
-                
-                {/* دکمه ورود دسکتاپ */}
-                <button 
-                  onClick={onLoginClick}
-                  className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-[#399918] to-green-600 rounded-2xl shadow-lg hover:shadow-xl hover:scale-110 transition-all duration-300 ring-2 ring-[#399918]/20 hover:ring-[#399918]/40"
-                >
-                  <User className="w-6 h-6 text-white" />
-                </button>
+                {user ? (
+                  <div className="relative" ref={userMenuRef}>
+                    <button
+                      onClick={() => setShowUserMenu(!showUserMenu)}
+                      className="flex items-center justify-center px-5 h-12 bg-gradient-to-br from-green-600 to-[#399918] rounded-2xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 ring-2 ring-[#399918]/20 hover:ring-[#399918]/40 font-bold text-white"
+                    >
+                      <UserCircle className="w-6 h-6 ml-2" />
+                      {user.firstName} {user.lastName} | {user.role === 'admin' ? 'مدیر' : user.role === 'teacher' ? 'معلم' : 'دانش‌آموز'}
+                    </button>
+                    {showUserMenu && (
+                      <div className="absolute left-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 overflow-hidden animate-fade-in">
+                        <div className="p-4 border-b border-gray-100">
+                          <div className="flex items-center">
+                            <UserCircle className="w-8 h-8 text-green-600 ml-2" />
+                            <div>
+                              <div className="font-bold text-gray-800">{user.firstName} {user.lastName}</div>
+                              <div className="text-xs text-gray-500">{user.role === 'admin' ? 'مدیر' : user.role === 'teacher' ? 'معلم' : 'دانش‌آموز'}</div>
+                            </div>
+                          </div>
+                        </div>
+                        <nav>
+                          {userMenuItems.map((item, idx) =>
+                            item.show === false ? null : item.href ? (
+                              <Link
+                                key={item.name}
+                                href={item.href}
+                                className="flex items-center px-4 py-3 text-gray-700 hover:bg-green-50 transition-all duration-200 font-medium"
+                                onClick={() => setShowUserMenu(false)}
+                              >
+                                {item.icon}
+                                {item.name}
+                              </Link>
+                            ) : (
+                              <button
+                                key={item.name}
+                                onClick={() => {
+                                  setShowUserMenu(false);
+                                  item.action();
+                                }}
+                                className="flex items-center w-full px-4 py-3 text-gray-700 hover:bg-blue-50 transition-all duration-200 font-medium"
+                              >
+                                {item.icon}
+                                {item.name}
+                              </button>
+                            )
+                          )}
+                        </nav>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <button 
+                    onClick={onLoginClick}
+                    className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-[#399918] to-green-600 rounded-2xl shadow-lg hover:shadow-xl hover:scale-110 transition-all duration-300 ring-2 ring-[#399918]/20 hover:ring-[#399918]/40"
+                  >
+                    <User className="w-6 h-6 text-white" />
+                  </button>
+                )}
               </div>
             </div>
-
-            {/* Layout برای موبایل */}
             <div className="lg:hidden flex items-center justify-between w-full">
-              {/* دکمه منوی موبایل - سمت راست */}
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
                 className="p-3 rounded-2xl bg-white/80 backdrop-blur-md text-gray-600 border border-gray-200/80 shadow-lg hover:shadow-xl transition-all duration-300"
               >
                 {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
               </button>
-
-              {/* لوگو در وسط موبایل */}
-                 <Link href="/" className="flex items-center group cursor-pointer">
+              <Link href="/" className="flex items-center group cursor-pointer">
                 <div className="relative">
                   <h1 className="text-3xl font-haftad text-[#399918] tracking-wide leading-none font-semibold">
                     <span className="transition-all duration-300 group-hover:text-green-700">
@@ -183,24 +267,27 @@ export default function Header({ onLoginClick }) {
                   </p>
                 </div>
               </Link>
-
-              {/* دکمه ورود موبایل - سمت چپ */}
-              <button 
-                onClick={onLoginClick}
-                className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-[#399918] to-green-600 rounded-2xl shadow-lg hover:shadow-xl hover:scale-110 transition-all duration-300 ring-2 ring-[#399918]/20 hover:ring-[#399918]/40"
-              >
-                <User className="w-6 h-6 text-white" />
-              </button>
+              {user ? (
+                <button
+                  onClick={goToPanel}
+                  className="flex items-center justify-center px-4 h-12 bg-gradient-to-br from-green-600 to-[#399918] rounded-2xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 ring-2 ring-[#399918]/20 hover:ring-[#399918]/40 font-bold text-white text-sm"
+                >
+                  {user.firstName} | پنل
+                </button>
+              ) : (
+                <button 
+                  onClick={onLoginClick}
+                  className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-[#399918] to-green-600 rounded-2xl shadow-lg hover:shadow-xl hover:scale-110 transition-all duration-300 ring-2 ring-[#399918]/20 hover:ring-[#399918]/40"
+                >
+                  <User className="w-6 h-6 text-white" />
+                </button>
+              )}
             </div>
           </div>
         </div>
-
-        {/* منوی بازشونده موبایل */}
         {isMenuOpen && (
           <div className="lg:hidden bg-white/95 backdrop-blur-xl border-t border-gray-200/80 shadow-2xl">
             <div className="p-6">
-              
-              {/* جستجوی موبایل */}
               <div className="mb-6">
                 <div className="flex items-center bg-gray-50/80 backdrop-blur-sm rounded-2xl px-4 py-3 border border-gray-200/80 shadow-md focus-within:border-[#399918]/50 focus-within:shadow-lg transition-all duration-300">
                   <Search className="w-5 h-5 text-gray-400 ml-3" />
@@ -212,7 +299,6 @@ export default function Header({ onLoginClick }) {
                   />
                 </div>
               </div>
-
               <nav className="flex flex-col space-y-2 mb-6">
                 {menuItems.map((item) => (
                   <Link
@@ -235,10 +321,17 @@ export default function Header({ onLoginClick }) {
             </div>
           </div>
         )}
-
-        {/* خط ساده زیر هدر */}
         <div className="h-1 bg-gradient-to-r from-[#399918] via-green-500 to-[#399918]"></div>
       </header>
+      <style jsx>{`
+        @keyframes fade-in {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        .animate-fade-in {
+          animation: fade-in 0.2s ease-out forwards;
+        }
+      `}</style>
     </>
-  );
+      );
 }

@@ -1,5 +1,5 @@
 'use client'
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, User, Lock, GraduationCap, Users, BookOpen, AlertCircle, X, Phone, ArrowLeft, MessageCircle } from 'lucide-react';
 
 export default function SchoolLoginPage({ onClose }) {
@@ -9,7 +9,6 @@ export default function SchoolLoginPage({ onClose }) {
   const [userType, setUserType] = useState('student');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  
   // استیت‌های مربوط به فراموشی رمز عبور
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotPhone, setForgotPhone] = useState('');
@@ -19,8 +18,28 @@ export default function SchoolLoginPage({ onClose }) {
   const [showVerificationStep, setShowVerificationStep] = useState(false);
   const [countdown, setCountdown] = useState(0);
 
+  // ریدایرکت اگر قبلاً لاگین شده بود
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const userData = localStorage.getItem('user');
+    if (token && userData) {
+      try {
+        const user = JSON.parse(userData);
+        if (user.role === 'admin') {
+          window.location.href = '/admin/dashboard';
+        } else if (user.role === 'teacher') {
+          window.location.href = '/teacher/dashboard';
+        } else {
+          window.location.href = '/student/dashboard';
+        }
+      } catch {
+        // اگر اطلاعات خراب بود، هیچ کاری نکن
+      }
+    }
+  }, []);
+
   // تایمر شمارش معکوس
-  React.useEffect(() => {
+  useEffect(() => {
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
       return () => clearTimeout(timer);
@@ -31,81 +50,43 @@ export default function SchoolLoginPage({ onClose }) {
   const handleLogin = async () => {
     setIsLoading(true);
     setError('');
-    
     try {
-      // اعتبارسنجی ورودی
       if (!username || !password) {
         setError('لطفاً نام کاربری و رمز عبور را وارد کنید.');
+        setIsLoading(false);
         return;
       }
-
       if (!userType) {
         setError('لطفاً نوع کاربری خود را انتخاب کنید.');
+        setIsLoading(false);
         return;
       }
-
-      // ارسال درخواست لاگین به API
       const response = await fetch('/api/auth/login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           username: username.trim(),
           password: password,
           userType: userType
         }),
       });
-
       const data = await response.json();
-
-      if (data.success) {
-        // ذخیره token و اطلاعات کاربر در localStorage
+      if (data.success && data.token && data.user) {
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
-        
-        // نمایش پیام خوشامدگویی
-        const welcomeMessage = `خوش آمدید ${data.user.firstName} ${data.user.lastName}`;
-        
-        // ایجاد نوتیفیکیشن موفقیت
-        if (typeof window !== 'undefined' && window.showSuccessToast) {
-          window.showSuccessToast(welcomeMessage);
-        } else {
-          // fallback برای نمایش پیام
-          alert(welcomeMessage);
-        }
-        
-        // هدایت کاربر بر اساس نقش
-        const redirectPaths = {
-          'admin': '/admin/dashboard',
-          'teacher': '/teacher/dashboard',
-          'student': '/student/dashboard'
-        };
-
-        const redirectPath = redirectPaths[data.user.role] || '/dashboard';
-        
-        // بستن مودال لاگین
         if (onClose) onClose();
-        
-        // هدایت به صفحه مربوطه
-        window.location.href = redirectPath;
-        
+        if (data.user.role === 'admin') {
+          window.location.href = '/admin/dashboard';
+        } else if (data.user.role === 'teacher') {
+          window.location.href = '/teacher/dashboard';
+        } else {
+          window.location.href = '/student/dashboard';
+        }
       } else {
-        // نمایش خطای دریافت شده از سرور
         setError(data.message || 'خطا در ورود به سامانه');
       }
-      
     } catch (err) {
-      console.error('Login error:', err);
-      
-      // مدیریت انواع خطاها
-      if (err.name === 'TypeError' && err.message.includes('fetch')) {
-        setError('خطا در اتصال به سرور. لطفاً اتصال اینترنت خود را بررسی کنید.');
-      } else if (err.message.includes('JSON')) {
-        setError('خطا در دریافت اطلاعات از سرور.');
-      } else {
-        setError('خطای غیرمنتظره. لطفاً دوباره تلاش کنید.');
-      }
+      setError('خطا در ارتباط با سرور');
     } finally {
       setIsLoading(false);
     }
@@ -115,43 +96,34 @@ export default function SchoolLoginPage({ onClose }) {
   const handleSendVerificationCode = async () => {
     setIsResetLoading(true);
     setResetMessage('');
-    
     try {
-      // اعتبارسنجی شماره موبایل
       if (!forgotPhone) {
         setResetMessage('لطفاً شماره موبایل خود را وارد کنید.');
+        setIsResetLoading(false);
         return;
       }
-      
       if (!/^09\d{9}$/.test(forgotPhone)) {
         setResetMessage('شماره موبایل نامعتبر است. (مثال: 09123456789)');
+        setIsResetLoading(false);
         return;
       }
-
-      // ارسال درخواست به API
       const response = await fetch('/api/auth/forgot-password', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           phone: forgotPhone,
           userType: userType
         }),
       });
-
       const data = await response.json();
-
       if (data.success) {
         setShowVerificationStep(true);
-        setCountdown(120); // 2 دقیقه
+        setCountdown(120);
         setResetMessage('کد تایید به شماره شما ارسال شد.');
       } else {
         setResetMessage(data.message || 'خطا در ارسال کد تایید.');
       }
-      
     } catch (err) {
-      console.error('Send verification error:', err);
       setResetMessage('خطا در ارسال کد. لطفاً دوباره تلاش کنید.');
     } finally {
       setIsResetLoading(false);
@@ -162,47 +134,36 @@ export default function SchoolLoginPage({ onClose }) {
   const handleVerifyCode = async () => {
     setIsResetLoading(true);
     setResetMessage('');
-    
     try {
-      // اعتبارسنجی کد
       if (!verificationCode) {
         setResetMessage('لطفاً کد تایید را وارد کنید.');
+        setIsResetLoading(false);
         return;
       }
-      
       if (verificationCode.length !== 6) {
         setResetMessage('کد تایید باید 6 رقم باشد.');
+        setIsResetLoading(false);
         return;
       }
-
-      // ارسال درخواست تایید به API
       const response = await fetch('/api/auth/verify-reset-code', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           phone: forgotPhone,
           verificationCode: verificationCode,
           userType: userType
         }),
       });
-
       const data = await response.json();
-
       if (data.success) {
         setResetMessage('کد تایید شد! رمز عبور جدید به شماره شما ارسال خواهد شد.');
-        
-        // بعد از 3 ثانیه بازگشت به صفحه لاگین
         setTimeout(() => {
           resetForgotPasswordForm();
         }, 3000);
       } else {
         setResetMessage(data.message || 'کد تایید نامعتبر است.');
       }
-      
     } catch (err) {
-      console.error('Verify code error:', err);
       setResetMessage('خطا در تایید کد. لطفاً دوباره تلاش کنید.');
     } finally {
       setIsResetLoading(false);
@@ -212,22 +173,17 @@ export default function SchoolLoginPage({ onClose }) {
   // تابع ارسال مجدد کد
   const handleResendCode = async () => {
     if (countdown > 0) return;
-    
     setIsResetLoading(true);
     try {
       const response = await fetch('/api/auth/resend-code', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           phone: forgotPhone,
           userType: userType
         }),
       });
-
       const data = await response.json();
-
       if (data.success) {
         setCountdown(120);
         setResetMessage('کد تایید مجدداً ارسال شد.');
@@ -235,7 +191,6 @@ export default function SchoolLoginPage({ onClose }) {
         setResetMessage(data.message || 'خطا در ارسال مجدد کد.');
       }
     } catch (err) {
-      console.error('Resend code error:', err);
       setResetMessage('خطا در ارسال مجدد کد.');
     } finally {
       setIsResetLoading(false);
@@ -633,6 +588,7 @@ export default function SchoolLoginPage({ onClose }) {
           )}
         </div>
       </div>
+      
       
       <style jsx>{`
         @keyframes fade-in {
