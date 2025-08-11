@@ -23,7 +23,7 @@ export default function Header({ onLoginClick }) {
     { name: 'خانه', href: '/', active: true },
     { name: 'خبرنامه', href: '#' },
     { name: 'پیش ثبت نام', href: '/pre-registration' },
-    { name: 'گالری', href: '#' },
+    { name: 'گالری', href: '/gallery' },
     { name: 'کارگاه', href: '#' },
     { name: 'آزمونک', href: '#' },
     { name: 'ارتباط با ما', href: '#' },

@@ -4,7 +4,7 @@ import { Phone, Mail, MapPin, Instagram, Clock, Users, GraduationCap, Map, Exter
 
 export default function SchoolFooter() {
   return (
-    <footer className="bg-gradient-to-br from-gray-50 to-gray-100 w-full">
+    <footer className="bg-gradient-to-br from-gray-50 to-gray-100 w-full z-10">
       {/* Hero Section */}
       <div className="w-full bg-gradient-to-br from-[#399918] to-[#2d7a13] py-16">
         <div className="container mx-auto px-6 text-center">
@@ -105,7 +105,7 @@ export default function SchoolFooter() {
             </div>
 
             {/* Location Card */}
-            <div className="bg-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 border border-gray-200 lg:col-span-1 md:col-span-2 lg:col-span-1">
+            <div className="bg-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 border border-gray-200 md:col-span-2 lg:col-span-1">
               <div className="text-center mb-6">
                 <div className="w-12 h-12 bg-gradient-to-br from-[#399918] to-[#2d7a13] rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg">
                   <Map className="w-6 h-6 text-white" />
