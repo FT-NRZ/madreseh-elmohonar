@@ -77,9 +77,9 @@ export default function SchoolLoginPage({ onClose }) {
         
         // هدایت کاربر بر اساس نقش
         const redirectPaths = {
-          'admin': '/dashboard/admin',
-          'teacher': '/dashboard/teacher',
-          'student': '/dashboard/student'
+          'admin': '/admin/dashboard',
+          'teacher': '/teacher/dashboard',
+          'student': '/student/dashboard'
         };
 
         const redirectPath = redirectPaths[data.user.role] || '/dashboard';

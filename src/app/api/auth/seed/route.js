@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/database';
-import { hashPassword } from '@/lib/password';
+import { prisma } from '../../../../lib/database';
+import { hashPassword } from '../../../../lib/password';
 
 export async function POST() {
   try {
@@ -65,4 +65,7 @@ export async function POST() {
       message: 'خطا در ایجاد مدیر سیستم'
     }, { status: 500 });
   }
+}
+export async function GET() {
+  return POST();
 }

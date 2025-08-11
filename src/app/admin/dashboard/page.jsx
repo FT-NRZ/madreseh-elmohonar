@@ -4,8 +4,10 @@ import {
   Users, UserPlus, GraduationCap, BookOpen, BarChart3, Settings, LogOut, 
   Eye, EyeOff, Trash2, Edit, Search, Filter, X, AlertCircle, CheckCircle,
   Menu, Bell, Calendar, Clock, TrendingUp, Award, FileText, Home,
-  ChevronDown, Plus, MoreVertical, Star
+  ChevronDown, Plus, MoreVertical, Star, Image, Loader2, Upload,
+  FolderPlus, ChevronRight, Pencil 
 } from 'lucide-react';
+
 
 export default function AdminDashboard() {
   const [user, setUser] = useState(null);
@@ -20,6 +22,28 @@ export default function AdminDashboard() {
     admins: 0,
     total: 0
   });
+
+
+  const handleNavigation = (tab) => {
+  if (tab === 'overview') {
+    setActiveTab(tab); // فقط در داشبورد باقی می‌ماند
+  } else {
+    // برای باقی تب‌ها به صفحات جداگانه می‌رود
+    const routes = {
+      users: '/admin/users',
+      classes: '/admin/classes',
+      gallery: '/admin/gallery', // اضافه کردن route گالری
+      schedule: '/admin/weekly_schedule',
+      reports: '/admin/reports',
+      settings: '/admin/settings'
+    };
+    
+    const targetRoute = routes[tab];
+    if (targetRoute) {
+      window.location.href = targetRoute;
+    }
+  }
+};
 
   // بررسی احراز هویت
   useEffect(() => {
@@ -101,12 +125,14 @@ export default function AdminDashboard() {
   };
 
   const menuItems = [
-    { id: 'overview', label: 'داشبورد', icon: Home, color: 'blue' },
-    { id: 'users', label: 'مدیریت کاربران', icon: Users, color: 'green' },
-    { id: 'reports', label: 'گزارش‌ها', icon: BarChart3, color: 'purple' },
-    { id: 'calendar', label: 'تقویم', icon: Calendar, color: 'orange' },
-    { id: 'settings', label: 'تنظیمات', icon: Settings, color: 'gray' }
-  ];
+  { id: 'overview', label: 'داشبورد', icon: Home, color: 'blue' },
+  { id: 'users', label: 'مدیریت کاربران', icon: Users, color: 'green' },
+  { id: 'classes', label: 'مدیریت کلاس‌ها', icon: GraduationCap, color: 'purple' },
+  { id: 'gallery', label: 'گالری تصاویر', icon: Image, color: 'pink' },
+  { id: 'schedule', label: 'برنامه هفتگی', icon: Calendar, color: 'orange' },
+  { id: 'reports', label: 'گزارش‌ها', icon: BarChart3, color: 'indigo' },
+  { id: 'settings', label: 'تنظیمات', icon: Settings, color: 'gray' }
+];
 
   if (!user) {
     return (
@@ -154,7 +180,7 @@ export default function AdminDashboard() {
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveTab(item.id)}
+                onClick={() => handleNavigation(item.id)} // تغییر از setActiveTab به handleNavigation
                 className={`w-full flex items-center px-4 py-3 mb-2 rounded-xl transition-all duration-200 group ${
                   isActive
                     ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg transform scale-105'
@@ -212,8 +238,10 @@ export default function AdminDashboard() {
               <h1 className="text-2xl font-bold text-gray-800">
                 {activeTab === 'overview' && '📊 داشبورد'}
                 {activeTab === 'users' && '👥 مدیریت کاربران'}
+                {activeTab === 'classes' && '🎓 مدیریت کلاس‌ها'}
+                {activeTab === 'gallery' && '🖼️ گالری تصاویر'}
+                {activeTab === 'schedule' && '📅 برنامه هفتگی'}
                 {activeTab === 'reports' && '📈 گزارش‌ها'}
-                {activeTab === 'calendar' && '📅 تقویم'}
                 {activeTab === 'settings' && '⚙️ تنظیمات'}
               </h1>
               <p className="text-gray-600 mt-1">
@@ -903,3 +931,6 @@ function SettingsTab() {
     </div>
   );
 }
+
+
+
