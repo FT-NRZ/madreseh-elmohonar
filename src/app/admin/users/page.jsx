@@ -46,9 +46,9 @@ export default function AdminUsersPage() {
         setUsers(data.users || []);
       } else {
         setUsers([
-          { id: 1, firstName: 'احمد', lastName: 'محمدی', nationalCode: '1234567890', role: 'student', phone: '09123456789', isActive: true },
-          { id: 2, firstName: 'فاطمه', lastName: 'کریمی', nationalCode: '0987654321', role: 'teacher', phone: '09234567890', isActive: true },
-          { id: 3, firstName: 'حسن', lastName: 'احمدی', nationalCode: '5566778899', role: 'admin', phone: '09567890123', isActive: true }
+          { id: 1, firstName: 'احمد', lastName: 'محمدی', nationalCode: '1234567890', role: 'student', phone: '09123456789', isActive: true, grade: 'اول ابتدایی' },
+          { id: 2, firstName: 'فاطمه', lastName: 'کریمی', nationalCode: '0987654321', role: 'teacher', phone: '09234567890', isActive: true, grade: '' },
+          { id: 3, firstName: 'حسن', lastName: 'احمدی', nationalCode: '5566778899', role: 'admin', phone: '09567890123', isActive: true, grade: '' }
         ]);
       }
     } catch {
@@ -230,6 +230,9 @@ function UserCard({ user, onEdit, onDelete, onToggleStatus }) {
           <div className="font-bold text-gray-800">{user.firstName} {user.lastName}</div>
           <div className="text-xs text-gray-500 font-mono">{user.nationalCode}</div>
           <div className="text-xs text-gray-400">{user.phone}</div>
+          {user.role === 'student' && user.grade && (
+            <div className="text-xs text-green-700 font-bold mt-1">پایه: {user.grade}</div>
+          )}
         </div>
       </div>
       <div className="flex items-center gap-2">
@@ -269,6 +272,7 @@ function EditUserModal({ user, onClose, onSuccess }) {
     nationalCode: user.nationalCode || '',
     phone: user.phone || '',
     role: user.role || 'student',
+    grade: user.grade || '',
     password: ''
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -322,11 +326,31 @@ function EditUserModal({ user, onClose, onSuccess }) {
           </div>
           <input type="text" value={formData.nationalCode} onChange={e => setFormData(prev => ({ ...prev, nationalCode: e.target.value }))} className="w-full px-3 py-2 border rounded bg-green-50" placeholder="کد ملی" required />
           <input type="tel" value={formData.phone} onChange={e => setFormData(prev => ({ ...prev, phone: e.target.value }))} className="w-full px-3 py-2 border rounded bg-green-50" placeholder="شماره موبایل" />
-          <select value={formData.role} onChange={e => setFormData(prev => ({ ...prev, role: e.target.value }))} className="w-full px-3 py-2 border rounded bg-green-50">
+          <select
+            value={formData.role}
+            onChange={e => setFormData(prev => ({ ...prev, role: e.target.value }))}
+            className="w-full px-3 py-2 border rounded bg-green-50"
+          >
             <option value="student">دانش‌آموز</option>
             <option value="teacher">معلم</option>
             <option value="admin">مدیر</option>
           </select>
+          {formData.role === 'student' && (
+            <select
+              value={formData.grade || ''}
+              onChange={e => setFormData(prev => ({ ...prev, grade: e.target.value }))}
+              className="w-full px-3 py-2 border rounded bg-green-50"
+              required
+            >
+              <option value="">انتخاب پایه</option>
+              <option value="اول ابتدایی">اول ابتدایی</option>
+              <option value="دوم ابتدایی">دوم ابتدایی</option>
+              <option value="سوم ابتدایی">سوم ابتدایی</option>
+              <option value="چهارم ابتدایی">چهارم ابتدایی</option>
+              <option value="پنجم ابتدایی">پنجم ابتدایی</option>
+              <option value="ششم ابتدایی">ششم ابتدایی</option>
+            </select>
+          )}
           <div className="relative">
             <input type={showPassword ? 'text' : 'password'} value={formData.password} onChange={e => setFormData(prev => ({ ...prev, password: e.target.value }))} className="w-full px-3 py-2 border rounded bg-green-50" placeholder="رمز جدید (اختیاری)" />
             <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute left-2 top-2 text-gray-400">{showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
@@ -346,7 +370,7 @@ function EditUserModal({ user, onClose, onSuccess }) {
 // Create User Modal
 function CreateUserModal({ onClose, onSuccess }) {
   const [formData, setFormData] = useState({
-    firstName: '', lastName: '', nationalCode: '', phone: '', role: 'student', password: ''
+    firstName: '', lastName: '', nationalCode: '', phone: '', role: 'student', grade: '', password: ''
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -399,11 +423,29 @@ function CreateUserModal({ onClose, onSuccess }) {
           </div>
           <input type="text" value={formData.nationalCode} onChange={e => setFormData(prev => ({ ...prev, nationalCode: e.target.value }))} className="w-full px-3 py-2 border rounded bg-green-50" placeholder="کد ملی" required />
           <input type="tel" value={formData.phone} onChange={e => setFormData(prev => ({ ...prev, phone: e.target.value }))} className="w-full px-3 py-2 border rounded bg-green-50" placeholder="شماره موبایل" />
-          <select value={formData.role} onChange={e => setFormData(prev => ({ ...prev, role: e.target.value }))} className="w-full px-3 py-2 border rounded bg-green-50">
+          <select
+            value={formData.role}
+            onChange={e => setFormData(prev => ({ ...prev, role: e.target.value }))}
+            className="w-full px-3 py-2 border rounded bg-green-50"
+          >
             <option value="student">دانش‌آموز</option>
             <option value="teacher">معلم</option>
             <option value="admin">مدیر</option>
           </select>
+          {formData.role === 'student' && (
+            <select
+              value={formData.grade || ''}
+              onChange={e => setFormData(prev => ({ ...prev, grade: e.target.value }))}
+              className="w-full px-3 py-2 border rounded bg-green-50"
+              required
+            >
+              <option value="">انتخاب پایه</option>
+              <option value="اول ابتدایی">اول ابتدایی</option>
+              <option value="دوم ابتدایی">دوم ابتدایی</option>
+              <option value="سوم ابتدایی">سوم ابتدایی</option>
+              <option value="چهارم ابتدایی">چهارم ابتدایی</option>
+            </select>
+          )}
           <div className="relative">
             <input type={showPassword ? 'text' : 'password'} value={formData.password} onChange={e => setFormData(prev => ({ ...prev, password: e.target.value }))} className="w-full px-3 py-2 border rounded bg-green-50" placeholder="رمز عبور" required />
             <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute left-2 top-2 text-gray-400">{showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
@@ -436,7 +478,7 @@ function DeleteConfirmModal({ user, onConfirm, onCancel }) {
         <div className="flex justify-end gap-2 pt-2">
           <button onClick={onCancel} className="px-4 py-2 bg-gray-100 rounded text-gray-700">انصراف</button>
           <button onClick={onConfirm} className="px-4 py-2 bg-red-600 rounded text-white">حذف</button>
-              </div>
+        </div>
       </div>
     </div>
   );

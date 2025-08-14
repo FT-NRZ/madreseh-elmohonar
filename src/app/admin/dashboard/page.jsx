@@ -100,7 +100,7 @@ export default function AdminDashboard() {
         setUsers(data.users || []);
       } else {
         setUsers([
-          { id: 1, firstName: 'احمد', lastName: 'کریمی', nationalCode: '1234567890', role: 'student', phone: '09123456789', email: 'ahmad@example.com' },
+          { id: 1, firstName: 'احمد', lastName: 'کریمی', nationalCode: '1234567890', role: 'student', phone: '09123456789', email: 'ahmad@example.com', grade: 'اول ابتدایی' },
           { id: 2, firstName: 'فاطمه', lastName: 'محمدی', nationalCode: '0987654321', role: 'teacher', phone: '09234567890', email: 'fatemeh@example.com' },
           { id: 3, firstName: 'علی', lastName: 'احمدی', nationalCode: '1122334455', role: 'admin', phone: '09345678901', email: 'ali@example.com' },
         ]);
@@ -108,7 +108,7 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error('Error fetching users:', error);
       setUsers([
-        { id: 1, firstName: 'احمد', lastName: 'کریمی', nationalCode: '1234567890', role: 'student', phone: '09123456789', email: 'ahmad@example.com' },
+        { id: 1, firstName: 'احمد', lastName: 'کریمی', nationalCode: '1234567890', role: 'student', phone: '09123456789', email: 'ahmad@example.com', grade: 'اول ابتدایی' },
         { id: 2, firstName: 'فاطمه', lastName: 'محمدی', nationalCode: '0987654321', role: 'teacher', phone: '09234567890', email: 'fatemeh@example.com' },
         { id: 3, firstName: 'علی', lastName: 'احمدی', nationalCode: '1122334455', role: 'admin', phone: '09345678901', email: 'ali@example.com' },
       ]);
@@ -485,13 +485,14 @@ function UsersTable({ users, loading, onRefresh, onDeleteUser, onEditUser }) {
               <th className="px-6 py-3 text-right text-sm font-medium text-gray-500">کاربر</th>
               <th className="px-6 py-3 text-right text-sm font-medium text-gray-500">کد ملی</th>
               <th className="px-6 py-3 text-right text-sm font-medium text-gray-500">نقش</th>
+              <th className="px-6 py-3 text-right text-sm font-medium text-gray-500">پایه</th>
               <th className="px-6 py-3 text-right text-sm font-medium text-gray-500">عملیات</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
             {loading ? (
               <tr>
-                <td colSpan="4" className="px-6 py-8 text-center">
+                <td colSpan="5" className="px-6 py-8 text-center">
                   <div className="flex flex-col items-center">
                     <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-2"></div>
                     <p className="text-gray-500">در حال بارگذاری...</p>
@@ -500,7 +501,7 @@ function UsersTable({ users, loading, onRefresh, onDeleteUser, onEditUser }) {
               </tr>
             ) : filteredUsers.length === 0 ? (
               <tr>
-                <td colSpan="4" className="px-6 py-8 text-center">
+                <td colSpan="5" className="px-6 py-8 text-center">
                   <p className="text-gray-500">کاربری یافت نشد</p>
                 </td>
               </tr>
@@ -540,6 +541,9 @@ function UsersTable({ users, loading, onRefresh, onDeleteUser, onEditUser }) {
                     </span>
                   </td>
                   <td className="px-6 py-4">
+                    {user.role === 'student' ? (user.grade || <span className="text-gray-400">-</span>) : <span className="text-gray-400">-</span>}
+                  </td>
+                  <td className="px-6 py-4">
                     <div className="flex items-center space-x-2 rtl:space-x-reverse">
                       <button 
                         onClick={() => onEditUser(user)}
@@ -574,6 +578,7 @@ function EditUserModal({ user, onClose, onSuccess }) {
     phone: user.phone || '',
     email: user.email || '',
     role: user.role || 'student',
+    grade: user.grade || '',
     password: '',
     changePassword: false
   });
@@ -597,8 +602,6 @@ function EditUserModal({ user, onClose, onSuccess }) {
 
     try {
       const token = localStorage?.getItem?.('token');
-      
-      // اگر رمز عبور تغییر نکنه، از ارسالش صرف نظر کن
       const submitData = { ...formData };
       if (!formData.changePassword) {
         delete submitData.password;
@@ -667,6 +670,26 @@ function EditUserModal({ user, onClose, onSuccess }) {
               <option value="admin">مدیر</option>
             </select>
           </div>
+
+          {formData.role === 'student' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">پایه</label>
+              <select
+                value={formData.grade || ''}
+                onChange={e => setFormData(prev => ({ ...prev, grade: e.target.value }))}
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-600 focus:border-green-600"
+                required
+              >
+                <option value="">انتخاب پایه</option>
+                <option value="اول ابتدایی">اول ابتدایی</option>
+                <option value="دوم ابتدایی">دوم ابتدایی</option>
+                <option value="سوم ابتدایی">سوم ابتدایی</option>
+                <option value="چهارم ابتدایی">چهارم ابتدایی</option>
+                <option value="پنجم ابتدایی">پنجم ابتدایی</option>
+                <option value="ششم ابتدایی">ششم ابتدایی</option>
+              </select>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -876,6 +899,7 @@ function CreateUserModal({ onClose, onSuccess }) {
     phone: '',
     email: '',
     role: 'student',
+    grade: '',
     password: ''
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -961,6 +985,25 @@ function CreateUserModal({ onClose, onSuccess }) {
             </select>
           </div>
 
+          {formData.role === 'student' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">پایه</label>
+              <select
+                value={formData.grade || ''}
+                onChange={e => setFormData(prev => ({ ...prev, grade: e.target.value }))}
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
+                required
+              >
+                <option value="">انتخاب پایه</option>
+                <option value="اول ابتدایی">اول ابتدایی</option>
+                <option value="دوم ابتدایی">دوم ابتدایی</option>
+                <option value="سوم ابتدایی">سوم ابتدایی</option>
+                <option value="چهارم ابتدایی">چهارم ابتدایی</option>
+               
+              </select>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">نام</label>
@@ -1005,6 +1048,17 @@ function CreateUserModal({ onClose, onSuccess }) {
               onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
               className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
               placeholder="09123456789"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">ایمیل</label>
+            <input
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
+              placeholder="example@email.com"
             />
           </div>
 
