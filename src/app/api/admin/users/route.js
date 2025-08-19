@@ -1,113 +1,44 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/database';
-import { hashPassword, isValidNationalCode } from '@/lib/password';
+import { hashPassword, generateStudentNumber, generateTeacherCode } from '@/lib/password';
 import { verifyJWT } from '@/lib/jwt';
 
 // GET - دریافت لیست کاربران
 export async function GET(request) {
   try {
-    console.log('🔍 GET Users API called');
-    
-    // بررسی احراز هویت
     const authHeader = request.headers.get('authorization');
     const token = authHeader?.replace('Bearer ', '');
-    
     if (!token) {
-      console.log('❌ No token provided');
-      return NextResponse.json({
-        success: false,
-        message: 'احراز هویت مورد نیاز است'
-      }, { status: 401 });
+      return NextResponse.json({ success: false, message: 'احراز هویت مورد نیاز است' }, { status: 401 });
     }
-
     const payload = verifyJWT(token);
     if (!payload || payload.role !== 'admin') {
-      console.log('❌ Unauthorized access');
-      return NextResponse.json({
-        success: false,
-        message: 'دسترسی مجاز نیست'
-      }, { status: 403 });
+      return NextResponse.json({ success: false, message: 'دسترسی مجاز نیست' }, { status: 403 });
     }
 
-    console.log('✅ Authentication passed');
-
-    // دریافت کاربران با try-catch جداگانه
-    let users = [];
-    try {
-      users = await prisma.entrances.findMany({
-        include: {
-          users: {
-            select: {
-              id: true,
-              first_name: true,
-              last_name: true,
-              phone: true,
-              email: true,
-              is_active: true
-            }
-          }
-        },
-        where: {
-          is_active: true
-        },
-        orderBy: {
-          created_at: 'desc'
-        }
-      });
-      
-      console.log(`📊 Found ${users.length} users`);
-    } catch (dbError) {
-      console.error('❌ Database error:', dbError);
-      return NextResponse.json({
-        success: false,
-        message: 'خطا در اتصال به دیتابیس',
-        users: []
-      }, { status: 500 });
-    }
-
-    // تبدیل به فرمت مناسب
-    const formattedUsers = users.map(entrance => {
-      try {
-        return {
-          id: entrance.id,
-          firstName: entrance.users?.first_name || 'نام نامشخص',
-          lastName: entrance.users?.last_name || 'نام خانوادگی نامشخص',
-          nationalCode: entrance.national_code,
-          role: entrance.role,
-          phone: entrance.users?.phone || '',
-          email: entrance.users?.email || '',
-          isActive: entrance.is_active,
-          createdAt: entrance.created_at
-        };
-      } catch (formatError) {
-        console.error('❌ Format error for user:', entrance.id, formatError);
-        return {
-          id: entrance.id,
-          firstName: 'خطا در نمایش',
-          lastName: '',
-          nationalCode: entrance.national_code || '',
-          role: entrance.role || 'unknown',
-          phone: '',
-          email: '',
-          isActive: false,
-          createdAt: entrance.created_at
-        };
+    const entrances = await prisma.entrances.findMany({
+      include: {
+        users: true
       }
     });
 
-    console.log('✅ Users formatted successfully');
+    const users = entrances.map(e => ({
+      id: e.users?.id,
+      firstName: e.users?.first_name || '',
+      lastName: e.users?.last_name || '',
+      nationalCode: e.national_code,
+      phone: e.users?.phone || '',
+      email: e.users?.email || '',
+      role: e.role,
+      isActive: e.is_active
+    }));
 
-    return NextResponse.json({
-      success: true,
-      users: formattedUsers
-    });
-
+    return NextResponse.json({ users });
   } catch (error) {
-    console.error('❌ Get users API error:', error);
+    console.error('GET /api/admin/users error:', error);
     return NextResponse.json({
       success: false,
-      message: 'خطای سرور: ' + (error.message || 'خطای نامشخص'),
-      users: []
+      message: 'خطای سرور: ' + (error.message || 'خطای نامشخص')
     }, { status: 500 });
   }
 }
@@ -115,67 +46,72 @@ export async function GET(request) {
 // POST - ایجاد کاربر جدید
 export async function POST(request) {
   try {
-    console.log('🔍 POST Users API called');
-    
-    // بررسی احراز هویت
     const authHeader = request.headers.get('authorization');
     const token = authHeader?.replace('Bearer ', '');
-    
     if (!token) {
-      return NextResponse.json({
-        success: false,
-        message: 'احراز هویت مورد نیاز است'
-      }, { status: 401 });
+      return NextResponse.json({ success: false, message: 'احراز هویت مورد نیاز است' }, { status: 401 });
     }
-
     const payload = verifyJWT(token);
     if (!payload || payload.role !== 'admin') {
-      return NextResponse.json({
-        success: false,
-        message: 'دسترسی مجاز نیست'
-      }, { status: 403 });
+      return NextResponse.json({ success: false, message: 'دسترسی مجاز نیست' }, { status: 403 });
     }
 
-    // دریافت داده‌ها
     const body = await request.json();
-    const { firstName, lastName, nationalCode, phone, email, role, password } = body;
-
-    console.log('📝 Creating user:', { firstName, lastName, nationalCode, role });
+    const { firstName, lastName, nationalCode, phone, email, role, password, classId, grade } = body;
 
     // اعتبارسنجی
     if (!firstName || !lastName || !nationalCode || !role || !password) {
-      return NextResponse.json({
-        success: false,
-        message: 'لطفاً تمام فیلدهای اجباری را پر کنید'
-      }, { status: 400 });
+      return NextResponse.json({ success: false, message: 'لطفاً تمام فیلدهای اجباری را پر کنید' }, { status: 400 });
     }
-
-    // بررسی طول کد ملی
     if (nationalCode.length !== 10) {
-      return NextResponse.json({
-        success: false,
-        message: 'کد ملی باید 10 رقم باشد'
-      }, { status: 400 });
+      return NextResponse.json({ success: false, message: 'کد ملی باید 10 رقم باشد' }, { status: 400 });
     }
-
-    // بررسی تکراری نبودن کد ملی
     const existingEntrance = await prisma.entrances.findUnique({
       where: { national_code: nationalCode }
     });
-
     if (existingEntrance) {
-      return NextResponse.json({
-        success: false,
-        message: 'کاربری با این کد ملی قبلاً ثبت شده است'
-      }, { status: 409 });
+      return NextResponse.json({ success: false, message: 'کاربری با این کد ملی قبلاً ثبت شده است' }, { status: 409 });
     }
-
-    // هش کردن رمز عبور
+    // بررسی تکراری بودن ایمیل فقط اگر ایمیل وارد شده باشد
+    if (email) {
+      const existingUser = await prisma.users.findUnique({
+        where: { email }
+      });
+      if (existingUser) {
+        return NextResponse.json({
+          success: false,
+          message: 'ایمیل وارد شده قبلاً ثبت شده است'
+        }, { status: 409 });
+      }
+    }
     const hashedPassword = await hashPassword(password);
 
-    // ایجاد کاربر در یک transaction
+    // تعیین کلاس بر اساس پایه اگر دانش‌آموز است و کلاس انتخاب نشده
+    let realClassId = classId;
+    if (role === 'student' && !realClassId && grade) {
+      const classObj = await prisma.classes.findFirst({
+        where: {
+          grades: { grade_name: grade }
+        }
+      });
+      if (!classObj) {
+        return NextResponse.json({
+          success: false,
+          message: 'کلاس مناسب برای پایه انتخابی وجود ندارد. لطفاً ابتدا کلاس را ایجاد کنید.'
+        }, { status: 400 });
+      }
+      realClassId = classObj.id;
+    }
+
+    // اگر دانش‌آموز است و کلاس پیدا نشد، خطا بده
+    if (role === 'student' && !realClassId) {
+      return NextResponse.json({
+        success: false,
+        message: 'کلاس معتبر برای دانش‌آموز انتخاب نشده است.'
+      }, { status: 400 });
+    }
+
     const result = await prisma.$transaction(async (tx) => {
-      // ایجاد کاربر اصلی
       const user = await tx.users.create({
         data: {
           first_name: firstName,
@@ -186,9 +122,6 @@ export async function POST(request) {
         }
       });
 
-      console.log('✅ User created with ID:', user.id);
-
-      // ایجاد entrance
       const entrance = await tx.entrances.create({
         data: {
           user_id: user.id,
@@ -199,38 +132,29 @@ export async function POST(request) {
         }
       });
 
-      console.log('✅ Entrance created with ID:', entrance.id);
-
-      // ایجاد رکورد تخصصی بر اساس نقش
       let specificInfo = {};
-      
-      try {
-        if (role === 'student') {
-          const studentNumber = generateStudentNumber();
-          const student = await tx.students.create({
-            data: {
-              user_id: user.id,
-              student_number: studentNumber,
-              enrollment_date: new Date()
-            }
-          });
-          specificInfo = { studentNumber: student.student_number };
-          console.log('✅ Student record created');
-        } else if (role === 'teacher') {
-          const teacherCode = generateTeacherCode();
-          const teacher = await tx.teachers.create({
-            data: {
-              user_id: user.id,
-              teacher_code: teacherCode,
-              hire_date: new Date(),
-              subject: null
-            }
-          });
-          specificInfo = { teacherCode: teacher.teacher_code };
-          console.log('✅ Teacher record created');
-        }
-      } catch (roleError) {
-        console.log('⚠️ Role-specific record creation failed, but user still created:', roleError.message);
+      if (role === 'student') {
+        const studentNumber = generateStudentNumber();
+        const student = await tx.students.create({
+          data: {
+            user_id: user.id,
+            student_number: studentNumber,
+            enrollment_date: new Date(),
+            class_id: Number(realClassId)
+          }
+        });
+        specificInfo = { studentNumber: student.student_number };
+      } else if (role === 'teacher') {
+        const teacherCode = generateTeacherCode();
+        const teacher = await tx.teachers.create({
+          data: {
+            user_id: user.id,
+            teacher_code: teacherCode,
+            hire_date: new Date(),
+            subject: null
+          }
+        });
+        specificInfo = { teacherCode: teacher.teacher_code };
       }
 
       return { user, entrance, specificInfo };
@@ -250,23 +174,10 @@ export async function POST(request) {
     });
 
   } catch (error) {
-    console.error('❌ Create user API error:', error);
+    console.error('POST /api/admin/users error:', error);
     return NextResponse.json({
       success: false,
       message: 'خطای سرور: ' + (error.message || 'خطای نامشخص')
     }, { status: 500 });
   }
-}
-
-// تابع تولید شماره دانش‌آموز
-function generateStudentNumber() {
-  const year = new Date().getFullYear().toString().slice(-2);
-  const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-  return `${year}${random}`;
-}
-
-// تابع تولید کد معلم
-function generateTeacherCode() {
-  const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-  return `T${random}`;
 }

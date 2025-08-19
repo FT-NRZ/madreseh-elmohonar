@@ -44,8 +44,8 @@ export default function Header({ onLoginClick }) {
     { name: 'گالری', href: '/gallery' },
     { name: 'کارگاه', href: '#' },
     { name: 'آزمونک', href: '#' },
-    { name: 'ارتباط با ما', href: '#' },
-    { name: 'درباره ما', href: '#' }
+    { name: 'ارتباط با ما', href: '/contact' },
+    { name: 'درباره ما', href: '/about' }
   ];
 
   const headerClasses = `

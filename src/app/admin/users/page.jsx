@@ -45,11 +45,7 @@ export default function AdminUsersPage() {
         const data = await response.json();
         setUsers(data.users || []);
       } else {
-        setUsers([
-          { id: 1, firstName: 'احمد', lastName: 'محمدی', nationalCode: '1234567890', role: 'student', phone: '09123456789', isActive: true, grade: 'اول ابتدایی' },
-          { id: 2, firstName: 'فاطمه', lastName: 'کریمی', nationalCode: '0987654321', role: 'teacher', phone: '09234567890', isActive: true, grade: '' },
-          { id: 3, firstName: 'حسن', lastName: 'احمدی', nationalCode: '5566778899', role: 'admin', phone: '09567890123', isActive: true, grade: '' }
-        ]);
+        setUsers([]);
       }
     } catch {
       setUsers([]);
@@ -279,6 +275,14 @@ function EditUserModal({ user, onClose, onSuccess }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // نگاشت پایه به کلاس
+  const gradeToClassId = {
+    'اول ابتدایی': '1',
+    'دوم ابتدایی': '2',
+    'سوم ابتدایی': '3',
+    'چهارم ابتدایی': '4'
+  };
+
   const generatePassword = () => {
     const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let password = '';
@@ -290,12 +294,16 @@ function EditUserModal({ user, onClose, onSuccess }) {
     e.preventDefault();
     setIsLoading(true);
     setError('');
+    let submitData = { ...formData };
+    if (formData.role === 'student') {
+      submitData.classId = gradeToClassId[formData.grade] || '';
+    }
     try {
       const token = localStorage?.getItem?.('token');
       const response = await fetch(`/api/admin/users/${user.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(submitData)
       });
       const data = await response.json();
       if (data?.success || response.ok) {
@@ -347,8 +355,6 @@ function EditUserModal({ user, onClose, onSuccess }) {
               <option value="دوم ابتدایی">دوم ابتدایی</option>
               <option value="سوم ابتدایی">سوم ابتدایی</option>
               <option value="چهارم ابتدایی">چهارم ابتدایی</option>
-              <option value="پنجم ابتدایی">پنجم ابتدایی</option>
-              <option value="ششم ابتدایی">ششم ابتدایی</option>
             </select>
           )}
           <div className="relative">
@@ -376,6 +382,14 @@ function CreateUserModal({ onClose, onSuccess }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // نگاشت پایه به کلاس
+  const gradeToClassId = {
+    'اول ابتدایی': '1',
+    'دوم ابتدایی': '2',
+    'سوم ابتدایی': '3',
+    'چهارم ابتدایی': '4'
+  };
+
   const generatePassword = () => {
     const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let password = '';
@@ -387,12 +401,16 @@ function CreateUserModal({ onClose, onSuccess }) {
     e.preventDefault();
     setIsLoading(true);
     setError('');
+    let submitData = { ...formData };
+    if (formData.role === 'student') {
+      submitData.classId = gradeToClassId[formData.grade] || '';
+    }
     try {
       const token = localStorage?.getItem?.('token');
       const response = await fetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(submitData)
       });
       const data = await response.json();
       if (data?.success || response.ok) {
