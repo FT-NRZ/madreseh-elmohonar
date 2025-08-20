@@ -3,10 +3,11 @@ import React, { useState, useEffect } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import { 
   Users, GraduationCap, BookOpen, BarChart3, Settings, LogOut, 
-  Trash2, Edit, Calendar, Clock, Plus, ChevronDown, Menu, Image, Home
+  Trash2, Edit, Calendar, Clock, Plus, ChevronDown, Menu, Image, Home, X
 } from 'lucide-react';
 
 export default function AdminSchedule() {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [schedules, setSchedules] = useState([]);
   const [editModal, setEditModal] = useState({ open: false, schedule: null });
   const [user, setUser] = useState(null);
@@ -15,25 +16,22 @@ export default function AdminSchedule() {
     day: '',
     subject: '',
     start_time: '',
-    end_time: '',
-    teacher_id: '',
-    grade_level: '' // اضافه کردن مقطع تحصیلی
+    end_time: ''
   });
   const [classes, setClasses] = useState([]);
-  const [grades, setGrades] = useState([]); // اضافه کردن لیست مقاطع
+  const [grades, setGrades] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('schedule');
-  const [selectedGradeLevel, setSelectedGradeLevel] = useState(''); // فیلتر مقطع
+  const [selectedGradeLevel, setSelectedGradeLevel] = useState('');
 
   const menuItems = [
-    { id: 'overview', label: 'داشبورد', icon: Home, color: 'blue' },
-    { id: 'users', label: 'مدیریت کاربران', icon: Users, color: 'green' },
-    { id: 'classes', label: 'مدیریت کلاس‌ها', icon: GraduationCap, color: 'purple' },
-    { id: 'gallery', label: 'گالری تصاویر', icon: Image, color: 'pink' },
-    { id: 'schedule', label: 'برنامه هفتگی', icon: Calendar, color: 'orange' },
-    { id: 'reports', label: 'گزارش‌ها', icon: BarChart3, color: 'indigo' },
-    { id: 'settings', label: 'تنظیمات', icon: Settings, color: 'gray' }
+    { id: 'overview', label: 'داشبورد', icon: Home, href: '/admin/dashboard' },
+    { id: 'users', label: 'مدیریت کاربران', icon: Users, href: '/admin/users' },
+    { id: 'classes', label: 'مدیریت کلاس‌ها', icon: GraduationCap, href: '/admin/classes' },
+    { id: 'gallery', label: 'گالری تصاویر', icon: Image, href: '/admin/gallery' },
+    { id: 'schedule', label: 'برنامه هفتگی', icon: Calendar, href: '/admin/weekly_schedule' },
+    { id: 'reports', label: 'گزارش‌ها', icon: BarChart3, href: '/admin/reports' },
+    { id: 'settings', label: 'تنظیمات', icon: Settings, href: '/admin/settings' }
   ];
 
   // روزهای هفته
@@ -70,7 +68,7 @@ export default function AdminSchedule() {
   useEffect(() => {
     if (user) {
       fetchClasses();
-      fetchGrades(); // دریافت مقاطع
+      fetchGrades();
       fetchSchedules();
     }
   }, [user]);
@@ -144,11 +142,9 @@ export default function AdminSchedule() {
           day: '',
           subject: '',
           start_time: '',
-          end_time: '',
-          teacher_id: '',
-          grade_level: '' // پاک کردن مقطع
+          end_time: ''
         });
-        fetchSchedules(); // بروزرسانی لیست جلسات
+        fetchSchedules();
       } else {
         toast.error(data.message || 'خطا در ایجاد برنامه هفتگی');
       }
@@ -184,25 +180,19 @@ export default function AdminSchedule() {
     e.preventDefault();
     setLoading(true);
     try {
-      // بررسی تداخل زمانی
-      const hasConflict = schedules.some(s =>
-        s.id !== editModal.schedule.id &&
-        s.class_id === parseInt(editModal.schedule.class_id) &&
-        s.day_of_week === editModal.schedule.day_of_week &&
-        ((editModal.schedule.start_time >= formatTime(s.start_time) && editModal.schedule.start_time < formatTime(s.end_time)) ||
-         (editModal.schedule.end_time > formatTime(s.start_time) && editModal.schedule.end_time <= formatTime(s.end_time)) ||
-         (editModal.schedule.start_time <= formatTime(s.start_time) && editModal.schedule.end_time >= formatTime(s.end_time)))
-      );
-
-      if (hasConflict) {
-        toast.error('این کلاس با برنامه دیگری در این ساعت تداخل دارد');
-        return;
-      }
-
-      const response = await fetch(`/api/schedule?id=${editModal.schedule.id}`, {
+      // فقط فیلدهای مجاز را ارسال کن
+      const { id, class_id, day_of_week, subject, start_time, end_time } = editModal.schedule;
+      const body = {
+        class_id,
+        day_of_week,
+        subject,
+        start_time,
+        end_time
+      };
+      const response = await fetch(`/api/schedule?id=${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editModal.schedule),
+        body: JSON.stringify(body),
       });
       const data = await response.json();
       if (data.success) {
@@ -219,11 +209,22 @@ export default function AdminSchedule() {
     }
   };
 
-  // گروه‌بندی جلسات بر اساس روز هفته
-  const groupedSchedules = days.map(day => ({
-    ...day,
-    items: schedules.filter(s => s.day_of_week === day.key && (!selectedGradeLevel || s.classes.grade_id === parseInt(selectedGradeLevel))) // فیلتر مقطع
-  }));
+    // گروه‌بندی جلسات بر اساس روز هفته
+const groupedSchedules = days.map(day => ({
+  ...day,
+  items: schedules.filter(s => {
+    const matchesDay = s.day_of_week === day.key;
+    
+    if (!selectedGradeLevel) return matchesDay;
+    
+    // پیدا کردن کلاس مربوط به جلسه
+    const scheduleClass = classes.find(c => c.id === s.class_id);
+    if (!scheduleClass) return false;
+    
+    // بررسی اینکه آیا مقطع کلاس با مقطع انتخابی یکسان است
+    return matchesDay && scheduleClass.grade_id === selectedGradeLevel;
+  })
+}));
 
   // هندل تغییرات فرم
   const handleChange = (e) => {
@@ -267,427 +268,429 @@ export default function AdminSchedule() {
   }
 
   return (
-    <div className="h-screen bg-gray-50 flex overflow-hidden" dir="rtl">
-      <Toaster position="bottom-center" />
-      {/* Sidebar - ثابت و بدون اسکرول */}
-      <div className={`${sidebarOpen ? 'w-72' : 'w-20'} bg-white shadow-xl flex flex-col transition-all duration-300 border-l border-gray-200 h-full`}>
-        {/* Header */}
-        <div className="p-6 border-b border-gray-100 flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <div className={`flex items-center ${!sidebarOpen && 'justify-center'}`}>
-              <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-                <GraduationCap className="w-7 h-7 text-white" />
+  <div className="min-h-screen bg-gradient-to-br from-green-50 to-white">
+    <div className="flex">
+      {/* Sidebar - Fixed on right like dashboard */}
+      <aside className="right-0 top-0 w-80 bg-white/95 backdrop-blur-xl shadow-2xl z-0 border-l border-green-200">
+        <div className="p-6 bg-gradient-to-r from-green-600 via-green-500 to-green-700 text-white relative overflow-hidden">
+          <div className="relative z-10">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
+                <Calendar className="w-6 h-6 text-white" />
               </div>
-              {sidebarOpen && (
-                <div className="mr-3">
-                  <h2 className="font-bold text-gray-800 text-lg">مدرسه علم و هنر</h2>
-                  <p className="text-sm text-gray-500">پنل مدیریت</p>
-                </div>
-              )}
+              <div>
+                <h2 className="text-xl font-bold">برنامه هفتگی</h2>
+                <p className="text-green-100 text-sm">مدرسه علم و هنر</p>
+              </div>
             </div>
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <Menu className="w-5 h-5 text-gray-600" />
-            </button>
+            {/* Quick Stats in Sidebar */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-white/20 backdrop-blur-lg rounded-xl p-3 text-center">
+                <p className="text-xl font-bold text-white">{classes.length}</p>
+                <p className="text-xs text-white/80">کلاس</p>
+              </div>
+              <div className="bg-white/20 backdrop-blur-lg rounded-xl p-3 text-center">
+                <p className="text-xl font-bold text-white">{grades.length}</p>
+                <p className="text-xs text-white/80">مقطع</p>
+              </div>
+            </div>
+          </div>
+          <div className="absolute top-0 left-0 w-full h-full opacity-10">
+            <div className="w-20 h-20 bg-white rounded-full absolute -top-10 -right-10"></div>
+            <div className="w-16 h-16 bg-white rounded-full absolute -bottom-8 -left-8"></div>
           </div>
         </div>
-        {/* Navigation */}
-        <nav className="mt-6 flex-1 px-4 overflow-y-auto">
+        
+        <nav className="p-4 space-y-2">
           {menuItems.map((item) => {
             const IconComponent = item.icon;
-            const isActive = activeTab === item.id;
+            const isActive = window.location.pathname === item.href;
             return (
               <button
                 key={item.id}
-                onClick={() => handleNavigation(item.id)}
-                className={`w-full flex items-center px-4 py-3 mb-2 rounded-xl transition-all duration-200 group ${
+                onClick={() => window.location.href = item.href}
+                className={`group w-full text-right p-4 rounded-2xl font-semibold transition-all duration-300 flex items-center gap-4 relative overflow-hidden ${
                   isActive
-                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg transform scale-105'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800'
+                    ? 'bg-gradient-to-r from-green-600 to-green-500 text-white shadow-xl scale-[1.02] transform'
+                    : 'text-green-700 hover:bg-gradient-to-r hover:from-green-50 hover:to-green-100 hover:shadow-lg hover:scale-[1.01]'
                 }`}
               >
-                <IconComponent className={`w-5 h-5 ${sidebarOpen ? 'ml-3' : 'mx-auto'}`} />
-                {sidebarOpen && (
-                  <span className="font-medium">{item.label}</span>
-                )}
-                {isActive && sidebarOpen && (
-                  <div className="mr-auto w-2 h-2 bg-white rounded-full"></div>
-                )}
+                <div className={`p-2 rounded-xl ${isActive ? 'bg-white/20' : 'bg-green-100'}`}>
+                  <IconComponent size={18} />
+                </div>
+                <span className="text-sm">{item.label}</span>
               </button>
             );
           })}
+          
+          {/* Logout Button */}
+          <button
+            onClick={logout}
+            className="w-full text-right p-4 rounded-2xl font-semibold transition-all duration-300 flex items-center gap-4 text-red-600 hover:bg-red-50 hover:shadow-lg hover:scale-[1.01] mt-6"
+          >
+            <div className="p-2 rounded-xl bg-red-100">
+              <LogOut size={18} />
+            </div>
+            <span className="text-sm">خروج از سیستم</span>
+          </button>
         </nav>
-        {/* User Profile */}
-        <div className="p-4 border-t border-gray-100 flex-shrink-0">
-          <div className={`flex items-center ${!sidebarOpen ? 'justify-center' : 'mb-4'}`}>
-            <div className="w-12 h-12 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center shadow-lg">
-              <span className="text-white font-bold text-lg">
-                {user?.firstName?.[0]}{user?.lastName?.[0] || user?.first_name?.[0]}{user?.last_name?.[0]}
-              </span>
-            </div>
-            {sidebarOpen && (
-              <div className="mr-3 flex-1">
-                <p className="font-semibold text-gray-800">
-                  {user?.firstName || user?.first_name} {user?.lastName || user?.last_name}
-                </p>
-                <p className="text-sm text-gray-500">مدیر سیستم</p>
-              </div>
-            )}
-            {sidebarOpen && (
-              <ChevronDown className="w-4 h-4 text-gray-400" />
-            )}
-          </div>
-          {sidebarOpen && (
-            <button
-              onClick={logout}
-              className="w-full flex items-center justify-center py-3 px-4 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors font-medium"
-            >
-              <LogOut className="w-4 h-4 ml-2" />
-              خروج از سیستم
-            </button>
-          )}
-        </div>
-      </div>
+      </aside>
 
-      {/* Main Content - قابل اسکرول */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
-        {/* Top Header - ثابت */}
-        <header className="bg-white shadow-sm border-b border-gray-200 px-8 py-4 flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-800">📅 برنامه هفتگی</h1>
-              <p className="text-gray-600 mt-1">
-                ایجاد و مدیریت برنامه درسی هفتگی کلاس‌ها
-              </p>
-            </div>
-            <div className="flex items-center space-x-4 rtl:space-x-reverse">
-              <button className="p-2 rounded-xl hover:bg-gray-100 transition-colors relative">
-                <Calendar className="w-6 h-6 text-gray-600" />
-              </button>
-              <div className="text-right">
-                <p className="text-sm text-gray-500">خوش آمدید</p>
-                <p className="font-semibold text-gray-800">
-                  {user?.firstName || user?.first_name} {user?.lastName || user?.last_name}
-                </p>
-              </div>
-            </div>
-          </div>
-        </header>
-
-        {/* Main Content Area - قابل اسکرول */}
-        <main className="flex-1 p-8 overflow-y-auto bg-gray-50">
-          <div className="max-w-4xl mx-auto">
-            {/* فرم ایجاد جلسه */}
-            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
-              <div className="mb-8">
-                <h2 className="text-2xl font-bold text-gray-800 mb-2">ایجاد برنامه درسی جدید</h2>
-                <p className="text-gray-600">فرم زیر را برای افزودن یک جلسه درسی جدید تکمیل کنید</p>
-              </div>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-3">
-                      <GraduationCap className="w-4 h-4 inline ml-2" />
-                      کلاس درسی
-                    </label>
-                    <select
-                      name="class_id"
-                      value={formData.class_id}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white"
-                      required
-                    >
-                      <option value="">انتخاب کلاس</option>
-                      {classes.map((cls) => (
-                        <option key={cls.id} value={cls.id}>
-                          {cls.class_name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-3">
-                      <Calendar className="w-4 h-4 inline ml-2" />
-                      روز هفته
-                    </label>
-                    <select
-                      name="day"
-                      value={formData.day}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white"
-                      required
-                    >
-                      <option value="">انتخاب روز</option>
-                      {days.map(day => (
-                        <option key={day.key} value={day.key}>{day.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
-                    <BookOpen className="w-4 h-4 inline ml-2" />
-                    نام درس
-                  </label>
-                  <input
-                    type="text"
-                    name="subject"
-                    value={formData.subject}
-                    onChange={handleChange}
-                    placeholder="مثال: ریاضی، فارسی، علوم"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    required
-                  />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-3">
-                      <Clock className="w-4 h-4 inline ml-2" />
-                      زمان شروع
-                    </label>
-                    <input
-                      type="time"
-                      name="start_time"
-                      value={formData.start_time}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-3">
-                      <Clock className="w-4 h-4 inline ml-2" />
-                      زمان پایان
-                    </label>
-                    <input
-                      type="time"
-                      name="end_time"
-                      value={formData.end_time}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                      required
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
-                    <Users className="w-4 h-4 inline ml-2" />
-                    معلم درس (اختیاری)
-                  </label>
-                  <input
-                    type="text"
-                    name="teacher_id"
-                    value={formData.teacher_id}
-                    onChange={handleChange}
-                    placeholder="نام معلم"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  />
-                </div>
-                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-3">
-                      مقطع تحصیلی
-                    </label>
-                    <select
-                      name="grade_level"
-                      value={formData.grade_level}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white"
-                      required
-                    >
-                      <option value="">انتخاب مقطع</option>
-                      {grades.map((grade) => (
-                        <option key={grade.id} value={grade.grade_level}>
-                          {grade.grade_name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                <div className="pt-6 border-t border-gray-200">
-                  <div className="flex justify-end space-x-4">
-                    <button
-                      type="button"
-                      onClick={() => setFormData({
-                        class_id: '',
-                        day: '',
-                        subject: '',
-                        start_time: '',
-                        end_time: '',
-                        teacher_id: '',
-                        grade_level: '' // پاک کردن مقطع
-                      })}
-                      className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors font-medium"
-                      disabled={loading}
-                    >
-                      پاک کردن فرم
-                    </button>
-                    <button
-                      type="submit"
-                      className="flex items-center px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={loading}
-                    >
-                      {loading ? (
-                        <>
-                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin ml-2"></div>
-                          در حال ذخیره...
-                        </>
-                      ) : (
-                        <>
-                          <Plus className="w-5 h-5 ml-2" />
-                          ایجاد برنامه درسی
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </form>
-            </div>
-
-            {/* نمایش جلسات ثبت‌شده */}
-            <div className="mt-12">
-              <h2 className="text-xl font-bold text-gray-800 mb-6">برنامه‌های ثبت‌شده</h2>
+      {/* Main Content */}
+      <main className="flex-1 p-6 space-y-8">
+        {/* Title */}
+        <div className="relative bg-gradient-to-r from-green-600 via-green-500 to-green-600 rounded-3xl p-8 text-white shadow-2xl overflow-hidden mb-8">
+          <div className="absolute inset-0 bg-black/10"></div>
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-32 translate-x-32"></div>
+          <div className="relative z-10">
+            <div className="flex items-center justify-between">
               <div>
-                <button
-                  onClick={() => setSelectedGradeLevel('')}
-                  className={`px-4 py-2 rounded-lg mx-2 ${selectedGradeLevel === '' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'}`}
-                >
-                  همه مقاطع
-                </button>
-                {grades.map(grade => (
-                  <button
-                    key={grade.id}
-                    onClick={() => setSelectedGradeLevel(grade.id)}
-                    className={`px-4 py-2 rounded-lg mx-2 ${selectedGradeLevel === grade.id ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'}`}
-                  >
-                    {grade.grade_name}
-                  </button>
-                ))}
-              </div>
-              {groupedSchedules.map(day => (
-                <div key={day.key} className="mb-8">
-                  <h3 className="text-lg font-semibold text-blue-700 mb-4 flex items-center">
-                    <Calendar className="w-5 h-5 ml-2" />
-                    {day.label}
-                  </h3>
-                  {day.items.length === 0 ? (
-                    <div className="text-gray-400 mb-4">هیچ جلسه‌ای ثبت نشده</div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {day.items.map(schedule => (
-                        <div key={schedule.id} className="bg-white rounded-xl shadow border p-6 flex flex-col">
-                          <div className="flex justify-between items-center mb-2">
-                            <span className="font-bold text-green-700">{schedule.subject}</span>
-                            <div className="flex gap-2">
-                              <button
-                                className="p-2 rounded hover:bg-green-100 text-green-700"
-                                onClick={() => handleEdit(schedule)}
-                              >
-                                <Edit className="w-5 h-5" />
-                              </button>
-                              <button
-                                className="p-2 rounded hover:bg-red-100 text-red-600"
-                                onClick={() => handleDelete(schedule.id)}
-                              >
-                                <Trash2 className="w-5 h-5" />
-                              </button>
-                            </div>
-                          </div>
-                          <div className="text-gray-600 mb-1">
-                            <span className="font-semibold">کلاس:</span> {schedule.classes?.class_name}
-                          </div>
-                          <div className="text-gray-600 mb-1">
-                            <span className="font-semibold">زمان:</span> {formatTime(schedule.start_time)} - {formatTime(schedule.end_time)}
-                          </div>
-                          <div className="text-gray-600">
-                            <span className="font-semibold">معلم:</span> {schedule.teachers?.users?.first_name} {schedule.teachers?.users?.last_name}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                <h2 className="text-4xl font-bold mb-3 bg-gradient-to-r from-white to-green-100 bg-clip-text text-transparent">
+                  مدیریت برنامه هفتگی
+                </h2>
+                <p className="text-white/90 mb-6 text-lg">ایجاد، ویرایش و حذف جلسات درسی</p>
+                <div className="flex items-center space-x-6 text-white/80">
+                  <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-lg rounded-xl px-4 py-2">
+                    <Calendar className="w-4 h-4" />
+                    <span className="text-sm font-medium">{new Date().toLocaleDateString('fa-IR')}</span>
+                  </div>
+                  <div className="flex items-center space-x-2 rtl:space-x-reverse bg-white/20 backdrop-blur-lg rounded-xl px-4 py-2">
+                    <Clock className="w-4 h-4" />
+                    <span className="text-sm font-medium">{new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
                 </div>
-              ))}
-            </div>
-
-            {/* مودال ویرایش */}
-            {editModal.open && (
-              <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center">
-                <form
-                  onSubmit={handleEditSubmit}
-                  className="bg-white rounded-xl p-8 shadow-lg max-w-md w-full"
-                >
-                  <h2 className="text-xl font-bold mb-6">ویرایش جلسه</h2>
-                  <div className="space-y-4">
-                    <input
-                      type="text"
-                      value={editModal.schedule.subject}
-                      onChange={e => setEditModal(modal => ({
-                        ...modal,
-                        schedule: { ...modal.schedule, subject: e.target.value }
-                      }))}
-                      className="w-full border rounded px-4 py-2"
-                      placeholder="نام درس"
-                      required
-                    />
-                    <input
-                      type="time"
-                      value={extractTime(editModal.schedule.start_time)}
-                      onChange={e => setEditModal(modal => ({
-                        ...modal,
-                        schedule: { ...modal.schedule, start_time: e.target.value }
-                      }))}
-                      className="w-full border rounded px-4 py-2"
-                      required
-                    />
-                    <input
-                      type="time"
-                      value={extractTime(editModal.schedule.end_time)}
-                      onChange={e => setEditModal(modal => ({
-                        ...modal,
-                        schedule: { ...modal.schedule, end_time: e.target.value }
-                      }))}
-                      className="w-full border rounded px-4 py-2"
-                      required
-                    />
-                  </div>
-                  <div className="flex justify-end gap-4 mt-6">
-                    <button
-                      type="button"
-                      onClick={() => setEditModal({ open: false, schedule: null })}
-                      className="px-4 py-2 border rounded text-gray-700"
-                    >
-                      انصراف
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-4 py-2 bg-green-600 text-white rounded"
-                      disabled={loading}
-                    >
-                      {loading ? 'در حال ذخیره...' : 'ذخیره تغییرات'}
-                    </button>
-                  </div>
-                </form>
               </div>
-            )}
+              <div className="w-32 h-32 bg-white/20 backdrop-blur-lg rounded-3xl flex items-center justify-center shadow-2xl">
+                <Calendar className="w-16 h-16 text-white" />
+              </div>
+            </div>
           </div>
-        </main>
-      </div>
+        </div>
+
+        {/* فرم ایجاد جلسه */}
+        <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-xl border border-green-200 p-8">
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-green-800 mb-2 flex items-center">
+              <Plus className="w-6 h-6 ml-2" />
+              ایجاد برنامه درسی جدید
+            </h2>
+            <p className="text-green-600">فرم زیر را برای افزودن یک جلسه درسی جدید تکمیل کنید</p>
+          </div>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-bold text-green-700 mb-3">
+                  <GraduationCap className="w-4 h-4 inline ml-2" />
+                  کلاس درسی
+                </label>
+                <select
+                  name="class_id"
+                  value={formData.class_id}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 border border-green-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-green-50/30"
+                  required
+                >
+                  <option value="">انتخاب کلاس</option>
+                  {classes.map((cls) => {
+                    // پیدا کردن پایه مربوط به کلاس
+                    const grade = grades.find(g => g.id === cls.grade_id);
+                    return (
+                    <option key={cls.id} value={cls.id}>
+                      {cls.class_name} {grade ? `- ${grade.grade_name}` : ''}
+                    </option>
+                    );
+                  })}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-green-700 mb-3">
+                  <Calendar className="w-4 h-4 inline ml-2" />
+                  روز هفته
+                </label>
+                <select
+                  name="day"
+                  value={formData.day}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 border border-green-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-green-50/30"
+                  required
+                >
+                  <option value="">انتخاب روز</option>
+                  {days.map(day => (
+                    <option key={day.key} value={day.key}>{day.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-green-700 mb-3">
+                <BookOpen className="w-4 h-4 inline ml-2" />
+                نام درس
+              </label>
+              <input
+                type="text"
+                name="subject"
+                value={formData.subject}
+                onChange={handleChange}
+                placeholder="مثال: ریاضی، فارسی، علوم"
+                className="w-full px-4 py-3 border border-green-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-green-50/30"
+                required
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-bold text-green-700 mb-3">
+                  <Clock className="w-4 h-4 inline ml-2" />
+                  زمان شروع
+                </label>
+                <input
+                  type="time"
+                  name="start_time"
+                  value={formData.start_time}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 border border-green-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-green-50/30"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-green-700 mb-3">
+                  <Clock className="w-4 h-4 inline ml-2" />
+                  زمان پایان
+                </label>
+                <input
+                  type="time"
+                  name="end_time"
+                  value={formData.end_time}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 border border-green-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-green-50/30"
+                  required
+                />
+              </div>
+            </div>
+            <div className="pt-6 border-t border-green-200">
+              <div className="flex justify-end space-x-4">
+                <button
+                  type="button"
+                  onClick={() => setFormData({
+                    class_id: '',
+                    day: '',
+                    subject: '',
+                    start_time: '',
+                    end_time: '',
+                    teacher_id: '',
+                    grade_level: ''
+                  })}
+                  className="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors font-medium"
+                  disabled={loading}
+                >
+                  پاک کردن فرم
+                </button>
+                <button
+                  type="submit"
+                  className="flex items-center px-8 py-3 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-xl hover:from-green-700 hover:to-green-600 transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin ml-2"></div>
+                      در حال ذخیره...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-5 h-5 ml-2" />
+                      ایجاد برنامه درسی
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        {/* نمایش جلسات ثبت‌شده */}
+        <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-xl border border-green-200 p-8">
+          <h2 className="text-2xl font-bold text-green-800 mb-6 flex items-center">
+            <Calendar className="w-6 h-6 ml-2" />
+            برنامه‌های ثبت‌شده
+          </h2>
+          <div className="mb-6">
+            <button
+              onClick={() => setSelectedGradeLevel('')}
+              className={`px-4 py-2 rounded-xl mx-2 transition-all ${selectedGradeLevel === '' ? 'bg-green-500 text-white shadow-lg' : 'bg-green-100 text-green-700 hover:bg-green-200'}`}
+            >
+              همه مقاطع
+            </button>
+            {grades.map(grade => (
+              <button
+                key={grade.id}
+                onClick={() => setSelectedGradeLevel(grade.id)} // استفاده از grade.id به جای grade.grade_level
+                className={`px-4 py-2 rounded-xl mx-2 transition-all ${selectedGradeLevel === grade.id ? 'bg-green-500 text-white shadow-lg' : 'bg-green-100 text-green-700 hover:bg-green-200'}`}
+              >
+                {grade.grade_name}
+              </button>
+            ))}
+          </div>
+          {groupedSchedules.map(day => (
+            <div key={day.key} className="mb-8">
+              <h3 className="text-lg font-bold text-green-700 mb-4 flex items-center">
+                <Calendar className="w-5 h-5 ml-2" />
+                {day.label}
+              </h3>
+              {day.items.length === 0 ? (
+                <div className="text-gray-400 mb-4 bg-green-50 rounded-xl p-6 text-center">
+                  هیچ جلسه‌ای ثبت نشده
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {day.items.map(schedule => (
+                    <div key={schedule.id} className="bg-green-50 rounded-xl shadow border border-green-100 p-6 hover:shadow-md transition-all">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="font-bold text-green-700">{schedule.subject}</span>
+                        <div className="flex gap-2">
+                          <button
+                            className="p-2 rounded-xl hover:bg-green-100 text-green-700 transition-colors"
+                            onClick={() => handleEdit(schedule)}
+                          >
+                            <Edit className="w-5 h-5" />
+                          </button>
+                          <button
+                            className="p-2 rounded-xl hover:bg-red-100 text-red-600 transition-colors"
+                            onClick={() => handleDelete(schedule.id)}
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="text-gray-600 mb-1">
+                        <span className="font-semibold">کلاس:</span> {classes.find(c => c.id === schedule.class_id)?.class_name || 'نامشخص'}
+                      </div>
+                      <div className="text-gray-600 mb-1">
+                        <span className="font-semibold">زمان:</span> {formatTime(schedule.start_time)} - {formatTime(schedule.end_time)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* مودال ویرایش */}
+        {editModal.open && (
+          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center">
+            <form
+              onSubmit={handleEditSubmit}
+              className="bg-white/95 backdrop-blur-xl rounded-3xl p-8 shadow-2xl max-w-md w-full border border-green-200"
+            >
+            <h2 className="text-xl font-bold text-green-800 mb-6 flex items-center">
+              <Edit className="w-6 h-6 ml-2" />
+              ویرایش جلسه
+            </h2>
+            <div className="space-y-4">
+              <select
+                value={editModal.schedule.class_id}
+                onChange={e => setEditModal(modal => ({
+                  ...modal,
+                  schedule: { ...modal.schedule, class_id: e.target.value }
+                }))}
+                className="w-full px-4 py-3 border border-green-200 rounded-xl bg-green-50/30"
+                required
+              >
+                <option value="">انتخاب کلاس</option>
+                {classes.map(cls => (
+                  <option key={cls.id} value={cls.id}>{cls.class_name}</option>
+                ))}
+              </select>
+              <select
+                value={editModal.schedule.day_of_week}
+                onChange={e => setEditModal(modal => ({
+                  ...modal,
+                  schedule: { ...modal.schedule, day_of_week: e.target.value }
+                }))}
+                className="w-full px-4 py-3 border border-green-200 rounded-xl bg-green-50/30"
+                required
+              >
+                <option value="">انتخاب روز</option>
+                {days.map(day => (
+                  <option key={day.key} value={day.key}>{day.label}</option>
+                ))}
+              </select>
+              <input
+                type="text"
+                value={editModal.schedule.subject}
+                onChange={e => setEditModal(modal => ({
+                  ...modal,
+                  schedule: { ...modal.schedule, subject: e.target.value }
+                }))}
+                className="w-full px-4 py-3 border border-green-200 rounded-xl bg-green-50/30"
+                placeholder="نام درس"
+                required
+              />
+              <input
+                type="time"
+                value={extractTime(editModal.schedule.start_time)}
+                onChange={e => setEditModal(modal => ({
+                  ...modal,
+                  schedule: { ...modal.schedule, start_time: e.target.value }
+                }))}
+                className="w-full px-4 py-3 border border-green-200 rounded-xl bg-green-50/30"
+                required
+              />
+              <input
+                type="time"
+                value={extractTime(editModal.schedule.end_time)}
+                onChange={e => setEditModal(modal => ({
+                  ...modal,
+                  schedule: { ...modal.schedule, end_time: e.target.value }
+                }))}
+                className="w-full px-4 py-3 border border-green-200 rounded-xl bg-green-50/30"
+                required
+              />
+            </div>
+            <div className="flex justify-end gap-4 mt-6">
+              <button
+                type="button"
+                onClick={() => setEditModal({ open: false, schedule: null })}
+                className="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors font-medium"
+              >
+                انصراف
+              </button>
+              <button
+                type="submit"
+                className="px-6 py-3 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-xl hover:from-green-700 hover:to-green-600 transition-all duration-300 shadow-lg disabled:opacity-50 font-medium"
+                disabled={loading}
+              >
+                {loading ? 'در حال ذخیره...' : 'ذخیره تغییرات'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+      </main>
     </div>
+    <Toaster position="bottom-center" />
+  </div>
   );
 }
+
 function formatTime(dateString) {
   if (!dateString) return '';
   const date = new Date(dateString);
-  const hours = date.getHours().toString().padStart(2, '0');
-  const minutes = date.getMinutes().toString().padStart(2, '0');
+  // استفاده از getUTCHours و getUTCMinutes برای جلوگیری از مشکل timezone
+  const hours = date.getUTCHours().toString().padStart(2, '0');
+  const minutes = date.getUTCMinutes().toString().padStart(2, '0');
   return `${hours}:${minutes}`;
 }
 
 function extractTime(dateString) {
   if (!dateString) return '';
-  const date = new Date(dateString);
-  const hours = date.getHours().toString().padStart(2, '0');
-  const minutes = date.getMinutes().toString().padStart(2, '0');
-  return `${hours}:${minutes}`;
+  // اگر رشته ISO باشد، مقدار ساعت UTC را استخراج کن
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(dateString)) {
+    const date = new Date(dateString);
+    const hours = date.getUTCHours().toString().padStart(2, '0');
+    const minutes = date.getUTCMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+  }
+  // اگر رشته ساعت باشد، همان را برگردان
+  if (/^\d{2}:\d{2}$/.test(dateString)) return dateString;
+  return '';
 }

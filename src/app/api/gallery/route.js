@@ -4,7 +4,7 @@ import { writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
 
-
+const prisma = new PrismaClient();
 // تابع پردازش فایل آپلود شده
 async function saveFile(file, directory) {
   try {
@@ -40,22 +40,15 @@ async function saveFile(file, directory) {
 // بررسی احراز هویت
 async function authenticate(request) {
   const authHeader = request.headers.get('authorization');
-  
   if (!authHeader) {
     return { authenticated: false, status: 401, message: 'توکن ارسال نشده است' };
   }
-  
   const token = authHeader.replace('Bearer ', '');
   const user = verifyJWT(token);
-  
   if (!user) {
     return { authenticated: false, status: 401, message: 'توکن نامعتبر است' };
   }
-  
-  if (user.role !== 'admin') {
-    return { authenticated: false, status: 403, message: 'دسترسی مجاز نیست' };
-  }
-  
+  // فقط برای عملیات مدیریت (POST, PUT, DELETE) نقش admin لازم است
   return { authenticated: true, user };
 }
 

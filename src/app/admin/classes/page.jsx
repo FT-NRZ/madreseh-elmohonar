@@ -1,12 +1,23 @@
 'use client'
 import React, { useState, useEffect } from 'react';
-import { 
-  Plus, Edit, Trash2, AlertCircle, CheckCircle, Loader2, X,
-  Users, UserPlus, GraduationCap, BookOpen, BarChart3, Settings, LogOut, 
-  Eye, EyeOff, Menu, Bell, Calendar, Clock, TrendingUp, Award, FileText, Home,
-  ChevronDown, ChevronRight, Filter, Pencil, Image
+import {
+  Plus, Edit, Trash2, AlertCircle, Loader2, X,
+  Users, UserPlus, GraduationCap, BookOpen, BarChart3, Settings, LogOut,
+  Eye, EyeOff, Menu, Bell, Calendar, Clock, TrendingUp, Zap, Crown, Target,
+  RefreshCw, ChevronLeft, Activity, Sparkles, LayoutGrid, Image
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
+
+// سایدبار منوها مثل داشبورد
+const sidebarMenu = [
+  { label: 'داشبورد', icon: LayoutGrid, href: '/admin/dashboard' },
+  { label: 'مدیریت کاربران', icon: Users, href: '/admin/users' },
+  { label: 'مدیریت کلاس‌ها', icon: GraduationCap, href: '/admin/classes' },
+  { label: 'برنامه هفتگی', icon: Calendar, href: '/admin/weekly_schedule' },
+  { label: 'مدیریت گالری', icon: Image, href: '/admin/gallery' },
+  { label: 'گزارش‌ها', icon: BarChart3, href: '/admin/reports' },
+  { label: 'تنظیمات', icon: Settings, href: '/admin/settings' }
+];
 
 export default function AdminClasses() {
   const [classes, setClasses] = useState([]);
@@ -16,39 +27,25 @@ export default function AdminClasses() {
   const [editMode, setEditMode] = useState(false);
   const [selectedClass, setSelectedClass] = useState(null);
   const [user, setUser] = useState(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState('classes');
-
-  const menuItems = [
-    { id: 'overview', label: 'داشبورد', icon: Home, color: 'blue' },
-    { id: 'users', label: 'مدیریت کاربران', icon: Users, color: 'green' },
-    { id: 'classes', label: 'مدیریت کلاس‌ها', icon: GraduationCap, color: 'purple' },
-    { id: 'gallery', label: 'گالری تصاویر', icon: Image, color: 'pink' },
-    { id: 'schedule', label: 'برنامه هفتگی', icon: Calendar, color: 'orange' },
-    { id: 'reports', label: 'گزارش‌ها', icon: BarChart3, color: 'indigo' },
-    { id: 'settings', label: 'تنظیمات', icon: Settings, color: 'gray' }
-  ];
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // بررسی احراز هویت
   useEffect(() => {
     const token = localStorage.getItem('token');
     const userData = localStorage.getItem('user');
-    
     if (!token || !userData) {
-      window.location.href = '/';
+      window.location.href = '/login';
       return;
     }
-
     try {
       const parsedUser = JSON.parse(userData);
       if (parsedUser.role !== 'admin') {
-        window.location.href = '/';
+        window.location.href = '/dashboard';
         return;
       }
       setUser(parsedUser);
-    } catch (error) {
-      console.error('Error parsing user data:', error);
-      window.location.href = '/';
+    } catch {
+      window.location.href = '/login';
     }
   }, []);
 
@@ -62,21 +59,13 @@ export default function AdminClasses() {
     try {
       const token = localStorage.getItem('token');
       const response = await fetch('/api/classes', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (!response.ok) {
-        throw new Error('خطا در دریافت کلاس‌ها');
-      }
+      if (!response.ok) throw new Error('خطا در دریافت کلاس‌ها');
       const data = await response.json();
-      if (data.success) {
-        setClasses(data.classes);
-      } else {
-        throw new Error(data.message || 'خطا در دریافت کلاس‌ها');
-      }
+      if (data.success) setClasses(data.classes);
+      else throw new Error(data.message || 'خطا در دریافت کلاس‌ها');
     } catch (err) {
-      console.error('Error fetching classes:', err);
       setError('خطا در بارگذاری کلاس‌ها');
     } finally {
       setLoading(false);
@@ -99,9 +88,7 @@ export default function AdminClasses() {
   };
 
   const handleDelete = async (classId) => {
-    if (!confirm('آیا از حذف این کلاس اطمینان دارید؟')) {
-      return;
-    }
+    if (!confirm('آیا از حذف این کلاس اطمینان دارید؟')) return;
     try {
       const token = localStorage.getItem('token');
       const response = await fetch('/api/classes', {
@@ -119,8 +106,7 @@ export default function AdminClasses() {
       } else {
         toast.error(data.message || 'خطا در حذف کلاس');
       }
-    } catch (error) {
-      console.error('Error deleting class:', error);
+    } catch {
       toast.error('خطا در برقراری ارتباط با سرور');
     }
   };
@@ -129,22 +115,6 @@ export default function AdminClasses() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     window.location.href = '/';
-  };
-
-  const handleNavigation = (tab) => {
-    if (tab === 'classes') {
-      setActiveTab(tab);
-    } else {
-      const routes = {
-        overview: '/admin/dashboard',
-        users: '/admin/users',
-        gallery: '/admin/gallery',
-        schedule: '/admin/weekly_schedule',
-        reports: '/admin/reports',
-        settings: '/admin/settings'
-      };
-      window.location.href = routes[tab] || '/admin/dashboard';
-    }
   };
 
   // کامپوننت نمایش لیست کلاس‌ها
@@ -157,7 +127,6 @@ export default function AdminClasses() {
         </div>
       );
     }
-
     if (error) {
       return (
         <div className="text-center py-10">
@@ -166,7 +135,6 @@ export default function AdminClasses() {
         </div>
       );
     }
-
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {classes.map(classItem => (
@@ -195,156 +163,192 @@ export default function AdminClasses() {
 
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="text-center">
-          <div className="w-20 h-20 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
-          <p className="text-gray-600 text-lg">در حال بررسی دسترسی...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-white">
+        <div className="text-center p-8 bg-white/90 backdrop-blur-lg rounded-3xl shadow-2xl border border-green-200">
+          <div className="w-16 h-16 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-700">در حال بررسی دسترسی...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-white">
       <Toaster position="bottom-center" />
 
-      {/* Sidebar - دقیقاً مثل داشبورد */}
-      <div className={`${sidebarOpen ? 'w-72' : 'w-20'} bg-white shadow-xl flex flex-col transition-all duration-300 border-l border-gray-200`}>
-        {/* Header */}
-        <div className="p-6 border-b border-gray-100">
+      {/* Header */}
+      <header className="bg-white/95 backdrop-blur-xl shadow-xl border-b border-green-200/50 sticky top-0 z-30">
+        <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className={`flex items-center ${!sidebarOpen && 'justify-center'}`}>
-              <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-                <GraduationCap className="w-7 h-7 text-white" />
-              </div>
-              {sidebarOpen && (
-                <div className="mr-3">
-                  <h2 className="font-bold text-gray-800 text-lg">مدرسه علم و هنر</h2>
-                  <p className="text-sm text-gray-500">پنل مدیریت</p>
-                </div>
-              )}
+            {/* Menu Button */}
+            <div className="flex items-center">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="group flex items-center space-x-3 px-6 py-3 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-2xl hover:from-green-700 hover:to-green-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+              >
+                <Menu className="w-5 h-5 group-hover:rotate-180 transition-transform duration-300" />
+                <span className="font-medium">پنل مدیریت</span>
+                <Sparkles className="w-4 h-4 opacity-70" />
+              </button>
             </div>
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <Menu className="w-5 h-5 text-gray-600" />
-            </button>
+            {/* User Profile */}
+            <div className="flex items-center space-x-4 rtl:space-x-reverse">
+              <div className="flex items-center space-x-3 bg-gradient-to-r from-green-50 to-white rounded-2xl p-4 shadow-lg border border-green-200">
+                <div className="text-right">
+                  <p className="text-sm font-bold text-gray-800">{user?.firstName} {user?.lastName}</p>
+                  <p className="text-xs text-green-600 font-medium">مدیر سیستم</p>
+                </div>
+                <div className="w-12 h-12 bg-gradient-to-r from-green-600 to-green-500 rounded-2xl flex items-center justify-center shadow-lg">
+                  <span className="text-white font-bold">
+                    {user?.firstName?.[0]}{user?.lastName?.[0]}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
+      </header>
 
-        {/* Navigation */}
-        <nav className="mt-6 flex-1 px-4">
-          {menuItems.map((item) => {
-            const IconComponent = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => handleNavigation(item.id)}
-                className={`w-full flex items-center px-4 py-3 mb-2 rounded-xl transition-all duration-200 group ${
-                  isActive
-                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg transform scale-105'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800'
-                }`}
-              >
-                <IconComponent className={`w-5 h-5 ${sidebarOpen ? 'ml-3' : 'mx-auto'}`} />
-                {sidebarOpen && (
-                  <span className="font-medium">{item.label}</span>
-                )}
-                {isActive && sidebarOpen && (
-                  <div className="mr-auto w-2 h-2 bg-white rounded-full"></div>
-                )}
-              </button>
-            );
-          })}
-        </nav>
-
-        {/* User Profile */}
-        <div className="p-4 border-t border-gray-100">
-          <div className={`flex items-center ${!sidebarOpen ? 'justify-center' : 'mb-4'}`}>
-            <div className="w-12 h-12 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center shadow-lg">
-              <span className="text-white font-bold text-lg">
-                {user?.firstName?.[0]}{user?.lastName?.[0]}
-              </span>
-            </div>
-            {sidebarOpen && (
-              <div className="mr-3 flex-1">
-                <p className="font-semibold text-gray-800">
-                  {user?.firstName} {user?.lastName}
-                </p>
-                <p className="text-sm text-gray-500">مدیر سیستم</p>
+      {/* Sidebar */}
+      <div className={`fixed top-0 right-0 h-full w-80 bg-gradient-to-b from-white via-green-50 to-green-100 shadow-2xl z-50 transform transition-all duration-500 ease-out ${
+        sidebarOpen ? 'translate-x-0' : 'translate-x-full'
+      }`}>
+        {/* Sidebar Header */}
+        <div className="bg-gradient-to-r from-green-600 via-green-500 to-green-600 text-white p-6 pt-8 relative overflow-hidden">
+          <div className="absolute inset-0 bg-black/10"></div>
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center space-x-3 rtl:space-x-reverse">
+                <div className="w-14 h-14 bg-white/20 backdrop-blur-lg rounded-2xl flex items-center justify-center shadow-lg">
+                  <Target className="w-7 h-7 text-white" />
+                </div>
+                <div>
+                  <h2 className="font-bold text-xl">پنل کنترل</h2>
+                  <p className="text-white/80 text-sm">مدیریت هوشمند</p>
+                </div>
               </div>
-            )}
-            {sidebarOpen && (
-              <ChevronDown className="w-4 h-4 text-gray-400" />
-            )}
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="p-3 bg-white/20 backdrop-blur-lg rounded-xl hover:bg-white/30 transition-all duration-300 shadow-lg"
+              >
+                <X className="w-5 h-5 text-white" />
+              </button>
+            </div>
+            {/* Quick Stats */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-white/20 backdrop-blur-lg rounded-xl p-4 text-center shadow-lg">
+                <TrendingUp className="w-6 h-6 text-white mx-auto mb-2" />
+                <p className="text-2xl font-bold text-white">{classes.length}</p>
+                <p className="text-xs text-white/80">تعداد کلاس‌ها</p>
+              </div>
+              <div className="bg-white/20 backdrop-blur-lg rounded-xl p-4 text-center shadow-lg">
+                <Zap className="w-6 h-6 text-white mx-auto mb-2" />
+                <p className="text-2xl font-bold text-white">{user?.firstName?.length || 1}</p>
+                <p className="text-xs text-white/80">مدیر فعال</p>
+              </div>
+            </div>
           </div>
-          {sidebarOpen && (
+        </div>
+        {/* Menu Items */}
+        <div className="p-6 space-y-4 overflow-y-auto" style={{ height: 'calc(100vh - 220px)' }}>
+          {/* افزودن کلاس */}
+          <button
+            onClick={openModal}
+            className="w-full flex items-center space-x-3 rtl:space-x-reverse p-4 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-2xl hover:from-green-700 hover:to-green-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+          >
+            <Plus className="w-5 h-5" />
+            <span className="font-medium flex-1 text-right">افزودن کلاس جدید</span>
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          {/* منوهای اصلی مدیریت */}
+          <div className="space-y-3 pt-2">
+            {sidebarMenu.map((item, idx) => (
+              <button
+                key={item.label}
+                onClick={() => window.location.href = item.href}
+                className="w-full flex items-center space-x-3 rtl:space-x-reverse p-4 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-2xl hover:from-green-700 hover:to-green-600 transition-all duration-300 shadow-lg hover:shadow-xl"
+              >
+                <item.icon className="w-5 h-5" />
+                <span className="font-medium flex-1 text-right">{item.label}</span>
+              </button>
+            ))}
+          </div>
+          {/* خروج */}
+          <div className="pt-4">
             <button
               onClick={logout}
-              className="w-full flex items-center justify-center py-3 px-4 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors font-medium"
+              className="w-full flex items-center justify-center space-x-3 rtl:space-x-reverse p-4 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-2xl hover:from-red-600 hover:to-red-700 transition-all duration-300 shadow-lg hover:shadow-xl"
             >
-              <LogOut className="w-4 h-4 ml-2" />
-              خروج از سیستم
+              <LogOut className="w-5 h-5" />
+              <span className="font-medium">خروج از سیستم</span>
             </button>
-          )}
+          </div>
         </div>
       </div>
+      {/* Sidebar Overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 transition-all duration-300"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-h-screen">
-        {/* Top Header */}
-        <header className="bg-white shadow-sm border-b border-gray-200 px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-800">🎓 مدیریت کلاس‌ها</h1>
-              <p className="text-gray-600 mt-1">
-                مدیریت و ویرایش کلاس‌های مدرسه
-              </p>
-            </div>
-            <div className="flex items-center space-x-4 rtl:space-x-reverse">
-              <button className="p-2 rounded-xl hover:bg-gray-100 transition-colors relative">
-                <Bell className="w-6 h-6 text-gray-600" />
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></div>
-              </button>
-              <div className="text-right">
-                <p className="text-sm text-gray-500">خوش آمدید</p>
-                <p className="font-semibold text-gray-800">
-                  {user?.firstName} {user?.lastName}
-                </p>
+      <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+        {/* Title */}
+        <div className="relative bg-gradient-to-r from-green-600 via-green-500 to-green-600 rounded-3xl p-8 text-white shadow-2xl overflow-hidden mb-8">
+          <div className="absolute inset-0 bg-black/10"></div>
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-32 translate-x-32"></div>
+          <div className="relative z-10">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-4xl font-bold mb-3 bg-gradient-to-r from-white to-green-100 bg-clip-text text-transparent">
+                  مدیریت کلاس‌های مدرسه
+                </h2>
+                <p className="text-white/90 mb-6 text-lg">افزودن، ویرایش و حذف کلاس‌ها</p>
+                <div className="flex items-center space-x-6 text-white/80">
+                  <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-lg rounded-xl px-4 py-2">
+                    <Calendar className="w-4 h-4" />
+                    <span className="text-sm font-medium">{new Date().toLocaleDateString('fa-IR')}</span>
+                  </div>
+                  <div className="flex items-center space-x-2 rtl:space-x-reverse bg-white/20 backdrop-blur-lg rounded-xl px-4 py-2">
+                    <Clock className="w-4 h-4" />
+                    <span className="text-sm font-medium">{new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="w-32 h-32 bg-white/20 backdrop-blur-lg rounded-3xl flex items-center justify-center shadow-2xl">
+                <GraduationCap className="w-16 h-16 text-white" />
               </div>
             </div>
           </div>
-        </header>
+        </div>
 
-        {/* Main Content Area */}
-        <main className="flex-1 p-8 overflow-y-auto bg-gray-50">
-          <div className="container mx-auto">
-            <div className="flex justify-between items-center mb-8">
-              <h1 className="text-2xl font-bold text-gray-800">لیست کلاس‌ها</h1>
-              <button
-                onClick={openModal}
-                className="bg-green-600 text-white rounded-xl py-3 px-6 hover:bg-green-700 transition-colors"
-              >
-                <Plus className="w-5 h-5 inline-block rtl:mr-2" />
-                افزودن کلاس جدید
-              </button>
-            </div>
-
-            <ClassesList />
-
-            {showModal && (
-              <ClassModal
-                onClose={closeModal}
-                onSubmit={fetchClasses}
-                editMode={editMode}
-                selectedClass={selectedClass}
-              />
-            )}
+        {/* لیست کلاس‌ها */}
+        <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-xl border border-green-200 p-8">
+          <div className="flex justify-between items-center mb-8">
+            <h1 className="text-2xl font-bold text-gray-800">لیست کلاس‌ها</h1>
+            <button
+              onClick={openModal}
+              className="bg-green-600 text-white rounded-xl py-3 px-6 hover:bg-green-700 transition-colors"
+            >
+              <Plus className="w-5 h-5 inline-block rtl:mr-2" />
+              افزودن کلاس جدید
+            </button>
           </div>
-        </main>
-      </div>
+          <ClassesList />
+        </div>
+
+        {/* مودال افزودن/ویرایش کلاس */}
+        {showModal && (
+          <ClassModal
+            onClose={closeModal}
+            onSubmit={fetchClasses}
+            editMode={editMode}
+            selectedClass={selectedClass}
+          />
+        )}
+      </main>
     </div>
   );
 }
@@ -360,7 +364,7 @@ function ClassModal({ onClose, onSubmit, editMode, selectedClass }) {
     description: '',
     academic_year: ''
   });
-  const [grades, setGrades] = useState([]); // لیست پایه‌ها
+  const [grades, setGrades] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -371,18 +375,11 @@ function ClassModal({ onClose, onSubmit, editMode, selectedClass }) {
   const fetchGrades = async () => {
     try {
       const response = await fetch('/api/grades');
-      if (!response.ok) {
-        throw new Error('خطا در دریافت پایه‌ها');
-      }
+      if (!response.ok) throw new Error('خطا در دریافت پایه‌ها');
       const data = await response.json();
-      if (data.success) {
-        setGrades(data.grades);
-      } else {
-        throw new Error(data.message || 'خطا در دریافت پایه‌ها');
-      }
-    } catch (error) {
-      console.error('Error fetching grades:', error);
-    }
+      if (data.success) setGrades(data.grades);
+      else throw new Error(data.message || 'خطا در دریافت پایه‌ها');
+    } catch {}
   };
 
   useEffect(() => {
@@ -417,14 +414,17 @@ function ClassModal({ onClose, onSubmit, editMode, selectedClass }) {
     e.preventDefault();
     setLoading(true);
     setError('');
-
     try {
       const token = localStorage.getItem('token');
-      const url = editMode ? `/api/classes` : `/api/classes`;
+      const url = '/api/classes';
       const method = editMode ? 'PUT' : 'POST';
-
+      if (!formData.class_name || !formData.class_number || !formData.grade_id || !formData.capacity || !formData.academic_year) {
+        setError('لطفاً همه فیلدهای اجباری را پر کنید');
+        setLoading(false);
+        return;
+      }
       const response = await fetch(url, {
-        method: method,
+        method,
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -434,15 +434,7 @@ function ClassModal({ onClose, onSubmit, editMode, selectedClass }) {
           id: selectedClass?.id
         })
       });
-
-      if (!formData.class_name || !formData.class_number || !formData.grade_id || !formData.capacity || !formData.academic_year) {
-        setError('لطفاً همه فیلدهای اجباری را پر کنید');
-        setLoading(false);
-        return;
-       }
-
       const data = await response.json();
-
       if (response.ok) {
         toast.success(data.message || `کلاس با موفقیت ${editMode ? 'ویرایش' : 'ایجاد'} شد`);
         onSubmit();
@@ -450,8 +442,7 @@ function ClassModal({ onClose, onSubmit, editMode, selectedClass }) {
       } else {
         setError(data.message || 'خطا در ثبت اطلاعات');
       }
-    } catch (error) {
-      console.error('Error submitting form:', error);
+    } catch {
       setError('خطا در برقراری ارتباط با سرور');
     } finally {
       setLoading(false);
@@ -459,9 +450,9 @@ function ClassModal({ onClose, onSubmit, editMode, selectedClass }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 backdrop-blur-sm bg-white/50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b bg-green-700">
+    <div className="fixed inset-0 z-50 backdrop-blur-sm bg-black/40 flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-green-200">
+        <div className="p-6 border-b bg-gradient-to-r from-green-600 to-green-500 rounded-t-3xl">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-bold text-white">{editMode ? 'ویرایش کلاس' : 'افزودن کلاس جدید'}</h2>
             <button onClick={onClose} className="text-white hover:text-gray-200">
@@ -469,7 +460,6 @@ function ClassModal({ onClose, onSubmit, editMode, selectedClass }) {
             </button>
           </div>
         </div>
-
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">نام کلاس</label>
@@ -541,14 +531,12 @@ function ClassModal({ onClose, onSubmit, editMode, selectedClass }) {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 h-32"
             />
           </div>
-
           {error && (
             <div className="flex items-center p-3 bg-red-50 border border-red-200 rounded-lg">
               <AlertCircle className="w-5 h-5 text-red-500 ml-2" />
               <p className="text-sm text-red-700">{error}</p>
             </div>
           )}
-
           <div className="flex justify-end space-x-4 pt-4 border-t">
             <button
               type="button"
@@ -566,7 +554,7 @@ function ClassModal({ onClose, onSubmit, editMode, selectedClass }) {
               {loading ? 'در حال ذخیره...' : (editMode ? 'ویرایش کلاس' : 'افزودن کلاس')}
             </button>
           </div>
-        </form>
+          </form>
       </div>
     </div>
   );

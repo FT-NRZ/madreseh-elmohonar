@@ -17,9 +17,9 @@ async function authenticate(request) {
     return { authenticated: false, status: 401, message: 'توکن نامعتبر است' };
   }
   
-  if (user.role !== 'admin') {
-    return { authenticated: false, status: 403, message: 'دسترسی مجاز نیست' };
-  }
+ if (user.role !== 'admin' && user.role !== 'student' && user.role !== 'teacher') {
+  return { authenticated: false, status: 403, message: 'دسترسی مجاز نیست' };
+ }
   
   return { authenticated: true, user };
 }

@@ -2,34 +2,70 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Calendar, Clock, Users, BookOpen, Camera, Utensils, Award, Phone, MapPin, Mail, Star, Sparkles, ChevronUp } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 const HomePage = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [currentNewsIndex, setCurrentNewsIndex] = useState(0);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [gallery, setGallery] = useState([]);
   const galleryRef = useRef(null);
+  const router = useRouter();
+
+  useEffect(() => {
+  async function fetchGallery() {
+    try {
+      const token = localStorage?.getItem?.('token');
+      const res = await fetch('/api/gallery', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : undefined
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setGallery(
+          (data.images || data.gallery || []).map((item, idx) => ({
+            id: item.id ?? idx + 1,
+            image: item.image_path
+              ? `/uploads/gallery/${item.image_path.replace(/^\/uploads\/gallery\//, '')}`
+              : "/images/placeholder.jpg",
+            title: item.title || "بدون عنوان",
+            category: item.category || item.gallery_categories?.name || "بدون دسته‌بندی",
+            color: item.color || "bg-gradient-to-br from-[#399918] to-[#22c55e]"
+          }))
+        );
+      } else {
+        setGallery([]);
+      }
+    } catch {
+      setGallery([]);
+    }
+  }
+  fetchGallery();
+}, []);
   
   // Auto-scroll effect for gallery
-  useEffect(() => {
-    const gallery = galleryRef.current;
-    let scrollAmount = 0;
-    let scrollDirection = 1;
-    
-    const scrollGallery = () => {
-      if (gallery) {
-        scrollAmount += 0.5 * scrollDirection;
-        gallery.scrollLeft = scrollAmount;
-        
-        if (scrollAmount >= gallery.scrollWidth - gallery.clientWidth || scrollAmount <= 0) {
-          scrollDirection *= -1;
-        }
+useEffect(() => {
+  const galleryEl = galleryRef.current;
+  if (!galleryEl || gallery.length <= 2) return;
+  let scrollAmount = 0;
+  let scrollDirection = 1;
+
+  const scrollGallery = () => {
+    if (galleryEl) {
+      scrollAmount += 1 * scrollDirection;
+      galleryEl.scrollLeft = scrollAmount;
+      if (scrollAmount >= galleryEl.scrollWidth - galleryEl.clientWidth) {
+        scrollDirection = -1;
       }
-    };
-    
-    const scrollInterval = setInterval(scrollGallery, 30);
-    return () => clearInterval(scrollInterval);
-  }, []);
+      if (scrollAmount <= 0) {
+        scrollDirection = 1;
+      }
+    }
+  };
+
+  const scrollInterval = setInterval(scrollGallery, 40);
+  return () => clearInterval(scrollInterval);
+}, [gallery.length]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -112,17 +148,6 @@ const HomePage = () => {
       image: "/api/placeholder/300/200",
       color: "from-[#22c55e] to-[#399918]"
     }
-  ];
-
-  const gallery = [
-    { id: 1, image: "/api/placeholder/300/200", title: "کلاس درس", category: "آموزش", color: "bg-gradient-to-br from-[#399918] to-[#22c55e]" },
-    { id: 2, image: "/api/placeholder/300/200", title: "باغچه مدرسه", category: "محیط", color: "bg-gradient-to-br from-[#16a34a] to-[#399918]" },
-    { id: 3, image: "/api/placeholder/300/200", title: "ورزش صبحگاهی", category: "فعالیت", color: "bg-gradient-to-br from-[#399918] to-[#15803d]" },
-    { id: 4, image: "/api/placeholder/300/200", title: "کتابخانه", category: "آموزش", color: "bg-gradient-to-br from-[#22c55e] to-[#399918]" },
-    { id: 5, image: "/api/placeholder/300/200", title: "آزمایشگاه", category: "علوم", color: "bg-gradient-to-br from-[#399918] to-[#4ade80]" },
-    { id: 6, image: "/api/placeholder/300/200", title: "سالن غذاخوری", category: "امکانات", color: "bg-gradient-to-br from-[#15803d] to-[#399918]" },
-    { id: 7, image: "/api/placeholder/300/200", title: "نمایشگاه آثار", category: "فرهنگی", color: "bg-gradient-to-br from-[#399918] to-[#16a34a]" },
-    { id: 8, image: "/api/placeholder/300/200", title: "زنگ تفریح", category: "فعالیت", color: "bg-gradient-to-br from-[#4ade80] to-[#399918]" }
   ];
 
   const weeklySchedule = [
@@ -338,27 +363,29 @@ const HomePage = () => {
       {/* Gallery */}
       <section className="py-16 bg-white relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-[#399918]/5 via-transparent to-green-50 opacity-30"></div>
-        
         <div className="container mx-auto px-4 relative z-10">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4 animate-fade-in">گالری تصاویر</h2>
             <div className="w-24 h-1 bg-gradient-to-r from-[#399918] to-[#22c55e] mx-auto rounded-full animate-scale-x"></div>
             <p className="text-gray-600 mt-4 text-lg animate-fade-in">نگاهی به فضاهای زیبای مدرسه</p>
           </div>
-          
-          <div 
+          <div
             ref={galleryRef}
             className="flex overflow-x-auto pb-8 -mb-8 scrollbar-hide space-x-6 space-x-reverse"
           >
             {gallery.map((item) => (
-              <div 
-                key={item.id} 
-                className="flex-shrink-0 relative group overflow-hidden rounded-2xl shadow-lg w-80 h-96 transition-all duration-500 hover:shadow-2xl"
+              <div
+                key={item.id}
+                className="flex-shrink-0 relative group overflow-hidden rounded-2xl shadow-lg w-80 h-96 transition-all duration-500 hover:shadow-2xl cursor-pointer"
+                onClick={() => router.push(`/gallery/${item.id}`)}
               >
-                <div className="w-full h-full bg-gray-200 animate-pulse"></div>
-                
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60 transition-opacity duration-300 group-hover:opacity-70"></div>
-                
+                <img
+                  src={item.image}
+                  alt={item.title}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
+                 <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60 transition-opacity duration-300 group-hover:opacity-70"></div>
                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center">
                   <div className="text-center text-white transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
                     <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-3 border border-white/30">
@@ -368,7 +395,6 @@ const HomePage = () => {
                     <p className="text-sm text-gray-200">{item.category}</p>
                   </div>
                 </div>
-                
                 <div className="absolute bottom-0 left-0 right-0 p-4 transition-transform duration-300 group-hover:-translate-y-2">
                   <div className="flex items-center justify-between">
                     <div>
@@ -381,9 +407,11 @@ const HomePage = () => {
               </div>
             ))}
           </div>
-          
           <div className="text-center mt-12 animate-fade-in">
-            <button className="bg-gradient-to-r from-[#399918] to-[#22c55e] text-white px-8 py-4 rounded-full hover:from-[#16a34a] hover:to-[#399918] transition-all duration-300 font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+            <button
+              className="bg-gradient-to-r from-[#399918] to-[#22c55e] text-white px-8 py-4 rounded-full hover:from-[#16a34a] hover:to-[#399918] transition-all duration-300 font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+              onClick={() => router.push('/gallery')}
+            >
               مشاهده همه تصاویر
             </button>
           </div>

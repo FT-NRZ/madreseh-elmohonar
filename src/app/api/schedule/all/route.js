@@ -33,21 +33,14 @@ export async function GET(request) {
         }
       },
       orderBy: [
-        { classes: { grades: { grade_level: 'asc' } } },
-        { classes: { class_name: 'asc' } },
         { day_of_week: 'asc' },
         { start_time: 'asc' }
       ]
     });
 
-    // دریافت لیست پایه‌ها و کلاس‌ها برای فیلتر
+    // دریافت لیست پایه‌ها برای فیلتر
     const grades = await prisma.grades.findMany({
-      orderBy: { grade_level: 'asc' },
-      include: {
-        classes: {
-          orderBy: { class_name: 'asc' }
-        }
-      }
+      orderBy: { grade_level: 'asc' }
     });
 
     // فرمت کردن داده‌ها
