@@ -33,7 +33,6 @@ const teacherTabs = [
   { key: 'schedule', label: 'برنامه هفتگی', icon: Calendar },
   { key: 'attendance', label: 'حضور و غیاب', icon: ClipboardList },
   { key: 'exams', label: 'آزمون‌ها', icon: FileText },
-  { key: 'examResults', label: 'نتایج آزمون', icon: Award },
   { key: 'reportCards', label: 'کارنامه‌ها', icon: BookOpen },
   { key: 'gallery', label: 'گالری کلاس', icon: Image },
   { key: 'suggestion', label: 'ارسال پیام/پیشنهاد', icon: MessageSquare },

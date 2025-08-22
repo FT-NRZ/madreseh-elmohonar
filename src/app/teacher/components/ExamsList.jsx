@@ -1,11 +1,18 @@
 "use client"
 import React, { useState, useEffect } from 'react'
+import Link from 'next/link'
 
-// فرضی: لیست کلاس‌ها. اگر از API می‌گیری، این بخش را با داده واقعی جایگزین کن.
+// رنگ سبز هماهنگ با هدر
+const mainGreen = "#399918";
+const lightGreen = "#eafbe6";
+const borderGreen = "#b6e2b2";
+const darkGreen = "#237a13";
+
 const classesList = [
   { id: 1, name: "کلاس اول" },
   { id: 2, name: "کلاس دوم" },
-  { id: 3, name: "کلاس سوم" }
+  { id: 3, name: "کلاس سوم" },
+  { id: 4, name: "کلاس چهارم" }
 ]
 
 const initialForm = {
@@ -13,7 +20,7 @@ const initialForm = {
   type: 'pdf',
   file: null,
   image: null,
-  class_id: '', // اضافه شد
+  class_id: '',
   questions: [
     { question: '', options: ['', '', '', ''], answer: 0 }
   ]
@@ -27,9 +34,7 @@ export default function ExamsList() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
 
-  useEffect(() => {
-    fetchExams()
-  }, [])
+  useEffect(() => { fetchExams() }, [])
 
   const fetchExams = async () => {
     try {
@@ -37,18 +42,13 @@ export default function ExamsList() {
       if (!res.ok) throw new Error('خطا در دریافت لیست آزمون‌ها')
       const data = await res.json()
       setExams(data)
-    } catch (err) {
-      setError(err.message)
-    }
+    } catch (err) { setError(err.message) }
   }
 
   const handleChange = (e) => {
     const { name, value, files, type } = e.target
-    if (type === 'file') {
-      setForm(f => ({ ...f, [name]: files[0] }))
-    } else {
-      setForm(f => ({ ...f, [name]: value }))
-    }
+    if (type === 'file') setForm(f => ({ ...f, [name]: files[0] }))
+    else setForm(f => ({ ...f, [name]: value }))
   }
 
   const handleQuestionChange = (idx, field, value) => {
@@ -75,16 +75,13 @@ export default function ExamsList() {
     }))
   }
 
-  // حذف آزمون
   const handleDelete = async (id) => {
     if (!window.confirm('آیا از حذف این آزمون مطمئن هستید؟')) return
     try {
       const res = await fetch(`/api/teacher/exams?id=${id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('خطا در حذف آزمون')
       await fetchExams()
-    } catch (err) {
-      setError(err.message)
-    }
+    } catch (err) { setError(err.message) }
   }
 
   const handleSubmit = async (e) => {
@@ -158,7 +155,7 @@ export default function ExamsList() {
           title: form.title,
           pdf_url,
           image_url,
-          class_id: form.class_id, // اضافه شد
+          class_id: form.class_id,
           questions: form.type === 'quiz' ? form.questions : undefined
         })
       })
@@ -182,33 +179,36 @@ export default function ExamsList() {
 
   return (
     <div style={{
-      maxWidth: 650,
-      margin: "40px auto",
-      background: "#f6fff7",
+      maxWidth: 520,
+      margin: "32px auto",
+      background: `linear-gradient(135deg,${lightGreen} 60%,#f6fff4 100%)`,
       borderRadius: 16,
-      boxShadow: "0 2px 24px #4caf5022",
-      padding: 32,
-      border: "2px solid #43a047"
+      boxShadow: `0 2px 24px ${mainGreen}22`,
+      padding: 24,
+      border: `1.5px solid ${borderGreen}`
     }}>
       <h2 style={{
         textAlign: "center",
-        marginBottom: 24,
-        color: "#388e3c",
+        marginBottom: 18,
+        color: mainGreen,
         fontWeight: "bold",
-        letterSpacing: 1
+        letterSpacing: 1,
+        fontSize: 22,
+        borderBottom: `1.5px solid ${borderGreen}`,
+        paddingBottom: 8
       }}>مدیریت آزمون‌ها</h2>
-      <div style={{ textAlign: "center", marginBottom: 24 }}>
+      <div style={{ textAlign: "center", marginBottom: 18 }}>
         <button
           onClick={() => setShowForm(true)}
           style={{
-            background: "linear-gradient(90deg,#43a047,#66bb6a)",
+            background: `linear-gradient(90deg,${mainGreen},${darkGreen})`,
             color: "#fff",
             border: "none",
-            borderRadius: 10,
-            padding: "12px 36px",
-            fontSize: 19,
+            borderRadius: 8,
+            padding: "8px 26px",
+            fontSize: 15,
             cursor: "pointer",
-            boxShadow: "0 2px 12px #43a04733",
+            boxShadow: `0 2px 12px ${mainGreen}22`,
             fontWeight: "bold",
             transition: "0.2s"
           }}
@@ -218,70 +218,44 @@ export default function ExamsList() {
       </div>
       {showForm && (
         <form onSubmit={handleSubmit} style={{
-          background: "#e8f5e9",
-          borderRadius: 14,
-          padding: 24,
-          marginBottom: 32,
-          boxShadow: "0 1px 12px #43a04722",
-          border: "1.5px solid #a5d6a7",
+          background: "#fff",
+          borderRadius: 12,
+          padding: 18,
+          marginBottom: 24,
+          boxShadow: `0 1px 8px ${mainGreen}11`,
+          border: `1px solid ${borderGreen}`,
           overflow: "hidden"
         }}>
-          <div style={{ marginBottom: 18 }}>
-            <label style={{ fontWeight: "bold", color: "#388e3c" }}>عنوان آزمون:</label>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ color: mainGreen, fontWeight: "bold", fontSize: 14 }}>عنوان آزمون:</label>
             <input
+              type="text"
               name="title"
               value={form.title}
               onChange={handleChange}
-              placeholder="مثلاً آزمون ریاضی نوبت اول"
               style={{
                 width: "100%",
-                padding: 12,
-                borderRadius: 8,
-                border: "1.5px solid #a5d6a7",
-                marginTop: 7,
-                fontSize: 16,
-                background: "#fff"
+                padding: "8px",
+                borderRadius: 6,
+                border: `1px solid ${borderGreen}`,
+                marginTop: 5,
+                fontSize: 14
               }}
             />
           </div>
-          {/* انتخاب کلاس */}
-          <div style={{ marginBottom: 18 }}>
-            <label style={{ fontWeight: "bold", color: "#388e3c" }}>کلاس:</label>
-            <select
-              name="class_id"
-              value={form.class_id}
-              onChange={handleChange}
-              style={{
-                width: "100%",
-                padding: 12,
-                borderRadius: 8,
-                border: "1.5px solid #a5d6a7",
-                marginTop: 7,
-                fontSize: 16,
-                background: "#fff"
-              }}
-              required
-            >
-              <option value="">انتخاب کلاس</option>
-              {classesList.map(cls => (
-                <option key={cls.id} value={cls.id}>{cls.name}</option>
-              ))}
-            </select>
-          </div>
-          <div style={{ marginBottom: 18 }}>
-            <label style={{ fontWeight: "bold", color: "#388e3c" }}>نوع آزمون:</label>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ color: mainGreen, fontWeight: "bold", fontSize: 14 }}>نوع آزمون:</label>
             <select
               name="type"
               value={form.type}
               onChange={handleChange}
               style={{
                 width: "100%",
-                padding: 12,
-                borderRadius: 8,
-                border: "1.5px solid #a5d6a7",
-                marginTop: 7,
-                fontSize: 16,
-                background: "#fff"
+                padding: "8px",
+                borderRadius: 6,
+                border: `1px solid ${borderGreen}`,
+                marginTop: 5,
+                fontSize: 14
               }}
             >
               <option value="pdf">PDF</option>
@@ -289,173 +263,186 @@ export default function ExamsList() {
               <option value="quiz">تستی</option>
             </select>
           </div>
-          {form.type === 'pdf' && (
-            <div style={{ marginBottom: 18 }}>
-              <label style={{ fontWeight: "bold", color: "#388e3c" }}>فایل PDF آزمون:</label>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ color: mainGreen, fontWeight: "bold", fontSize: 14 }}>کلاس:</label>
+            <select
+              name="class_id"
+              value={form.class_id}
+              onChange={handleChange}
+              style={{
+                width: "100%",
+                padding: "8px",
+                borderRadius: 6,
+                border: `1px solid ${borderGreen}`,
+                marginTop: 5,
+                fontSize: 14
+              }}
+            >
+              <option value="">انتخاب کنید</option>
+              {classesList.map(cls => (
+                <option key={cls.id} value={cls.id}>{cls.name}</option>
+              ))}
+            </select>
+          </div>
+          {form.type === "pdf" && (
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ color: mainGreen, fontWeight: "bold", fontSize: 14 }}>فایل PDF آزمون:</label>
               <input
                 type="file"
                 name="file"
                 accept="application/pdf"
                 onChange={handleChange}
                 style={{
-                  marginTop: 7,
-                  padding: 8,
-                  borderRadius: 8,
-                  border: "1.5px solid #a5d6a7",
+                  width: "100%",
+                  padding: "8px",
+                  borderRadius: 6,
+                  border: `1px solid ${borderGreen}`,
+                  marginTop: 5,
+                  fontSize: 14,
                   background: "#fff"
                 }}
               />
             </div>
           )}
-          {form.type === 'image' && (
-            <div style={{ marginBottom: 18 }}>
-              <label style={{ fontWeight: "bold", color: "#388e3c" }}>تصویر آزمون:</label>
+          {form.type === "image" && (
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ color: mainGreen, fontWeight: "bold", fontSize: 14 }}>تصویر آزمون:</label>
               <input
                 type="file"
                 name="image"
                 accept="image/*"
                 onChange={handleChange}
                 style={{
-                  marginTop: 7,
-                  padding: 8,
-                  borderRadius: 8,
-                  border: "1.5px solid #a5d6a7",
+                  width: "100%",
+                  padding: "8px",
+                  borderRadius: 6,
+                  border: `1px solid ${borderGreen}`,
+                  marginTop: 5,
+                  fontSize: 14,
                   background: "#fff"
                 }}
               />
             </div>
           )}
-          {form.type === 'quiz' && (
+          {form.type === "quiz" && (
             <div style={{
-              marginBottom: 18,
-              background: "#f1f8e9",
-              borderRadius: 10,
-              padding: 12,
-              border: "1.5px solid #c8e6c9",
-              maxHeight: 350,
-              overflowY: "auto"
+              background: lightGreen,
+              borderRadius: 8,
+              padding: 10,
+              marginBottom: 12,
+              border: `1px solid ${borderGreen}`
             }}>
-              <label style={{ fontWeight: "bold", color: "#388e3c" }}>سوالات تستی:</label>
+              <label style={{ color: mainGreen, fontWeight: "bold", marginBottom: 6, display: "block", fontSize: 14 }}>سوالات تستی:</label>
               {form.questions.map((q, idx) => (
                 <div key={idx} style={{
+                  marginBottom: 12,
+                  padding: 8,
                   background: "#fff",
-                  borderRadius: 8,
-                  padding: 12,
-                  marginBottom: 14,
-                  border: "1.5px solid #a5d6a7",
-                  boxShadow: "0 1px 4px #43a04711"
+                  borderRadius: 6,
+                  border: `1px solid ${borderGreen}`
                 }}>
                   <input
-                    placeholder={`سوال ${idx + 1}`}
+                    type="text"
+                    placeholder={`متن سوال ${idx + 1}`}
                     value={q.question}
-                    onChange={e => handleQuestionChange(idx, 'question', e.target.value)}
+                    onChange={e => handleQuestionChange(idx, "question", e.target.value)}
                     style={{
                       width: "100%",
-                      padding: 10,
-                      borderRadius: 7,
-                      border: "1.5px solid #a5d6a7",
-                      marginBottom: 10,
-                      fontSize: 15,
-                      background: "#f9fff9"
+                      padding: "7px",
+                      borderRadius: 5,
+                      border: `1px solid ${borderGreen}`,
+                      marginBottom: 6,
+                      fontSize: 13
                     }}
                   />
-                  <div style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(4, 1fr)",
-                    gap: 8,
-                    marginBottom: 10
-                  }}>
-                    {q.options.map((opt, oIdx) => (
+                  {q.options.map((opt, oIdx) => (
+                    <div key={oIdx} style={{ display: "flex", alignItems: "center", marginBottom: 4 }}>
                       <input
-                        key={oIdx}
+                        type="text"
                         placeholder={`گزینه ${oIdx + 1}`}
                         value={opt}
                         onChange={e => handleOptionChange(idx, oIdx, e.target.value)}
                         style={{
-                          width: "100%",
-                          minWidth: 0,
-                          padding: 10,
-                          borderRadius: 7,
-                          border: "1.5px solid #a5d6a7",
-                          fontSize: 15,
-                          background: "#f9fff9"
+                          flex: 1,
+                          padding: "6px",
+                          borderRadius: 5,
+                          border: `1px solid ${borderGreen}`,
+                          fontSize: 13,
+                          marginLeft: 6
                         }}
                       />
-                    ))}
-                  </div>
-                  <select
-                    value={q.answer}
-                    onChange={e => handleQuestionChange(idx, 'answer', e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: 10,
-                      borderRadius: 7,
-                      border: "1.5px solid #a5d6a7",
-                      fontSize: 15,
-                      background: "#f9fff9"
-                    }}
-                  >
-                    <option value={0}>گزینه ۱ صحیح</option>
-                    <option value={1}>گزینه ۲ صحیح</option>
-                    <option value={2}>گزینه ۳ صحیح</option>
-                    <option value={3}>گزینه ۴ صحیح</option>
-                  </select>
+                      <label style={{
+                        color: mainGreen,
+                        fontWeight: "bold",
+                        marginLeft: 6,
+                        fontSize: 13
+                      }}>
+                        <input
+                          type="radio"
+                          name={`answer_${idx}`}
+                          checked={q.answer === oIdx}
+                          onChange={() => handleQuestionChange(idx, "answer", oIdx)}
+                          style={{ marginLeft: 3 }}
+                        />
+                        صحیح
+                      </label>
+                    </div>
+                  ))}
                 </div>
               ))}
               <button
                 type="button"
                 onClick={addQuestion}
                 style={{
-                  background: "linear-gradient(90deg,#43a047,#66bb6a)",
+                  background: `linear-gradient(90deg,${mainGreen},${darkGreen})`,
                   color: "#fff",
                   border: "none",
-                  borderRadius: 8,
-                  padding: "10px 22px",
-                  fontSize: 16,
-                  cursor: "pointer",
-                  marginTop: 4,
+                  borderRadius: 6,
+                  padding: "6px 18px",
+                  fontSize: 13,
                   fontWeight: "bold",
-                  boxShadow: "0 1px 6px #43a04722"
+                  cursor: "pointer",
+                  marginTop: 4
                 }}
               >
                 + افزودن سوال
               </button>
             </div>
           )}
-          {error && <div style={{ color: '#c62828', marginBottom: 10, fontWeight: "bold" }}>{error}</div>}
-          {success && <div style={{ color: '#388e3c', marginBottom: 10, fontWeight: "bold" }}>آزمون با موفقیت ثبت شد!</div>}
-          <div style={{ display: "flex", gap: 12 }}>
+          {error && <div style={{ color: "#c62828", marginBottom: 10, fontSize: 13 }}>{error}</div>}
+          <div style={{ display: "flex", gap: 8 }}>
             <button
               type="submit"
               disabled={uploading}
               style={{
-                background: "linear-gradient(90deg,#43a047,#66bb6a)",
+                background: `linear-gradient(90deg,${mainGreen},${darkGreen})`,
                 color: "#fff",
                 border: "none",
-                borderRadius: 10,
-                padding: "12px 36px",
-                fontSize: 18,
-                cursor: uploading ? "not-allowed" : "pointer",
-                flex: 1,
+                borderRadius: 7,
+                padding: "8px 22px",
+                fontSize: 14,
                 fontWeight: "bold",
-                boxShadow: "0 2px 8px #43a04733"
+                cursor: "pointer",
+                marginTop: 8,
+                minWidth: 90
               }}
             >
-              {uploading ? 'در حال ثبت...' : 'ثبت آزمون'}
+              {uploading ? "در حال ارسال..." : "ثبت آزمون"}
             </button>
             <button
               type="button"
               onClick={() => setShowForm(false)}
               style={{
-                background: "#fff",
-                color: "#43a047",
-                border: "2px solid #43a047",
-                borderRadius: 10,
-                padding: "12px 36px",
-                fontSize: 18,
+                background: "linear-gradient(90deg,#c62828,#ef5350)",
+                color: "#fff",
+                border: "none",
+                borderRadius: 7,
+                padding: "8px 22px",
+                fontSize: 14,
+                fontWeight: "bold",
                 cursor: "pointer",
-                flex: 1,
-                fontWeight: "bold"
+                marginTop: 8,
+                minWidth: 90
               }}
             >
               انصراف
@@ -464,59 +451,95 @@ export default function ExamsList() {
         </form>
       )}
       <h3 style={{
-        marginTop: 32,
-        color: "#388e3c",
+        marginTop: 18,
+        color: mainGreen,
         fontWeight: "bold",
-        letterSpacing: 1
+        letterSpacing: 1,
+        fontSize: 17,
+        borderBottom: `1px solid ${borderGreen}`,
+        paddingBottom: 6
       }}>لیست آزمون‌ها</h3>
-      <ul style={{ listStyle: "none", padding: 0 }}>
+      <ul style={{ listStyle: "none", padding: 0, marginTop: 14 }}>
         {exams.map(exam => (
           <li key={exam.id} style={{
-            background: "#e8f5e9",
-            borderRadius: 10,
-            marginBottom: 14,
-            padding: 18,
-            boxShadow: "0 1px 8px #43a04711",
+            background: "#fff",
+            borderRadius: 9,
+            marginBottom: 12,
+            padding: 13,
+            boxShadow: `0 1px 8px ${mainGreen}11`,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            border: "1.5px solid #a5d6a7"
+            border: `1px solid ${borderGreen}`,
+            gap: 8
           }}>
-            <span style={{ fontWeight: "bold", color: "#388e3c" }}>{exam.title}</span>
             <span style={{
-              background: "#43a047",
-              color: "#fff",
-              borderRadius: 7,
-              padding: "5px 18px",
-              fontSize: 15,
               fontWeight: "bold",
-              marginLeft: 12
+              color: mainGreen,
+              fontSize: 15,
+              minWidth: 90,
+              display: "inline-block"
+            }}>{exam.title}</span>
+            <span style={{
+              background: mainGreen,
+              color: "#fff",
+              borderRadius: 6,
+              padding: "5px 14px",
+              fontSize: 13,
+              fontWeight: "bold",
+              marginLeft: 6,
+              minWidth: 60,
+              textAlign: "center",
+              display: "inline-block"
             }}>{exam.type === "pdf" ? "PDF" : exam.type === "image" ? "تصویری" : "تستی"}</span>
             <span style={{
-              background: "#fff",
-              color: "#43a047",
-              border: "1px solid #43a047",
-              borderRadius: 7,
-              padding: "5px 14px",
-              fontSize: 14,
+              background: "#f6fff4",
+              color: mainGreen,
+              border: `1px solid ${mainGreen}`,
+              borderRadius: 6,
+              padding: "5px 12px",
+              fontSize: 13,
               fontWeight: "bold",
-              marginLeft: 12
+              marginLeft: 6,
+              minWidth: 70,
+              textAlign: "center",
+              display: "inline-block"
             }}>
               {classesList.find(cls => cls.id == exam.class_id)?.name || "بدون کلاس"}
             </span>
+            <Link href={`/teacher/exams/${exam.id}`}>
+              <button
+                style={{
+                  background: "linear-gradient(90deg,#1976d2,#64b5f6)",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 6,
+                  padding: "6px 18px",
+                  fontSize: 13,
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                  marginRight: 4,
+                  transition: "0.2s",
+                  minWidth: 70
+                }}
+              >
+                نتایج
+              </button>
+            </Link>
             <button
               onClick={() => handleDelete(exam.id)}
               style={{
-                background: "#c62828",
+                background: "linear-gradient(90deg,#c62828,#ef5350)",
                 color: "#fff",
                 border: "none",
-                borderRadius: 7,
+                borderRadius: 6,
                 padding: "6px 18px",
-                fontSize: 15,
+                fontSize: 13,
                 fontWeight: "bold",
                 cursor: "pointer",
-                marginRight: 8,
-                transition: "0.2s"
+                marginRight: 4,
+                transition: "0.2s",
+                minWidth: 60
               }}
             >
               حذف

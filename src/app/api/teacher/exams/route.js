@@ -14,7 +14,6 @@ export async function GET(req) {
       orderBy: { id: 'desc' }
     });
 
-    // فقط آرایه برگردان تا در فرانت مستقیم exams.map بزنی
     return NextResponse.json(exams);
   } catch (error) {
     console.error('دریافت آزمون‌ها error:', error);
@@ -71,6 +70,34 @@ export async function POST(req) {
           total_marks: 100
         }
       })
+
+      // ثبت سوالات و گزینه‌ها در جداول استاندارد
+      if (questions && Array.isArray(questions)) {
+        for (let qIdx = 0; qIdx < questions.length; qIdx++) {
+          const q = questions[qIdx];
+          // ثبت سوال در exam_questions
+          const examQuestion = await prisma.exam_questions.create({
+            data: {
+              exam_id: exam.id,
+              question_text: q.question,
+              question_type: "multiple_choice",
+              marks: 1,
+              sort_order: qIdx
+            }
+          });
+          // ثبت گزینه‌ها در question_options
+          for (let oIdx = 0; oIdx < q.options.length; oIdx++) {
+            await prisma.question_options.create({
+              data: {
+                question_id: examQuestion.id,
+                option_text: q.options[oIdx],
+                is_correct: oIdx === q.answer,
+                sort_order: oIdx
+              }
+            });
+          }
+        }
+      }
     } else {
       return NextResponse.json({ error: 'نوع آزمون نامعتبر است' }, { status: 400 })
     }
@@ -85,7 +112,7 @@ export async function POST(req) {
   }
 }
 
-// متد DELETE برای حذف آزمون
+// متد DELETE برای حذف آزمون (حذف امن همراه با حذف رکوردهای وابسته)
 export async function DELETE(req) {
   try {
     const { searchParams } = new URL(req.url);
@@ -93,14 +120,30 @@ export async function DELETE(req) {
     if (!id || isNaN(Number(id))) {
       return NextResponse.json({ error: 'شناسه آزمون نامعتبر است' }, { status: 400 });
     }
+    const examId = Number(id);
 
-    await prisma.exams.delete({
-      where: { id: Number(id) }
-    });
+    // حذف همه فایل‌های مرتبط
+    await prisma.exam_file_answers.deleteMany({ where: { exam_id: examId } });
+    // حذف همه نتایج دانش‌آموزان و پاسخ‌های تستی مرتبط
+    const results = await prisma.exam_results.findMany({ where: { exam_id: examId } });
+    for (const result of results) {
+      await prisma.student_answers.deleteMany({ where: { result_id: result.id } });
+    }
+    await prisma.exam_results.deleteMany({ where: { exam_id: examId } });
+
+    // حذف همه سوالات و گزینه‌های تستی مرتبط
+    const questions = await prisma.exam_questions.findMany({ where: { exam_id: examId } });
+    for (const q of questions) {
+      await prisma.question_options.deleteMany({ where: { question_id: q.id } });
+    }
+    await prisma.exam_questions.deleteMany({ where: { exam_id: examId } });
+
+    // حذف خود آزمون
+    await prisma.exams.delete({ where: { id: examId } });
 
     return NextResponse.json({ success: true, message: 'آزمون با موفقیت حذف شد' });
   } catch (error) {
     console.error('حذف آزمون error:', error);
     return NextResponse.json({ error: 'خطا در حذف آزمون', detail: error.message }, { status: 500 });
   }
-  }
+}
