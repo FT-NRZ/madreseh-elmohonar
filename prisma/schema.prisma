@@ -383,3 +383,14 @@ model exam_file_answers {
   exams      exams    @relation(fields: [exam_id], references: [id])
   students   students @relation(fields: [student_id], references: [id])
 }
+
+model food_schedule {
+  id         Int      @id @default(autoincrement())
+  week_start DateTime
+  weekday    String
+  date       DateTime
+  breakfast  String?
+  lunch      String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}

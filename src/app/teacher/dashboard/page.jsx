@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   User,
   BookOpen,
@@ -40,6 +40,15 @@ const teacherTabs = [
 
 export default function TeacherDashboardPage() {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [teacherId, setTeacherId] = useState(null);
+
+  // گرفتن teacherId از localStorage فقط یکبار
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      setTeacherId(user?.id || user?.teacher_id || null);
+    }
+  }, []);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -48,7 +57,9 @@ export default function TeacherDashboardPage() {
       case 'classes':
         return <MyClasses />;
       case 'schedule':
-        return <WeeklySchedule />;
+        // اگر teacherId هنوز لود نشده بود، پیام بارگذاری نمایش بده
+        if (!teacherId) return <div>در حال بارگذاری برنامه هفتگی...</div>;
+        return <WeeklySchedule teacherId={teacherId} />;
       case 'attendance':
         return <AttendanceRegister />;
       case 'exams':

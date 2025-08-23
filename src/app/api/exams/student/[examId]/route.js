@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/database'
 
 // GET: جزئیات آزمون برای دانش‌آموز
-export async function GET(request, { params }) {
+export async function GET(request, context) {
+  const params = await context.params;
   try {
     const examId = Number(params.examId);
     if (!examId || isNaN(examId)) {
@@ -34,7 +35,8 @@ export async function GET(request, { params }) {
 }
 
 // POST: ثبت پاسخ دانش‌آموز
-export async function POST(request, { params }) {
+export async function POST(request, context) {
+  const params = await context.params;
   try {
     const examId = Number(params.examId);
     const data = await request.json();

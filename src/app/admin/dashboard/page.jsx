@@ -2,19 +2,19 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Users, UserPlus, GraduationCap, BookOpen, BarChart3, Settings, LogOut, 
-  Eye, EyeOff, Trash2, Edit, Search, X, AlertCircle,
-  Menu, Calendar, Clock, Crown, Target, 
-  RefreshCw, ChevronLeft, Activity, Sparkles, TrendingUp, Zap
+  Activity, Calendar, Clock, Crown, Target, RefreshCw, Sparkles,
+  Edit, Trash2 // این خط را اضافه کنید
 } from 'lucide-react';
 import { Image, Calendar as CalendarIcon, LayoutGrid, GalleryHorizontalEnd } from 'lucide-react';
 
 const sidebarMenu = [
-  { label: 'داشبورد', icon: LayoutGrid, href: '/admin/dashboard' },
   { label: 'مدیریت کاربران', icon: Users, href: '/admin/users' },
   { label: 'مدیریت کلاس‌ها', icon: GraduationCap, href: '/admin/classes' },
   { label: 'برنامه هفتگی', icon: CalendarIcon, href: '/admin/weekly_schedule' },
-  { label: 'مدیریت گالری', icon: Image, href: '/admin/gallery' },
-  { label: 'گزارش‌ها', icon: BarChart3, href: '/admin/reports' },
+  { label: 'برنامه غذایی', icon: GalleryHorizontalEnd, href: '/admin/food-schedule' },
+  { label: 'داشبورد', icon: LayoutGrid, href: '/admin/dashboard' },
+  { label: 'گالری', icon: Image, href: '/admin/gallery' },
+  { label: 'گزارش', icon: BarChart3, href: '/admin/reports' },
   { label: 'تنظیمات', icon: Settings, href: '/admin/settings' }
 ];
 
@@ -33,7 +33,7 @@ export default function AdminDashboard() {
   });
   const [showEditUser, setShowEditUser] = useState(false);
   const [userToEdit, setUserToEdit] = useState(null);
-  
+
   const openEditModal = (user) => {
     setUserToEdit(user);
     setShowEditUser(true);
@@ -158,10 +158,10 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-white">
-      <div className="flex">
-        {/* Sidebar - Fixed on right */}
-        <aside className=" right-0 top-25 w-80 bg-white/95 backdrop-blur-xl shadow-2xl z-0 border-l border-green-200">
-          <div className="p-6 bg-gradient-to-r from-green-600 via-green-500 to-green-700 text-white relative overflow-hidden">
+      <div className="flex flex-col sm:flex-row">
+        {/* Sidebar - Desktop */}
+        <aside className="hidden sm:block sm:w-80 bg-white/95 backdrop-blur-xl shadow-2xl z-0 border-l border-green-200 p-0">
+          <div className="p-6 bg-gradient-to-r from-green-600 via-green-500 to-green-700 text-white relative overflow-hidden rounded-none mb-0">
             <div className="relative z-10">
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
@@ -172,7 +172,6 @@ export default function AdminDashboard() {
                   <p className="text-green-100 text-sm">مدرسه علم و هنر</p>
                 </div>
               </div>
-              {/* Quick Stats in Sidebar */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-white/20 backdrop-blur-lg rounded-xl p-3 text-center">
                   <p className="text-xl font-bold text-white">{userStats.students}</p>
@@ -189,7 +188,6 @@ export default function AdminDashboard() {
               <div className="w-16 h-16 bg-white rounded-full absolute -bottom-8 -left-8"></div>
             </div>
           </div>
-          
           <nav className="p-4 space-y-2">
             {sidebarMenu.map((item) => {
               const IconComponent = item.icon;
@@ -198,66 +196,89 @@ export default function AdminDashboard() {
                 <button
                   key={item.label}
                   onClick={() => (window.location.href = item.href)}
-                  className={`group w-full text-right p-4 rounded-2xl font-semibold transition-all duration-300 flex items-center gap-4 relative overflow-hidden ${
-                    isActive
+                  className={`group w-full text-right p-4 rounded-2xl font-semibold transition-all duration-300 flex items-center gap-4 relative overflow-hidden text-sm
+                    ${isActive
                       ? 'bg-gradient-to-r from-green-600 to-green-500 text-white shadow-xl scale-[1.02] transform'
                       : 'text-green-700 hover:bg-gradient-to-r hover:from-green-50 hover:to-green-100 hover:shadow-lg hover:scale-[1.01]'
-                  }`}
+                    }`}
                 >
                   <div className={`p-2 rounded-xl ${isActive ? 'bg-white/20' : 'bg-green-100'}`}>
                     <IconComponent size={18} />
                   </div>
-                  <span className="text-sm">{item.label}</span>
+                  <span>{item.label}</span>
                 </button>
               );
             })}
-            
-            {/* Logout Button */}
             <button
               onClick={logout}
-              className="w-full text-right p-4 rounded-2xl font-semibold transition-all duration-300 flex items-center gap-4 text-red-600 hover:bg-red-50 hover:shadow-lg hover:scale-[1.01] mt-6"
+              className="w-full text-right p-4 rounded-2xl font-semibold transition-all duration-300 flex items-center gap-4 text-sm text-red-600 hover:bg-red-50 hover:shadow-lg hover:scale-[1.01] mt-6"
             >
               <div className="p-2 rounded-xl bg-red-100">
                 <LogOut size={18} />
               </div>
-              <span className="text-sm">خروج از سیستم</span>
+              <span>خروج از سیستم</span>
             </button>
           </nav>
         </aside>
 
-        {/* Main Content - with margin for sidebar */}
-        <main className="flex-1 p-6 space-y-8">
+        {/* Bottom Navigation - Mobile */}
+        <nav className="fixed sm:hidden bottom-0 left-0 right-0 z-30 bg-white border-t border-green-200 flex justify-around items-center py-1 shadow-xl">
+          {sidebarMenu.slice(0, 5).map((item) => {
+            const IconComponent = item.icon;
+            const isActive = window.location.pathname === item.href;
+            return (
+              <button
+                key={item.label}
+                onClick={() => (window.location.href = item.href)}
+                className={`flex flex-col items-center justify-center px-1 py-1 text-[10px] font-bold transition-all ${isActive ? 'text-green-600' : 'text-gray-500 hover:text-green-500'}`}
+              >
+                <IconComponent size={20} />
+                <span className="mt-0.5">{item.label}</span>
+              </button>
+            );
+          })}
+          <button
+            onClick={logout}
+            className="flex flex-col items-center justify-center px-1 py-1 text-[10px] font-bold text-red-500"
+          >
+            <LogOut size={20} />
+            <span className="mt-0.5">خروج</span>
+          </button>
+        </nav>
+
+        {/* Main Content */}
+        <main className="flex-1 pb-16 sm:pb-0 p-2 sm:p-6 space-y-3 sm:space-y-8 mt-2 sm:mt-0">
           {/* Welcome Card */}
-          <div className="relative bg-gradient-to-r from-green-600 via-green-500 to-green-600 rounded-3xl p-8 text-white shadow-2xl overflow-hidden">
+          <div className="relative bg-gradient-to-r from-green-600 via-green-500 to-green-600 rounded-2xl sm:rounded-3xl p-3 sm:p-8 text-white shadow-2xl overflow-hidden">
             <div className="absolute inset-0 bg-black/10"></div>
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-32 translate-x-32"></div>
+            <div className="absolute top-0 right-0 w-24 h-24 sm:w-64 sm:h-64 bg-white/10 rounded-full -translate-y-10 translate-x-10 sm:-translate-y-32 sm:translate-x-32"></div>
             <div className="relative z-10">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-4">
                 <div>
-                  <h2 className="text-4xl font-bold mb-3 bg-gradient-to-r from-white to-green-100 bg-clip-text text-transparent">
+                  <h2 className="text-lg sm:text-4xl font-bold mb-1 sm:mb-3 bg-gradient-to-r from-white to-green-100 bg-clip-text text-transparent">
                     سلام {user?.firstName} عزیز! 🌟
                   </h2>
-                  <p className="text-white/90 mb-6 text-lg">به پنل مدیریت هوشمند مدرسه علم و هنر خوش آمدید</p>
-                  <div className="flex items-center space-x-6 text-white/80">
-                    <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-lg rounded-xl px-4 py-2">
+                  <p className="text-white/90 mb-2 sm:mb-6 text-xs sm:text-lg">به پنل مدیریت هوشمند مدرسه علم و هنر خوش آمدید</p>
+                  <div className="flex items-center gap-1 sm:gap-6 text-white/80">
+                    <div className="flex items-center gap-1 bg-white/20 backdrop-blur-lg rounded-xl px-2 py-1 sm:px-4 sm:py-2">
                       <Calendar className="w-4 h-4" />
-                      <span className="text-sm font-medium">{new Date().toLocaleDateString('fa-IR')}</span>
+                      <span className="text-xs sm:text-sm font-medium">{new Date().toLocaleDateString('fa-IR')}</span>
                     </div>
-                    <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-lg rounded-xl px-4 py-2">
+                    <div className="flex items-center gap-1 bg-white/20 backdrop-blur-lg rounded-xl px-2 py-1 sm:px-4 sm:py-2">
                       <Clock className="w-4 h-4" />
-                      <span className="text-sm font-medium">{new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })}</span>
+                      <span className="text-xs sm:text-sm font-medium">{new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                   </div>
                 </div>
-                <div className="w-32 h-32 bg-white/20 backdrop-blur-lg rounded-3xl flex items-center justify-center shadow-2xl">
-                  <Crown className="w-16 h-16 text-white" />
+                <div className="w-14 h-14 sm:w-32 sm:h-32 bg-white/20 backdrop-blur-lg rounded-2xl sm:rounded-3xl flex items-center justify-center shadow-2xl">
+                  <Crown className="w-8 h-8 sm:w-16 sm:h-16 text-white" />
                 </div>
               </div>
             </div>
           </div>
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-6">
             <StatsCard
               title="دانش‌آموزان"
               value={userStats.students}
@@ -289,7 +310,7 @@ export default function AdminDashboard() {
           </div>
 
           {/* Quick Actions */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-6">
             <ActionCard
               title="افزودن کاربر جدید"
               description="ثبت دانش‌آموز، معلم یا مدیر"
@@ -313,7 +334,7 @@ export default function AdminDashboard() {
             />
           </div>
 
-          {/* Users Table */}
+          {/* Users Table / Cards */}
           <UsersTable 
             users={users} 
             loading={loading} 
@@ -323,22 +344,21 @@ export default function AdminDashboard() {
           />
 
           {/* Recent Activity */}
-          <div className="bg-white/95 backdrop-blur-xl rounded-3xl p-8 shadow-xl border border-green-200">
-            <h3 className="text-2xl font-bold text-gray-800 mb-8 flex items-center">
-              <div className="w-10 h-10 bg-gradient-to-r from-green-600 to-green-500 rounded-2xl flex items-center justify-center ml-3">
-                <Activity className="w-5 h-5 text-white" />
+          <div className="bg-white/95 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-3 sm:p-8 shadow-xl border border-green-200">
+            <h3 className="text-base sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-8 flex items-center">
+              <div className="w-7 h-7 sm:w-10 sm:h-10 bg-gradient-to-r from-green-600 to-green-500 rounded-2xl flex items-center justify-center ml-2 sm:ml-3">
+                <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </div>
               فعالیت‌های اخیر
             </h3>
-            <div className="space-y-4">
+            <div className="space-y-2 sm:space-y-4">
               <ActivityItem text="سیستم مدیریت راه‌اندازی شد" time="امروز" />
               <ActivityItem text="پنل ادمین آماده استفاده است" time="5 دقیقه پیش" />
             </div>
           </div>
         </main>
       </div>
-
-      {/* Modals */}
+      {/* Modals (بدون تغییر) */}
       {showCreateUser && (
         <CreateUserModal 
           onClose={() => setShowCreateUser(false)}
@@ -349,7 +369,6 @@ export default function AdminDashboard() {
           }}
         />
       )}
-
       {showEditUser && userToEdit && (
         <EditUserModal 
           user={userToEdit}
@@ -365,7 +384,6 @@ export default function AdminDashboard() {
           }}
         />
       )}
-
       {showDeleteConfirm && userToDelete && (
         <DeleteConfirmModal
           user={userToDelete}
@@ -383,16 +401,16 @@ export default function AdminDashboard() {
 // Stats Card Component
 function StatsCard({ title, value, icon: Icon, gradient, iconGradient }) {
   return (
-    <div className={`bg-gradient-to-br ${gradient} rounded-3xl p-6 border border-green-200 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 backdrop-blur-lg`}>
-      <div className="flex items-center justify-between mb-6">
-        <div className={`w-14 h-14 bg-gradient-to-r ${iconGradient} rounded-2xl flex items-center justify-center shadow-lg`}>
-          <Icon className="w-7 h-7 text-white" />
+    <div className={`bg-gradient-to-br ${gradient} rounded-2xl sm:rounded-3xl p-3 sm:p-6 border border-green-200 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 backdrop-blur-lg`}>
+      <div className="flex items-center justify-between mb-2 sm:mb-6">
+        <div className={`w-8 h-8 sm:w-14 sm:h-14 bg-gradient-to-r ${iconGradient} rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg`}>
+          <Icon className="w-4 h-4 sm:w-7 sm:h-7 text-white" />
         </div>
-        <Sparkles className="w-5 h-5 text-green-600" />
+        <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
       </div>
       <div>
-        <p className="text-4xl font-bold text-gray-800 mb-2">{value.toLocaleString('fa-IR')}</p>
-        <p className="text-gray-600 font-medium">{title}</p>
+        <p className="text-lg sm:text-4xl font-bold text-gray-800 mb-0.5 sm:mb-2">{value.toLocaleString('fa-IR')}</p>
+        <p className="text-xs sm:text-base text-gray-600 font-medium">{title}</p>
       </div>
     </div>
   );
@@ -403,18 +421,18 @@ function ActionCard({ title, description, icon: Icon, gradient, onClick }) {
   return (
     <button
       onClick={onClick}
-      className={`bg-gradient-to-r ${gradient} text-white rounded-3xl p-8 hover:shadow-2xl transition-all duration-300 hover:scale-105 text-right relative overflow-hidden group`}
+      className={`bg-gradient-to-r ${gradient} text-white rounded-2xl sm:rounded-3xl p-3 sm:p-8 hover:shadow-2xl transition-all duration-300 hover:scale-105 text-right relative overflow-hidden group`}
     >
       <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-all duration-300"></div>
       <div className="relative z-10">
-        <div className="flex items-center justify-between mb-6">
-          <div className="w-14 h-14 bg-white/20 backdrop-blur-lg rounded-2xl flex items-center justify-center shadow-lg">
-            <Icon className="w-7 h-7 text-white" />
+        <div className="flex items-center justify-between mb-2 sm:mb-6">
+          <div className="w-8 h-8 sm:w-14 sm:h-14 bg-white/20 backdrop-blur-lg rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg">
+            <Icon className="w-4 h-4 sm:w-7 sm:h-7 text-white" />
           </div>
-          <Sparkles className="w-5 h-5 text-white/70" />
+          <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-white/70" />
         </div>
-        <h4 className="text-xl font-bold mb-3">{title}</h4>
-        <p className="text-white/90">{description}</p>
+        <h4 className="text-sm sm:text-xl font-bold mb-1 sm:mb-3">{title}</h4>
+        <p className="text-xs sm:text-white/90">{description}</p>
       </div>
     </button>
   );
@@ -423,10 +441,10 @@ function ActionCard({ title, description, icon: Icon, gradient, onClick }) {
 // Activity Item Component
 function ActivityItem({ text, time }) {
   return (
-    <div className="flex items-center space-x-4 p-4 rounded-2xl hover:bg-green-50 transition-all duration-300 backdrop-blur-lg">
-      <div className="w-3 h-3 bg-gradient-to-r from-green-600 to-green-400 rounded-full shadow-lg"></div>
+    <div className="flex items-center gap-2 sm:gap-4 p-2 sm:p-4 rounded-2xl hover:bg-green-50 transition-all duration-300 backdrop-blur-lg">
+      <div className="w-2 h-2 sm:w-3 sm:h-3 bg-gradient-to-r from-green-600 to-green-400 rounded-full shadow-lg"></div>
       <div className="flex-1">
-        <p className="text-gray-700 font-medium">{text}</p>
+        <p className="text-xs sm:text-base text-gray-700 font-medium">{text}</p>
         <p className="text-xs text-gray-500 mt-1">{time}</p>
       </div>
     </div>
@@ -442,37 +460,38 @@ function UsersTable({ users, loading, onRefresh, onDeleteUser, onEditUser }) {
     user.nationalCode?.includes(searchTerm)
   );
 
+  // موبایل: کارت، دسکتاپ: جدول
   return (
-    <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-xl overflow-hidden border border-green-200">
-      <div className="p-8 border-b border-green-200">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-2xl font-bold text-gray-800 flex items-center">
-            <div className="w-10 h-10 bg-gradient-to-r from-green-600 to-green-500 rounded-2xl flex items-center justify-center mr-3">
-              <Users className="w-5 h-5 text-white" />
+    <div className="bg-white/95 backdrop-blur-xl rounded-2xl sm:rounded-3xl shadow-xl overflow-hidden border border-green-200">
+      <div className="p-3 sm:p-8 border-b border-green-200">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 sm:mb-6 gap-2 sm:gap-0">
+          <h3 className="text-base sm:text-2xl font-bold text-gray-800 flex items-center">
+            <div className="w-7 h-7 sm:w-10 sm:h-10 bg-gradient-to-r from-green-600 to-green-500 rounded-2xl flex items-center justify-center mr-2 sm:mr-3">
+              <Users className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </div>
             لیست کاربران ({filteredUsers.length})
           </h3>
           <button
             onClick={onRefresh}
-            className="flex items-center px-6 py-3 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-2xl hover:from-green-700 hover:to-green-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+            className="flex items-center px-3 py-1.5 sm:px-6 sm:py-3 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-xl sm:rounded-2xl hover:from-green-700 hover:to-green-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 text-xs sm:text-base"
           >
             <RefreshCw className="w-4 h-4 ml-2" />
             بروزرسانی
           </button>
         </div>
         <div className="relative">
-          <Search className="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="جستجو در کاربران..."
-            className="w-full pr-12 pl-4 py-4 border border-green-200 rounded-2xl focus:ring-2 focus:ring-green-600 focus:border-green-600 bg-green-50 backdrop-blur-lg transition-all duration-300"
+            className="w-full pr-8 pl-3 py-2 sm:py-4 border border-green-200 rounded-xl sm:rounded-2xl focus:ring-2 focus:ring-green-600 focus:border-green-600 bg-green-50 backdrop-blur-lg transition-all duration-300 text-xs sm:text-base"
           />
+          <Users className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
         </div>
       </div>
-      
-      <div className="overflow-x-auto">
+      {/* Desktop Table */}
+      <div className="hidden sm:block overflow-x-auto">
         <table className="w-full">
           <thead className="bg-green-50 backdrop-blur-lg">
             <tr>
@@ -508,12 +527,12 @@ function UsersTable({ users, loading, onRefresh, onDeleteUser, onEditUser }) {
                   <td className="px-8 py-6">
                     <div className="flex items-center space-x-4">
                       <div className="w-12 h-12 bg-gradient-to-r from-green-600 to-green-500 rounded-2xl flex items-center justify-center shadow-lg">
-                        <span className="text-white font-bold">
+                        <span className="text-white font-bold text-base">
                           {user.firstName?.[0]}{user.lastName?.[0]}
                         </span>
                       </div>
                       <div>
-                        <p className="font-bold text-gray-800">
+                        <p className="font-bold text-gray-800 text-base">
                           {user.firstName} {user.lastName}
                         </p>
                         {user.phone && (
@@ -564,546 +583,62 @@ function UsersTable({ users, loading, onRefresh, onDeleteUser, onEditUser }) {
           </tbody>
         </table>
       </div>
-    </div>
-  );
-}
-
-// Delete Confirmation Modal Component
-function DeleteConfirmModal({ user, onConfirm, onCancel }) {
-  return (
-    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white/95 backdrop-blur-xl rounded-3xl max-w-md w-full shadow-2xl border border-red-200">
-        <div className="bg-gradient-to-r from-red-500 to-red-600 text-white p-8 rounded-t-3xl relative overflow-hidden">
-          <div className="absolute inset-0 bg-black/10"></div>
-          <div className="relative z-10">
-            <div className="flex items-center space-x-4 rtl:space-x-reverse">
-              <div className="w-12 h-12 bg-white/20 backdrop-blur-lg rounded-2xl flex items-center justify-center shadow-lg">
-                <AlertCircle className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold">تأیید حذف کاربر</h2>
-                <p className="text-white/80">این عمل غیرقابل بازگشت است</p>
-              </div>
-            </div>
+      {/* Mobile Cards */}
+      <div className="sm:hidden p-2 space-y-2">
+        {loading ? (
+          <div className="flex flex-col items-center py-8">
+            <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p className="text-gray-500 text-xs">در حال بارگذاری...</p>
           </div>
-        </div>
-        <div className="p-8">
-          <div className="mb-6">
-            <p className="text-gray-700 mb-4">
-              آیا مطمئن هستید که می‌خواهید کاربر زیر را حذف کنید؟
-            </p>
-            <div className="bg-gray-50 rounded-2xl p-4 border border-gray-200">
-              <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-gradient-to-r from-red-500 to-red-600 rounded-2xl flex items-center justify-center shadow-lg">
-                  <span className="text-white font-bold">
-                    {user.firstName?.[0]}{user.lastName?.[0]}
+        ) : filteredUsers.length === 0 ? (
+          <div className="flex flex-col items-center py-8">
+            <Users className="w-10 h-10 text-gray-400 mb-2" />
+            <p className="text-gray-500 text-xs">کاربری یافت نشد</p>
+          </div>
+        ) : (
+          filteredUsers.map((user, index) => (
+            <div key={user.id || index} className="rounded-xl border border-green-100 bg-green-50 shadow-sm p-2 flex items-center gap-2">
+              <div className="w-10 h-10 bg-gradient-to-r from-green-600 to-green-500 rounded-xl flex items-center justify-center shadow">
+                <span className="text-white font-bold text-sm">
+                  {user.firstName?.[0]}{user.lastName?.[0]}
+                </span>
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-1">
+                  <span className="font-bold text-gray-800 text-xs">{user.firstName} {user.lastName}</span>
+                  <span className="text-[10px] text-gray-400">{user.phone}</span>
+                </div>
+                <div className="flex items-center gap-1 mt-1">
+                  <span className="font-mono bg-green-100 px-2 py-0.5 rounded text-[10px] text-green-600">{user.nationalCode}</span>
+                  <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full shadow ${
+                    user.role === 'admin' ? 'bg-gradient-to-r from-green-600 to-green-500 text-white' :
+                    user.role === 'teacher' ? 'bg-gradient-to-r from-green-500 to-green-400 text-white' :
+                    'bg-gradient-to-r from-green-100 to-green-50 text-green-600 border border-green-200'
+                  }`}>
+                    {user.role === 'admin' ? 'مدیر' : user.role === 'teacher' ? 'معلم' : 'دانش‌آموز'}
                   </span>
-                </div>
-                <div>
-                  <p className="font-bold text-gray-800">
-                    {user.firstName} {user.lastName}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    {user.role === 'admin' ? 'مدیر' : 
-                     user.role === 'teacher' ? 'معلم' : 'دانش‌آموز'} | 
-                    کد ملی: {user.nationalCode}
-                  </p>
+                  <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-gradient-to-r from-green-600 to-green-500 text-white shadow">فعال</span>
                 </div>
               </div>
-            </div>
-            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-2xl">
-              <div className="flex items-center">
-                <AlertCircle className="w-5 h-5 text-red-500 ml-3" />
-                <p className="text-sm text-red-700 font-medium">
-                  هشدار: تمام اطلاعات مربوط به این کاربر برای همیشه حذف خواهد شد.
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="flex justify-end space-x-4 rtl:space-x-reverse">
-            <button
-              onClick={onCancel}
-              className="px-8 py-3 bg-gray-200 text-gray-700 rounded-2xl hover:bg-gray-300 transition-all duration-300 font-medium"
-            >
-              انصراف
-            </button>
-            <button
-              onClick={onConfirm}
-              className="px-8 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-2xl hover:from-red-600 hover:to-red-700 transition-all duration-300 font-medium shadow-lg hover:shadow-xl"
-            >
-              حذف کاربر
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Create User Modal Component
-function CreateUserModal({ onClose, onSuccess }) {
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    nationalCode: '',
-    phone: '',
-    email: '',
-    role: 'student',
-    grade: '',
-    password: ''
-  });
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  const generatePassword = () => {
-    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let password = '';
-    for (let i = 0; i < 8; i++) {
-      password += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    setFormData(prev => ({ ...prev, password }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError('');
-    try {
-      const token = localStorage?.getItem?.('token');
-      const response = await fetch('/api/admin/users', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(formData)
-      });
-      const data = await response.json();
-      if (data?.success || response.ok) {
-        alert(`کاربر با موفقیت ایجاد شد!\n\nنام کاربری: ${formData.nationalCode}\nرمز عبور: ${formData.password}`);
-        onSuccess();
-      } else {
-        setError(data?.message || 'خطا در ایجاد کاربر');
-      }
-    } catch (err) {
-      setError('خطا در ارتباط با سرور');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white/95 backdrop-blur-xl rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-green-200">
-        <div className="bg-gradient-to-r from-green-600 to-green-500 text-white p-8 rounded-t-3xl relative overflow-hidden">
-          <div className="absolute inset-0 bg-black/10"></div>
-          <div className="relative z-10">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center space-x-4 rtl:space-x-reverse">
-                <div className="w-12 h-12 bg-white/20 backdrop-blur-lg rounded-2xl flex items-center justify-center shadow-lg">
-                  <UserPlus className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold">افزودن کاربر جدید</h2>
-                  <p className="text-white/80">ایجاد حساب کاربری</p>
-                </div>
-              </div>
-              <button 
-                onClick={onClose} 
-                className="p-3 bg-white/20 backdrop-blur-lg rounded-xl hover:bg-white/30 transition-all duration-300 shadow-lg"
-              >
-                <X className="w-5 h-5 text-white" />
-              </button>
-            </div>
-          </div>
-        </div>
-        <form onSubmit={handleSubmit} className="p-8 space-y-6">
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-3">نوع کاربر</label>
-            <select
-              value={formData.role}
-              onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value }))}
-              className="w-full px-4 py-4 border border-green-200 rounded-2xl focus:ring-2 focus:ring-green-600 focus:border-green-600 bg-green-50 backdrop-blur-lg transition-all duration-300"
-              required
-            >
-              <option value="student">🎓 دانش‌آموز</option>
-              <option value="teacher">📚 معلم</option>
-              <option value="admin">👑 مدیر</option>
-            </select>
-          </div>
-          {formData.role === 'student' && (
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-3">پایه</label>
-              <select
-                value={formData.grade || ''}
-                onChange={e => setFormData(prev => ({ ...prev, grade: e.target.value }))}
-                className="w-full px-4 py-4 border border-green-200 rounded-2xl focus:ring-2 focus:ring-green-600 focus:border-green-600 bg-green-50 backdrop-blur-lg transition-all duration-300"
-                required
-              >
-                <option value="">انتخاب پایه</option>
-                <option value="اول ابتدایی">اول ابتدایی</option>
-                <option value="دوم ابتدایی">دوم ابتدایی</option>
-                <option value="سوم ابتدایی">سوم ابتدایی</option>
-                <option value="چهارم ابتدایی">چهارم ابتدایی</option>
-                <option value="پنجم ابتدایی">پنجم ابتدایی</option>
-                <option value="ششم ابتدایی">ششم ابتدایی</option>
-              </select>
-            </div>
-          )}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-3">نام</label>
-              <input
-                type="text"
-                value={formData.firstName}
-                onChange={(e) => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
-                className="w-full px-4 py-4 border border-green-200 rounded-2xl focus:ring-2 focus:ring-green-600 focus:border-green-600 bg-green-50 backdrop-blur-lg transition-all duration-300"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-3">نام خانوادگی</label>
-              <input
-                type="text"
-                value={formData.lastName}
-                onChange={(e) => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
-                className="w-full px-4 py-4 border border-green-200 rounded-2xl focus:ring-2 focus:ring-green-600 focus:border-green-600 bg-green-50 backdrop-blur-lg transition-all duration-300"
-                required
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-3">کد ملی</label>
-            <input
-              type="text"
-              value={formData.nationalCode}
-              onChange={(e) => setFormData(prev => ({ ...prev, nationalCode: e.target.value }))}
-              className="w-full px-4 py-4 border border-green-200 rounded-2xl focus:ring-2 focus:ring-green-600 focus:border-green-600 font-mono bg-green-50 backdrop-blur-lg transition-all duration-300"
-              maxLength="10"
-              placeholder="1234567890"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-3">شماره موبایل</label>
-            <input
-              type="tel"
-              value={formData.phone}
-              onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-              className="w-full px-4 py-4 border border-green-200 rounded-2xl focus:ring-2 focus:ring-green-600 focus:border-green-600 bg-green-50 backdrop-blur-lg transition-all duration-300"
-              placeholder="09123456789"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-3">ایمیل</label>
-            <input
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-              className="w-full px-4 py-4 border border-green-200 rounded-2xl focus:ring-2 focus:ring-green-600 focus:border-green-600 bg-green-50 backdrop-blur-lg transition-all duration-300"
-              placeholder="example@email.com"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-3">رمز عبور</label>
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={formData.password}
-                onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                className="w-full px-4 py-4 pl-24 border border-green-200 rounded-2xl focus:ring-2 focus:ring-green-600 focus:border-green-600 bg-green-50 backdrop-blur-lg transition-all duration-300"
-                required
-              />
-              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 flex items-center space-x-2 rtl:space-x-reverse">
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="p-2 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-green-100 transition-all duration-300"
+              <div className="flex flex-col gap-1">
+                <button 
+                  onClick={() => onEditUser(user)}
+                  className="p-1 text-green-600 hover:bg-green-100 rounded transition-all"
+                  title="ویرایش"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  <Edit className="w-4 h-4" />
                 </button>
-                <button
-                  type="button"
-                  onClick={generatePassword}
-                  className="px-3 py-1 text-xs bg-gradient-to-r from-green-600 to-green-500 text-white rounded-xl hover:from-green-700 hover:to-green-600 transition-all duration-300 shadow-lg"
+                <button 
+                  onClick={() => onDeleteUser(user)}
+                  className="p-1 text-red-600 hover:bg-red-100 rounded transition-all"
+                  title="حذف"
                 >
-                  تولید
+                  <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             </div>
-          </div>
-          {error && (
-            <div className="flex items-center p-4 bg-red-50 border border-red-200 rounded-2xl backdrop-blur-lg">
-              <AlertCircle className="w-5 h-5 text-red-500 ml-3" />
-              <p className="text-sm text-red-700 font-medium">{error}</p>
-            </div>
-          )}
-          <div className="flex justify-end space-x-4 rtl:space-x-reverse pt-6 border-t border-green-200">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-8 py-3 bg-green-100 text-gray-700 rounded-2xl hover:bg-green-200 transition-all duration-300 font-medium"
-              disabled={isLoading}
-            >
-              انصراف
-            </button>
-            <button
-              type="submit"
-              className="px-8 py-3 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-2xl hover:from-green-700 hover:to-green-600 transition-all duration-300 disabled:opacity-50 font-medium shadow-lg hover:shadow-xl"
-              disabled={isLoading}
-            >
-               {isLoading ? 'در حال ایجاد...' : 'ایجاد کاربر'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-// Edit User Modal Component
-function EditUserModal({ user, onClose, onSuccess }) {
-  const [formData, setFormData] = useState({
-    firstName: user.firstName || '',
-    lastName: user.lastName || '',
-    nationalCode: user.nationalCode || '',
-    phone: user.phone || '',
-    email: user.email || '',
-    role: user.role || 'student',
-    grade: user.grade || '',
-    password: '',
-    changePassword: false
-  });
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  const generatePassword = () => {
-    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let password = '';
-    for (let i = 0; i < 8; i++) {
-      password += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    setFormData(prev => ({ ...prev, password }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError('');
-    try {
-      const token = localStorage?.getItem?.('token');
-      const submitData = { ...formData };
-      if (!formData.changePassword) {
-        delete submitData.password;
-      }
-      delete submitData.changePassword;
-      const response = await fetch(`/api/admin/users/${user.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(submitData)
-      });
-      const data = await response.json();
-      if (data?.success || response.ok) {
-        alert('کاربر با موفقیت ویرایش شد!');
-        onSuccess();
-      } else {
-        setError(data?.message || 'خطا در ویرایش کاربر');
-      }
-    } catch (err) {
-      setError('خطا در ارتباط با سرور');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white/95 backdrop-blur-xl rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-green-200">
-        <div className="bg-gradient-to-r from-green-600 to-green-500 text-white p-8 rounded-t-3xl relative overflow-hidden">
-          <div className="absolute inset-0 bg-black/10"></div>
-          <div className="relative z-10">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center space-x-4 rtl:space-x-reverse">
-                <div className="w-12 h-12 bg-white/20 backdrop-blur-lg rounded-2xl flex items-center justify-center shadow-lg">
-                  <Edit className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold">ویرایش کاربر</h2>
-                  <p className="text-white/80">ویرایش اطلاعات کاربری</p>
-                </div>
-              </div>
-              <button 
-                onClick={onClose} 
-                className="p-3 bg-white/20 backdrop-blur-lg rounded-xl hover:bg-white/30 transition-all duration-300 shadow-lg"
-              >
-                <X className="w-5 h-5 text-white" />
-              </button>
-            </div>
-          </div>
-        </div>
-        <form onSubmit={handleSubmit} className="p-8 space-y-6">
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-3">نوع کاربر</label>
-            <select
-              value={formData.role}
-              onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value }))}
-              className="w-full px-4 py-4 border border-green-200 rounded-2xl focus:ring-2 focus:ring-green-600 focus:border-green-600 bg-green-50 backdrop-blur-lg transition-all duration-300"
-              required
-            >
-              <option value="student">🎓 دانش‌آموز</option>
-              <option value="teacher">📚 معلم</option>
-              <option value="admin">👑 مدیر</option>
-            </select>
-          </div>
-          {formData.role === 'student' && (
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-3">پایه</label>
-              <select
-                value={formData.grade || ''}
-                onChange={e => setFormData(prev => ({ ...prev, grade: e.target.value }))}
-                className="w-full px-4 py-4 border border-green-200 rounded-2xl focus:ring-2 focus:ring-green-600 focus:border-green-600 bg-green-50 backdrop-blur-lg transition-all duration-300"
-                required
-              >
-                <option value="">انتخاب پایه</option>
-                <option value="اول ابتدایی">اول ابتدایی</option>
-                <option value="دوم ابتدایی">دوم ابتدایی</option>
-                <option value="سوم ابتدایی">سوم ابتدایی</option>
-                <option value="چهارم ابتدایی">چهارم ابتدایی</option>
-                <option value="پنجم ابتدایی">پنجم ابتدایی</option>
-                <option value="ششم ابتدایی">ششم ابتدایی</option>
-              </select>
-            </div>
-          )}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-3">نام</label>
-              <input
-                type="text"
-                value={formData.firstName}
-                onChange={(e) => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
-                className="w-full px-4 py-4 border border-green-200 rounded-2xl focus:ring-2 focus:ring-green-600 focus:border-green-600 bg-green-50 backdrop-blur-lg transition-all duration-300"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-3">نام خانوادگی</label>
-              <input
-                type="text"
-                value={formData.lastName}
-                onChange={(e) => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
-                className="w-full px-4 py-4 border border-green-200 rounded-2xl focus:ring-2 focus:ring-green-600 focus:border-green-600 bg-green-50 backdrop-blur-lg transition-all duration-300"
-                required
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-3">کد ملی</label>
-            <input
-              type="text"
-              value={formData.nationalCode}
-              onChange={(e) => setFormData(prev => ({ ...prev, nationalCode: e.target.value }))}
-              className="w-full px-4 py-4 border border-green-200 rounded-2xl focus:ring-2 focus:ring-green-600 focus:border-green-600 font-mono bg-green-50 backdrop-blur-lg transition-all duration-300"
-              maxLength="10"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-3">شماره موبایل</label>
-            <input
-              type="tel"
-              value={formData.phone}
-              onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-              className="w-full px-4 py-4 border border-green-200 rounded-2xl focus:ring-2 focus:ring-green-600 focus:border-green-600 bg-green-50 backdrop-blur-lg transition-all duration-300"
-              placeholder="09123456789"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-3">ایمیل</label>
-            <input
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-              className="w-full px-4 py-4 border border-green-200 rounded-2xl focus:ring-2 focus:ring-green-600 focus:border-green-600 bg-green-50 backdrop-blur-lg transition-all duration-300"
-              placeholder="example@email.com"
-            />
-          </div>
-          <div className="border-t border-green-200 pt-6">
-            <div className="flex items-center mb-3">
-              <input
-                type="checkbox"
-                id="changePassword"
-                checked={formData.changePassword}
-                onChange={(e) => setFormData(prev => ({ 
-                  ...prev, 
-                  changePassword: e.target.checked,
-                  password: e.target.checked ? prev.password : ''
-                }))}
-                className="rounded border-green-300 text-green-600 focus:ring-green-500"
-              />
-              <label htmlFor="changePassword" className="mr-2 text-sm font-bold text-gray-700">
-                تغییر رمز عبور
-              </label>
-            </div>
-            {formData.changePassword && (
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-3">رمز عبور جدید</label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={formData.password}
-                    onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                    className="w-full px-4 py-4 pl-24 border border-green-200 rounded-2xl focus:ring-2 focus:ring-green-600 focus:border-green-600 bg-green-50 backdrop-blur-lg transition-all duration-300"
-                    required={formData.changePassword}
-                  />
-                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 flex items-center space-x-2 rtl:space-x-reverse">
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="p-2 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-green-100 transition-all duration-300"
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={generatePassword}
-                      className="px-3 py-1 text-xs bg-gradient-to-r from-green-600 to-green-500 text-white rounded-xl hover:from-green-700 hover:to-green-600 transition-all duration-300 shadow-lg"
-                    >
-                      تولید
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-          {error && (
-            <div className="flex items-center p-4 bg-red-50 border border-red-200 rounded-2xl backdrop-blur-lg">
-              <AlertCircle className="w-5 h-5 text-red-500 ml-3" />
-              <p className="text-sm text-red-700 font-medium">{error}</p>
-            </div>
-          )}
-          <div className="flex justify-end space-x-4 rtl:space-x-reverse pt-6 border-t border-green-200">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-8 py-3 bg-green-100 text-gray-700 rounded-2xl hover:bg-green-200 transition-all duration-300 font-medium"
-              disabled={isLoading}
-            >
-              انصراف
-            </button>
-            <button
-              type="submit"
-              className="px-8 py-3 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-2xl hover:from-green-700 hover:to-green-600 transition-all duration-300 disabled:opacity-50 font-medium shadow-lg hover:shadow-xl"
-              disabled={isLoading}
-            >
-              {isLoading ? 'در حال ذخیره...' : 'ذخیره تغییرات'}
-            </button>
-          </div>
-        </form>
+          ))
+        )}
       </div>
     </div>
   );
