@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Users, UserPlus, GraduationCap, BookOpen, BarChart3, Settings, LogOut, 
   Activity, Calendar, Clock, Crown, Target, RefreshCw, Sparkles,
-  Edit, Trash2 // این خط را اضافه کنید
+  Edit, Trash2, CalendarCheck
 } from 'lucide-react';
 import { Image, Calendar as CalendarIcon, LayoutGrid, GalleryHorizontalEnd } from 'lucide-react';
 
@@ -12,7 +12,7 @@ const sidebarMenu = [
   { label: 'مدیریت کلاس‌ها', icon: GraduationCap, href: '/admin/classes' },
   { label: 'برنامه هفتگی', icon: CalendarIcon, href: '/admin/weekly_schedule' },
   { label: 'برنامه غذایی', icon: GalleryHorizontalEnd, href: '/admin/food-schedule' },
-  { label: 'داشبورد', icon: LayoutGrid, href: '/admin/dashboard' },
+    { label: 'حضور و غیاب', icon: CalendarCheck, href: '/admin/attendances' },
   { label: 'گالری', icon: Image, href: '/admin/gallery' },
   { label: 'گزارش', icon: BarChart3, href: '/admin/reports' },
   { label: 'تنظیمات', icon: Settings, href: '/admin/settings' }
@@ -307,6 +307,23 @@ export default function AdminDashboard() {
               gradient="from-green-100 to-green-50"
               iconGradient="from-green-600 to-green-500"
             />
+          </div>
+
+          {/* حضور و غیاب - کارت جدید */}
+          <div className="bg-gradient-to-r from-green-400 to-green-300 rounded-2xl p-4 flex items-center justify-between shadow mb-4">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <CalendarCheck className="w-6 h-6 text-white" />
+                <span className="text-white font-bold text-lg">حضور و غیاب</span>
+              </div>
+              <p className="text-white/90 text-xs mb-2">مدیریت و مشاهده وضعیت حضور و غیاب دانش‌آموزان</p>
+              <button
+                onClick={() => window.location.href = '/admin/attendances'}
+                className="bg-white text-green-700 px-4 py-1 rounded-xl font-bold text-xs shadow hover:bg-green-50 transition"
+              >
+                ورود به بخش حضور و غیاب
+              </button>
+            </div>
           </div>
 
           {/* Quick Actions */}

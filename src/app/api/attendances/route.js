@@ -3,8 +3,8 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// لیست حضور و غیاب (GET)
-export async function GET(request) {
+// لیست حضور و غیاب همه دانش‌آموزان (ادمین)
+export async function GET() {
   try {
     const attendances = await prisma.attendances.findMany({
       include: { students: true, classes: true },
