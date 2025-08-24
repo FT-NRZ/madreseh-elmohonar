@@ -2,14 +2,24 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
-// رنگ سبز هماهنگ با هدر
 const mainGreen = "#399918";
 const lightGreen = "#eafbe6";
 const borderGreen = "#b6e2b2";
 const darkGreen = "#237a13";
 
+// گزینه‌های توصیفی نمره
+const gradeOptions = [
+  { value: "عالی", label: "عالی" },
+  { value: "خیلی خوب", label: "خیلی خوب" },
+  { value: "خوب", label: "خوب" },
+  { value: "متوسط", label: "متوسط" },
+  { value: "نیاز به تلاش بیشتر", label: "نیاز به تلاش بیشتر" }
+];
+
 export default function ExamResults({ examId }) {
   const [data, setData] = useState(null);
+  const [scoreInputs, setScoreInputs] = useState({});
+  const [fileInputs, setFileInputs] = useState({});
 
   useEffect(() => {
     if (!examId) return;
@@ -17,6 +27,46 @@ export default function ExamResults({ examId }) {
       .then(res => res.json())
       .then(setData);
   }, [examId]);
+
+  // هندل ثبت نمره تستی
+  const handleScoreSubmit = async (resultId, grade) => {
+    const res = await fetch(`/api/exam-results/${resultId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ grade_desc: grade })
+    });
+    if (res.ok) {
+      alert('نمره ثبت شد!');
+      setData(prev => ({
+        ...prev,
+        quizAnswers: prev.quizAnswers.map(ans =>
+          ans.id === resultId ? { ...ans, grade_desc: grade } : ans
+        )
+      }));
+    } else {
+      alert('خطا در ثبت نمره');
+    }
+  };
+
+  // هندل ثبت نمره و توضیح فایل
+  const handleFileFeedback = async (answerId, grade, feedback) => {
+    const res = await fetch(`/api/exam-file-answers/${answerId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ grade_desc: grade, teacher_feedback: feedback })
+    });
+    if (res.ok) {
+      alert('بازخورد ثبت شد!');
+      setData(prev => ({
+        ...prev,
+        fileAnswers: prev.fileAnswers.map(ans =>
+          ans.id === answerId ? { ...ans, grade_desc: grade, teacher_feedback: feedback } : ans
+        )
+      }));
+    } else {
+      alert('خطا در ثبت بازخورد');
+    }
+  };
 
   if (!examId) return (
     <div style={{
@@ -127,58 +177,59 @@ export default function ExamResults({ examId }) {
                   👤 {ans.students?.full_name || ans.student_id}
                 </div>
                 <div style={{ color: mainGreen, fontSize: 13 }}>
-                  نمره: <b>{ans.marks_obtained}</b>
-                  <span style={{
-                    background: "#fffde7",
-                    color: "#fbc02d",
-                    borderRadius: 5,
-                    padding: "1px 8px",
-                    fontSize: 12,
-                    marginRight: 8
-                  }}>{ans.status}</span>
+                  نمره: <b>{ans.grade_desc ?? "---"}</b>
                 </div>
-                <div style={{ color: "#607d8b", fontSize: 12, marginBottom: 6 }}>
-                  شماره دانش‌آموزی: {ans.students?.student_number}
-                </div>
-                {ans.student_answers && ans.student_answers.length > 0 && (
-                  <div style={{ marginTop: 7 }}>
-                    <b style={{ color: mainGreen, fontSize: 13 }}>پاسخ‌ها:</b>
-                    <ul style={{ marginTop: 5, paddingRight: 12 }}>
-                      {ans.student_answers.map(sa => (
-                        <li key={sa.id} style={{
-                          marginBottom: 5,
-                          background: "#f6fff4",
-                          borderRadius: 6,
-                          padding: "5px 8px",
-                          fontSize: 13,
-                          boxShadow: `0 1px 2px ${mainGreen}08`
-                        }}>
-                          <span style={{ color: mainGreen }}>
-                            سوال: <b>{sa.exam_questions?.question_text || sa.question_id}</b>
-                          </span>
-                          <br />
-                          <span>
-                            گزینه انتخابی: <b style={{ color: "#1976d2" }}>{sa.question_options?.option_text || sa.selected_option_id}</b>
-                            {sa.is_correct !== undefined && (
-                              <span style={{
-                                color: sa.is_correct ? mainGreen : "#c62828",
-                                fontWeight: "bold",
-                                marginRight: 6
-                              }}>
-                                {sa.is_correct ? '✅ صحیح' : '❌ غلط'}
-                              </span>
-                            )}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+                {/* فرم ثبت نمره توصیفی */}
+                <form
+                  onSubmit={e => {
+                    e.preventDefault();
+                    const grade = scoreInputs[ans.id] ?? ans.grade_desc ?? "";
+                    handleScoreSubmit(ans.id, grade);
+                  }}
+                  style={{ marginTop: 10, display: "flex", gap: 8, alignItems: "center" }}
+                >
+                  <select
+                    name="marks"
+                    value={scoreInputs[ans.id] ?? ans.grade_desc ?? ""}
+                    onChange={e => setScoreInputs(inputs => ({
+                      ...inputs,
+                      [ans.id]: e.target.value
+                    }))}
+                    style={{
+                      width: 140,
+                      padding: "5px 8px",
+                      borderRadius: 6,
+                      border: `1px solid ${borderGreen}`,
+                      fontSize: 13
+                    }}
+                    required
+                  >
+                    <option value="">انتخاب نمره توصیفی</option>
+                    {gradeOptions.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="submit"
+                    style={{
+                      background: `linear-gradient(90deg,${mainGreen},${darkGreen})`,
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: 6,
+                      padding: "6px 18px",
+                      fontSize: 13,
+                      fontWeight: "bold",
+                      cursor: "pointer"
+                    }}
+                  >
+                    ثبت نمره
+                  </button>
+                </form>
               </li>
             ))}
           </ul>
         </div>
-        {/* پاسخ‌های فایل */}
+        {/* پاسخ‌های فایل (PDF/تصویر) با فرم ثبت نمره و توضیح توصیفی */}
         <div style={{
           flex: 1,
           minWidth: 260,
@@ -210,9 +261,6 @@ export default function ExamResults({ examId }) {
                 <div style={{ fontWeight: "bold", color: mainGreen, marginBottom: 4, fontSize: 14 }}>
                   👤 {ans.students?.full_name || ans.student_id}
                 </div>
-                <div style={{ color: "#607d8b", fontSize: 12, marginBottom: 6 }}>
-                  شماره دانش‌آموزی: {ans.students?.student_number}
-                </div>
                 <a
                   href={ans.file_url}
                   target="_blank"
@@ -232,6 +280,70 @@ export default function ExamResults({ examId }) {
                 >
                   دانلود فایل
                 </a>
+                {/* فرم ثبت نمره و توضیح توصیفی */}
+                <form
+                  onSubmit={e => {
+                    e.preventDefault();
+                    const grade = fileInputs[ans.id]?.marks ?? ans.grade_desc ?? "";
+                    const feedback = fileInputs[ans.id]?.feedback ?? ans.teacher_feedback ?? "";
+                    handleFileFeedback(ans.id, grade, feedback);
+                  }}
+                  style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}
+                >
+                  <select
+                    name="marks"
+                    value={fileInputs[ans.id]?.marks ?? ans.grade_desc ?? ""}
+                    onChange={e => setFileInputs(inputs => ({
+                      ...inputs,
+                      [ans.id]: {
+                        ...inputs[ans.id],
+                        marks: e.target.value
+                      }
+                    }))}
+                    style={{ width: 140, padding: "5px 8px", borderRadius: 6, border: "1px solid #b6e2b2", fontSize: 13 }}
+                    required
+                  >
+                    <option value="">انتخاب نمره توصیفی</option>
+                    {gradeOptions.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                  <textarea
+                    name="feedback"
+                    value={fileInputs[ans.id]?.feedback ?? ans.teacher_feedback ?? ""}
+                    placeholder="توضیحات معلم (اختیاری)"
+                    onChange={e => setFileInputs(inputs => ({
+                      ...inputs,
+                      [ans.id]: {
+                        ...inputs[ans.id],
+                        feedback: e.target.value
+                      }
+                    }))}
+                    style={{ borderRadius: 6, border: "1px solid #b6e2b2", fontSize: 13, padding: 6 }}
+                  />
+                  <button
+                    type="submit"
+                    style={{
+                      background: `linear-gradient(90deg,#399918,#237a13)`,
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: 6,
+                      padding: "6px 18px",
+                      fontSize: 13,
+                      fontWeight: "bold",
+                      cursor: "pointer"
+                    }}
+                  >
+                    ثبت بازخورد
+                  </button>
+                </form>
+                {/* نمایش بازخورد فعلی */}
+                {(ans.teacher_feedback || ans.grade_desc) && (
+                  <div style={{ marginTop: 8, fontSize: 13, color: mainGreen }}>
+                    {ans.grade_desc && <>نمره ثبت‌شده: <b>{ans.grade_desc}</b><br /></>}
+                    {ans.teacher_feedback && <>توضیح معلم: <span>{ans.teacher_feedback}</span></>}
+                  </div>
+                )}
               </li>
             ))}
           </ul>

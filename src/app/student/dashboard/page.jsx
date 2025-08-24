@@ -5,6 +5,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import ExamsList from '../components/ExamsList';
 import WeeklySchedule from '../components/WeeklySchedule';
 import MealSchedule from '../components/MealSchedule';
+import ExamResults from '../components/ExamResults';
 import {
   Menu, X, User, Calendar, ClipboardList, BookOpen, FileText, Newspaper, School, Image, UtensilsCrossed,
   MessageSquare, Bell, LogOut, Home, Award, ChevronRight, TrendingUp, Clock, Star, Users
@@ -88,7 +89,9 @@ export default function StudentDashboardPage() {
         return studentId ? <ExamsList studentId={studentId} /> : <div>شناسه دانش‌آموز یافت نشد.</div>;
       case 'meals':
         return studentId ? <MealSchedule studentId={studentId} /> : <div>شناسه دانش‌آموز یافت نشد.</div>;
-      // سایر caseها را طبق نیاز اضافه کن
+    case 'examResults':
+  return studentId ? <ExamResults studentId={studentId} /> : <div>شناسه دانش‌آموز یافت نشد.</div>;
+        // سایر caseها را طبق نیاز اضافه کن
       default:
         return (
           <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
