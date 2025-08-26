@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { CalendarDays, Clock, BookOpen, Users, GraduationCap } from 'lucide-react';
 
-export default function WeeklySchedule({ teacherId }) {
+export default function WeeklySchedule() {
   const [schedule, setSchedule] = useState([]);
   const [grades, setGrades] = useState([]);
   const [selectedGrade, setSelectedGrade] = useState('all');
@@ -11,53 +11,73 @@ export default function WeeklySchedule({ teacherId }) {
   const [message, setMessage] = useState('');
 
   useEffect(() => {
+    // دریافت پایه‌ها
     fetchGrades();
+    // دریافت برنامه هفتگی (بدون وابستگی به معلم)
+    fetchSchedule();
   }, []);
 
   useEffect(() => {
-    fetchTeacherSchedule();
-  }, [teacherId, selectedGrade]);
+    // وقتی پایه تغییر کرد، برنامه جدید بگیر
+    fetchSchedule();
+  }, [selectedGrade]);
 
+  // دریافت پایه‌ها
   const fetchGrades = async () => {
     try {
-      const res = await fetch(`/api/teacher/schedule?teacherId=${teacherId}`);
+      console.log('📋 Fetching grades...');
+      const res = await fetch('/api/grades');
       const data = await res.json();
-
-      if (data.success) {
-        setGrades(data.grades || []);
-      }
-    } catch (error) {
-      console.error('Error fetching grades:', error);
-    }
-  };
-
-  const fetchTeacherSchedule = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/teacher/schedule?teacherId=${teacherId}&gradeId=${selectedGrade}`);
-      const data = await res.json();
-
-      if (data.success) {
-        setSchedule(data.schedules || []);
-        setMessage('');
+      
+      if (data.success && data.grades) {
+        console.log('✅ Grades loaded:', data.grades.length);
+        setGrades(data.grades);
       } else {
-        setSchedule([]);
-        setMessage(data.message || 'خطا در دریافت برنامه هفتگی');
+        setGrades([]);
       }
     } catch (error) {
-      console.error('Error fetching teacher schedule:', error);
-      setSchedule([]);
-      setMessage('خطا در ارتباط با سرور');
-    } finally {
-      setLoading(false);
+      console.error('💥 Error fetching grades:', error);
+      setGrades([]);
     }
   };
 
-  function formatTime(dateString) {
-    const date = new Date(dateString);
-    const hours = date.getUTCHours().toString().padStart(2, '0');
-    const minutes = date.getUTCMinutes().toString().padStart(2, '0');
-    return `${hours}:${minutes}`;
+  // دریافت برنامه هفتگی بر اساس پایه
+  const fetchSchedule = async () => {
+  setLoading(true);
+  try {
+    console.log('📅 Fetching schedule for grade:', selectedGrade);
+    
+    // استفاده از API schedule/all که gradeId می‌پذیرد
+    const url = selectedGrade === 'all' 
+      ? '/api/schedule/all' 
+      : `/api/schedule/all?gradeId=${selectedGrade}`;
+    
+    const res = await fetch(url);
+    const data = await res.json();
+    
+    console.log('📅 Schedule response:', data);
+    
+    if (data.success) {
+      setSchedule(data.schedules || []);
+      setMessage(data.message || '');
+    } else {
+      setSchedule([]);
+      setMessage(data.message || 'برنامه هفتگی یافت نشد');
+    }
+  } catch (error) {
+    console.error('💥 Error fetching schedule:', error);
+    setSchedule([]);
+    setMessage('خطا در ارتباط با سرور');
+  } finally {
+    setLoading(false);
+  }
+};
+
+  function formatTime(timeString) {
+    if (!timeString) return '--:--';
+    const timePart = timeString.split('T')[1] || timeString;
+    const [hours, minutes] = timePart.split(':');
+    return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
   }
 
   if (loading) {
@@ -75,13 +95,15 @@ export default function WeeklySchedule({ teacherId }) {
     );
   }
 
-  const groupedSchedule = schedule.reduce((acc, item) => {
-    if (!acc[item.day_of_week]) {
-      acc[item.day_of_week] = [];
-    }
-    acc[item.day_of_week].push(item);
-    return acc;
-  }, {});
+const groupedSchedule = schedule.reduce((acc, item) => {
+  // برای API schedule/all از dayKey استفاده کن
+  const dayKey = item.dayKey || item.day_of_week;
+  if (!acc[dayKey]) {
+    acc[dayKey] = [];
+  }
+  acc[dayKey].push(item);
+  return acc;
+}, {});
 
   const daysOrder = ['saturday', 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
   const dayNames = {
@@ -99,18 +121,21 @@ export default function WeeklySchedule({ teacherId }) {
       <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
         <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
           <CalendarDays className="w-6 h-6 text-green-600" />
-          برنامه هفتگی
+          برنامه هفتگی مدرسه
         </h3>
 
         {/* فیلتر پایه تحصیلی */}
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             <GraduationCap className="w-4 h-4 inline ml-1" />
-            انتخاب پایه تحصیلی
+            انتخاب پایه تحصیلی ({grades.length} پایه موجود)
           </label>
           <select
             value={selectedGrade}
-            onChange={(e) => setSelectedGrade(e.target.value)}
+            onChange={(e) => {
+              console.log('🎯 Grade changed to:', e.target.value);
+              setSelectedGrade(e.target.value);
+            }}
             className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
           >
             <option value="all">همه پایه‌ها</option>
@@ -126,6 +151,9 @@ export default function WeeklySchedule({ teacherId }) {
           <div className="text-center py-8">
             <CalendarDays className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500">{message || 'برنامه هفتگی یافت نشد'}</p>
+            <p className="text-sm text-gray-400 mt-2">
+              ممکن است برای این پایه برنامه‌ای تنظیم نشده باشد.
+            </p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -155,11 +183,11 @@ export default function WeeklySchedule({ teacherId }) {
                           <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
                             <div className="flex items-center gap-1">
                               <Clock className="w-3 h-3" />
-                              <span>{formatTime(item.start_time)} - {formatTime(item.end_time)}</span>
+                              <span>{item.time || `${formatTime(item.start_time)} - ${formatTime(item.end_time)}`}</span>
                             </div>
                             <div className="flex items-center gap-1">
                               <Users className="w-3 h-3" />
-                              <span>{item.classes.class_name}</span>
+                              <span>{item.className || item.classes?.class_name || 'کلاس'}</span>
                             </div>
                           </div>
                         </div>

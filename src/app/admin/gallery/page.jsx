@@ -3,7 +3,8 @@ import React, { useState, useEffect } from 'react';
 import {
   Image, FolderPlus, Upload, Trash2, Edit, Search, Plus, X,
   ChevronDown, ChevronRight, AlertCircle, Users, UserPlus, GraduationCap, BookOpen, BarChart3, Settings, LogOut,
-  Eye, EyeOff, Menu, Calendar, Clock, TrendingUp, Zap, Crown, Target, RefreshCw, ChevronLeft, Activity, Sparkles, LayoutGrid, CheckCircle
+  Eye, EyeOff, Menu, Calendar, Clock, TrendingUp, Zap, Crown, Target, RefreshCw, ChevronLeft, Activity, Sparkles, LayoutGrid, CheckCircle,
+  NewspaperIcon
 } from 'lucide-react';
 
 // منوهای سایدبار مثل داشبورد
@@ -12,9 +13,10 @@ const sidebarMenu = [
   { label: 'مدیریت کاربران', icon: Users, href: '/admin/users' },
   { label: 'مدیریت کلاس‌ها', icon: GraduationCap, href: '/admin/classes' },
   { label: 'برنامه هفتگی', icon: Calendar, href: '/admin/weekly_schedule' },
-  { label: 'مدیریت گالری', icon: Image, href: '/admin/gallery' },
+  { label: 'مدیریت گالری', icon: Image, href: '/admin/gallery', active: true },
   { label: 'گزارش‌ها', icon: BarChart3, href: '/admin/reports' },
-  { label: 'تنظیمات', icon: Settings, href: '/admin/settings' }
+  { label: 'تنظیمات', icon: Settings, href: '/admin/settings' },
+  { label: 'مدیریت اخبار', icon: NewspaperIcon, href: '/admin/news' }
 ];
 
 export default function AdminGallery() {
@@ -127,304 +129,280 @@ export default function AdminGallery() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-white">
-      {/* Header */}
-      <header className="bg-white/95 backdrop-blur-xl shadow-xl border-b border-green-200/50 sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            {/* Menu Button */}
-            <div className="flex items-center">
-              <button
-                onClick={() => setSidebarOpen(true)}
-                className="group flex items-center space-x-3 px-6 py-3 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-2xl hover:from-green-700 hover:to-green-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
-              >
-                <Menu className="w-5 h-5 group-hover:rotate-180 transition-transform duration-300" />
-                <span className="font-medium">پنل مدیریت</span>
-                <Sparkles className="w-4 h-4 opacity-70" />
-              </button>
-            </div>
-            {/* User Profile */}
-            <div className="flex items-center space-x-4 rtl:space-x-reverse">
-              <div className="flex items-center space-x-3 bg-gradient-to-r from-green-50 to-white rounded-2xl p-4 shadow-lg border border-green-200">
-                <div className="text-right">
-                  <p className="text-sm font-bold text-gray-800">{user?.firstName} {user?.lastName}</p>
-                  <p className="text-xs text-green-600 font-medium">مدیر سیستم</p>
-                </div>
-                <div className="w-12 h-12 bg-gradient-to-r from-green-600 to-green-500 rounded-2xl flex items-center justify-center shadow-lg">
-                  <span className="text-white font-bold">
-                    {user?.firstName?.[0]}{user?.lastName?.[0]}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
 
-      {/* Sidebar */}
-      <div className={`fixed top-0 right-0 h-full w-80 bg-gradient-to-b from-white via-green-50 to-green-100 shadow-2xl z-50 transform transition-all duration-500 ease-out ${
-        sidebarOpen ? 'translate-x-0' : 'translate-x-full'
-      }`}>
-        {/* Sidebar Header */}
-        <div className="bg-gradient-to-r from-green-600 via-green-500 to-green-600 text-white p-6 pt-8 relative overflow-hidden">
-          <div className="absolute inset-0 bg-black/10"></div>
-          <div className="relative z-10">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center space-x-3 rtl:space-x-reverse">
-                <div className="w-14 h-14 bg-white/20 backdrop-blur-lg rounded-2xl flex items-center justify-center shadow-lg">
-                  <Target className="w-7 h-7 text-white" />
-                </div>
-                <div>
-                  <h2 className="font-bold text-xl">پنل کنترل</h2>
-                  <p className="text-white/80 text-sm">مدیریت هوشمند</p>
-                </div>
+      <div className="flex">
+        {/* Sidebar - Fixed on right */}
+        <aside className="right-0 top-0 w-72 bg-white shadow-lg border-l border-green-100">
+          <div className="p-6 bg-green-50 text-green-900 border-b border-green-100">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                <Target className="w-6 h-6 text-green-600" />
               </div>
-              <button
-                onClick={() => setSidebarOpen(false)}
-                className="p-3 bg-white/20 backdrop-blur-lg rounded-xl hover:bg-white/30 transition-all duration-300 shadow-lg"
-              >
-                <X className="w-5 h-5 text-white" />
-              </button>
+              <div>
+                <h2 className="text-lg font-bold">پنل مدیریت</h2>
+                <p className="text-green-600 text-xs">مدرسه علم و هنر</p>
+              </div>
             </div>
-            {/* Quick Stats */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-white/20 backdrop-blur-lg rounded-xl p-4 text-center shadow-lg">
-                <TrendingUp className="w-6 h-6 text-white mx-auto mb-2" />
-                <p className="text-2xl font-bold text-white">{categories.length}</p>
-                <p className="text-xs text-white/80">دسته‌بندی‌ها</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-green-100 rounded-xl p-3 text-center">
+                <p className="text-lg font-bold text-green-700">{categories.length}</p>
+                <p className="text-xs text-green-600">دسته‌بندی‌ها</p>
               </div>
-              <div className="bg-white/20 backdrop-blur-lg rounded-xl p-4 text-center shadow-lg">
-                <Zap className="w-6 h-6 text-white mx-auto mb-2" />
-                <p className="text-2xl font-bold text-white">{images.length}</p>
-                <p className="text-xs text-white/80">تصاویر</p>
+              <div className="bg-green-100 rounded-xl p-3 text-center">
+                <p className="text-lg font-bold text-green-700">{images.length}</p>
+                <p className="text-xs text-green-600">تصاویر</p>
               </div>
             </div>
           </div>
-        </div>
-        {/* Menu Items */}
-        <div className="p-6 space-y-4 overflow-y-auto" style={{ height: 'calc(100vh - 220px)' }}>
-          {/* افزودن تصویر */}
-          <button
-            onClick={() => setShowUploadImage(true)}
-            className="w-full flex items-center space-x-3 rtl:space-x-reverse p-4 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-2xl hover:from-green-700 hover:to-green-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
-          >
-            <Plus className="w-5 h-5" />
-            <span className="font-medium flex-1 text-right">آپلود تصویر جدید</span>
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          {/* منوهای اصلی مدیریت */}
-          <div className="space-y-3 pt-2">
-            {sidebarMenu.map((item, idx) => (
-              <button
-                key={item.label}
-                onClick={() => window.location.href = item.href}
-                className="w-full flex items-center space-x-3 rtl:space-x-reverse p-4 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-2xl hover:from-green-700 hover:to-green-600 transition-all duration-300 shadow-lg hover:shadow-xl"
-              >
-                <item.icon className="w-5 h-5" />
-                <span className="font-medium flex-1 text-right">{item.label}</span>
-              </button>
-            ))}
-          </div>
-          {/* خروج */}
-          <div className="pt-4">
+          
+          <nav className="p-4 space-y-2">
+            {/* افزودن تصویر جدید */}
+            <button
+              onClick={() => setShowUploadImage(true)}
+              className="w-full flex items-center space-x-3 rtl:space-x-reverse p-4 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-2xl hover:from-green-700 hover:to-green-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+            >
+              <Plus className="w-5 h-5" />
+              <span className="font-medium flex-1 text-right">آپلود تصویر جدید</span>
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            
+            {/* منوهای اصلی مدیریت */}
+            {sidebarMenu.map((item, idx) => {
+              const IconComponent = item.icon;
+              const isActive = item.active;
+              return (
+                <button
+                  key={item.label}
+                  onClick={() => window.location.href = item.href}
+                  className={`group w-full text-right p-4 rounded-2xl font-semibold transition-all duration-300 flex items-center gap-4 relative overflow-hidden ${
+                    isActive
+                      ? 'bg-gradient-to-r from-green-600 to-green-500 text-white shadow-xl scale-[1.02] transform'
+                      : 'text-green-700 hover:bg-gradient-to-r hover:from-green-50 hover:to-green-100 hover:shadow-lg hover:scale-[1.01]'
+                  }`}
+                >
+                  <div className={`p-2 rounded-xl ${isActive ? 'bg-white/20' : 'bg-green-100'}`}>
+                    <IconComponent size={18} />
+                  </div>
+                  <span className="text-sm">{item.label}</span>
+                </button>
+              );
+            })}
+            
+            {/* Logout Button */}
             <button
               onClick={logout}
-              className="w-full flex items-center justify-center space-x-3 rtl:space-x-reverse p-4 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-2xl hover:from-red-600 hover:to-red-700 transition-all duration-300 shadow-lg hover:shadow-xl"
+              className="w-full text-right p-4 rounded-2xl font-semibold transition-all duration-300 flex items-center gap-4 text-red-600 hover:bg-red-50 hover:shadow-lg hover:scale-[1.01] mt-6"
             >
-              <LogOut className="w-5 h-5" />
-              <span className="font-medium">خروج از سیستم</span>
+              <div className="p-2 rounded-xl bg-red-100">
+                <LogOut size={18} />
+              </div>
+              <span className="text-sm">خروج از سیستم</span>
             </button>
-          </div>
-        </div>
-      </div>
-      {/* Sidebar Overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 transition-all duration-300"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+          </nav>
+        </aside>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
-        {/* Title */}
-        <div className="relative bg-gradient-to-r from-green-600 via-green-500 to-green-600 rounded-3xl p-8 text-white shadow-2xl overflow-hidden mb-8">
-          <div className="absolute inset-0 bg-black/10"></div>
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-32 translate-x-32"></div>
-          <div className="relative z-10">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-4xl font-bold mb-3 bg-gradient-to-r from-white to-green-100 bg-clip-text text-transparent">
-                  مدیریت گالری تصاویر مدرسه
-                </h2>
-                <p className="text-white/90 mb-6 text-lg">افزودن، ویرایش و حذف تصاویر و دسته‌بندی‌ها</p>
-                <div className="flex items-center space-x-6 text-white/80">
-                  <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-lg rounded-xl px-4 py-2">
-                    <Calendar className="w-4 h-4" />
-                    <span className="text-sm font-medium">{new Date().toLocaleDateString('fa-IR')}</span>
-                  </div>
-                  <div className="flex items-center space-x-2 rtl:space-x-reverse bg-white/20 backdrop-blur-lg rounded-xl px-4 py-2">
-                    <Clock className="w-4 h-4" />
-                    <span className="text-sm font-medium">{new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })}</span>
+        {/* Main Content - with margin for sidebar */}
+        <main className="flex-1 p-6 space-y-8">
+          {/* Welcome Card */}
+          <div className="relative bg-gradient-to-r from-green-600 via-green-500 to-green-600 rounded-3xl p-8 text-white shadow-2xl overflow-hidden">
+            <div className="absolute inset-0 bg-black/10"></div>
+            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-32 translate-x-32"></div>
+            <div className="relative z-10">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-4xl font-bold mb-3 bg-gradient-to-r from-white to-green-100 bg-clip-text text-transparent">
+                    مدیریت گالری تصاویر مدرسه
+                  </h2>
+                  <p className="text-white/90 mb-6 text-lg">افزودن، ویرایش و حذف تصاویر و دسته‌بندی‌ها</p>
+                  <div className="flex items-center space-x-6 text-white/80">
+                    <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-lg rounded-xl px-4 py-2">
+                      <Calendar className="w-4 h-4" />
+                      <span className="text-sm font-medium">{new Date().toLocaleDateString('fa-IR')}</span>
+                    </div>
+                    <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-lg rounded-xl px-4 py-2">
+                      <Clock className="w-4 h-4" />
+                      <span className="text-sm font-medium">{new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="w-32 h-32 bg-white/20 backdrop-blur-lg rounded-3xl flex items-center justify-center shadow-2xl">
-                <Image className="w-16 h-16 text-white" />
+                <div className="w-32 h-32 bg-white/20 backdrop-blur-lg rounded-3xl flex items-center justify-center shadow-2xl">
+                  <Image className="w-16 h-16 text-white" />
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="flex flex-col justify-end md:flex-row gap-4 mb-8">
-          <button
-            onClick={() => setShowAddCategory(true)}
-            className="flex items-center px-6 py-3 bg-gradient-to-r from-green-500 to-green-400 text-white rounded-xl shadow-lg hover:from-green-600 hover:to-green-500 transition-all duration-300"
-          >
-            <FolderPlus className="w-5 h-5 ml-2" />
-            افزودن دسته‌بندی
-          </button>
-          <button
-            onClick={() => setShowUploadImage(true)}
-            className="flex items-center px-6 py-3 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-xl shadow-lg hover:from-green-700 hover:to-green-600 transition-all duration-300"
-          >
-            <Upload className="w-5 h-5 ml-2" />
-            آپلود تصویر
-          </button>
-        </div>
-
-        {/* دسته‌بندی‌ها و تصاویر */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          {/* دسته‌بندی‌ها */}
-          <div className="md:col-span-1">
-            <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-xl border border-green-200 p-6">
-              <h3 className="text-xl font-bold text-green-800 mb-4 flex items-center">
-                <FolderPlus className="w-5 h-5 ml-2" />
-                دسته‌بندی‌ها
-              </h3>
-              {loading ? (
-                <div className="flex justify-center py-4">
-                  <div className="w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+          {/* Quick Actions */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <button
+              onClick={() => setShowAddCategory(true)}
+              className="bg-gradient-to-r from-green-600 to-green-500 text-white rounded-3xl p-8 hover:shadow-2xl transition-all duration-300 hover:scale-105 text-right relative overflow-hidden group"
+            >
+              <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-all duration-300"></div>
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="w-14 h-14 bg-white/20 backdrop-blur-lg rounded-2xl flex items-center justify-center shadow-lg">
+                    <FolderPlus className="w-7 h-7 text-white" />
+                  </div>
+                  <Sparkles className="w-5 h-5 text-white/70" />
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  <button
-                    onClick={() => setSelectedCategory(null)}
-                    className={`w-full text-right py-2 px-3 rounded-md mb-1 flex items-center ${
-                      selectedCategory === null
-                        ? 'bg-green-100 text-green-800 font-medium'
-                        : 'hover:bg-gray-100 text-gray-700'
-                    }`}
-                  >
-                    <Image className="w-4 h-4 ml-2" />
-                    همه تصاویر
-                  </button>
-                  {categories.map(category => (
+                <h4 className="text-xl font-bold mb-3">افزودن دسته‌بندی جدید</h4>
+                <p className="text-white/90">ایجاد دسته‌بندی برای سازماندهی تصاویر</p>
+              </div>
+            </button>
+            
+            <button
+              onClick={() => setShowUploadImage(true)}
+              className="bg-gradient-to-r from-green-500 to-green-400 text-white rounded-3xl p-8 hover:shadow-2xl transition-all duration-300 hover:scale-105 text-right relative overflow-hidden group"
+            >
+              <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-all duration-300"></div>
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="w-14 h-14 bg-white/20 backdrop-blur-lg rounded-2xl flex items-center justify-center shadow-lg">
+                    <Upload className="w-7 h-7 text-white" />
+                  </div>
+                  <Sparkles className="w-5 h-5 text-white/70" />
+                </div>
+                <h4 className="text-xl font-bold mb-3">آپلود تصویر جدید</h4>
+                <p className="text-white/90">افزودن تصاویر جدید به گالری</p>
+              </div>
+            </button>
+          </div>
+
+          {/* دسته‌بندی‌ها و تصاویر */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {/* دسته‌بندی‌ها */}
+            <div className="md:col-span-1">
+              <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-xl border border-green-200 p-6">
+                <h3 className="text-xl font-bold text-green-800 mb-4 flex items-center">
+                  <FolderPlus className="w-5 h-5 ml-2" />
+                  دسته‌بندی‌ها
+                </h3>
+                {loading ? (
+                  <div className="flex justify-center py-4">
+                    <div className="w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
                     <button
-                      key={category.id}
-                      onClick={() => setSelectedCategory(category.id)}
+                      onClick={() => setSelectedCategory(null)}
                       className={`w-full text-right py-2 px-3 rounded-md mb-1 flex items-center ${
-                        selectedCategory === category.id
+                        selectedCategory === null
                           ? 'bg-green-100 text-green-800 font-medium'
                           : 'hover:bg-gray-100 text-gray-700'
                       }`}
                     >
-                      <FolderPlus className="w-4 h-4 ml-2" />
-                      {category.name}
+                      <Image className="w-4 h-4 ml-2" />
+                      همه تصاویر
                     </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-          {/* تصاویر */}
-          <div className="md:col-span-3">
-            <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-xl border border-green-200 p-6">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                <h2 className="text-xl font-bold text-green-800 flex items-center">
-                  <Image className="w-6 h-6 ml-2" />
-                  {selectedCategory ? `تصاویر دسته ${getCategoryName(selectedCategory)}` : 'همه تصاویر'}
-                </h2>
-                <div className="relative w-full md:w-64">
-                  <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type="text"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="جستجو در تصاویر..."
-                    className="w-full pr-10 pl-4 py-2 border border-green-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  />
-                </div>
+                    {categories.map(category => (
+                      <button
+                        key={category.id}
+                        onClick={() => setSelectedCategory(category.id)}
+                        className={`w-full text-right py-2 px-3 rounded-md mb-1 flex items-center ${
+                          selectedCategory === category.id
+                            ? 'bg-green-100 text-green-800 font-medium'
+                            : 'hover:bg-gray-100 text-gray-700'
+                        }`}
+                      >
+                        <FolderPlus className="w-4 h-4 ml-2" />
+                        {category.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-              {loading ? (
-                <div className="flex justify-center py-12">
-                  <div className="w-10 h-10 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+            {/* تصاویر */}
+            <div className="md:col-span-3">
+              <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-xl border border-green-200 p-6">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                  <h2 className="text-xl font-bold text-green-800 flex items-center">
+                    <Image className="w-6 h-6 ml-2" />
+                    {selectedCategory ? `تصاویر دسته ${getCategoryName(selectedCategory)}` : 'همه تصاویر'}
+                  </h2>
+                  <div className="relative w-full md:w-64">
+                    <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="جستجو در تصاویر..."
+                      className="w-full pr-10 pl-4 py-2 border border-green-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    />
+                  </div>
                 </div>
-              ) : filteredImages.length === 0 ? (
-                <div className="text-center py-12 bg-green-50 bg-opacity-30 rounded-xl">
-                  <Image className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-                  <h3 className="text-lg font-medium text-gray-600 mb-1">هیچ تصویری یافت نشد</h3>
-                  <p className="text-gray-500">می‌توانید با کلیک روی دکمه «آپلود تصویر» تصاویر جدید اضافه کنید</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredImages.map(image => (
-                    <div key={image.id} className="bg-green-50 rounded-xl overflow-hidden shadow-sm border border-green-100 hover:shadow-md transition-all transform hover:-translate-y-1">
-                      <div className="relative aspect-[4/3] bg-gray-100">
-                        <img
-                          src={image.image_path}
-                          alt={image.title}
-                          className="w-full h-full object-cover"
-                        />
-                        <div className="absolute top-2 right-2">
-                          <span className="bg-green-100 text-green-800 px-2 py-1 text-xs rounded-md">
-                            {getCategoryName(image.category_id)}
-                          </span>
+                {loading ? (
+                  <div className="flex justify-center py-12">
+                    <div className="w-10 h-10 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                ) : filteredImages.length === 0 ? (
+                  <div className="text-center py-12 bg-green-50 bg-opacity-30 rounded-xl">
+                    <Image className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+                    <h3 className="text-lg font-medium text-gray-600 mb-1">هیچ تصویری یافت نشد</h3>
+                    <p className="text-gray-500">می‌توانید با کلیک روی دکمه «آپلود تصویر» تصاویر جدید اضافه کنید</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredImages.map(image => (
+                      <div key={image.id} className="bg-green-50 rounded-xl overflow-hidden shadow-sm border border-green-100 hover:shadow-md transition-all transform hover:-translate-y-1">
+                        <div className="relative aspect-[4/3] bg-gray-100">
+                          <img
+                            src={image.image_path}
+                            alt={image.title}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute top-2 right-2">
+                            <span className="bg-green-100 text-green-800 px-2 py-1 text-xs rounded-md">
+                              {getCategoryName(image.category_id)}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                      <div className="p-4">
-                        <h3 className="font-semibold text-green-800 mb-1 truncate">{image.title}</h3>
-                        <p className="text-gray-600 text-sm line-clamp-2 mb-3">{image.description}</p>
-                        <div className="flex justify-end space-x-2 rtl:space-x-reverse">
-                          <button
-                            className="p-1 text-gray-500 hover:text-green-700 transition-colors"
-                            onClick={() => setEditImage(image)}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button
-                            className="p-1 text-gray-500 hover:text-red-600 transition-colors"
-                            onClick={async () => {
-                              if (confirm('آیا از حذف این تصویر اطمینان دارید؟')) {
-                                try {
-                                  const token = localStorage.getItem('token');
-                                  const response = await fetch(`/api/gallery?id=${image.id}`, {
-                                    method: 'DELETE',
-                                    headers: { 'Authorization': `Bearer ${token}` }
-                                  });
-                                  if (response.ok) {
-                                    fetchImages();
-                                    alert('تصویر با موفقیت حذف شد');
-                                  } else {
-                                    alert('خطا در حذف تصویر');
+                        <div className="p-4">
+                          <h3 className="font-semibold text-green-800 mb-1 truncate">{image.title}</h3>
+                          <p className="text-gray-600 text-sm line-clamp-2 mb-3">{image.description}</p>
+                          <div className="flex justify-end space-x-2 rtl:space-x-reverse">
+                            <button
+                              className="p-1 text-gray-500 hover:text-green-700 transition-colors"
+                              onClick={() => setEditImage(image)}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button
+                              className="p-1 text-gray-500 hover:text-red-600 transition-colors"
+                              onClick={async () => {
+                                if (confirm('آیا از حذف این تصویر اطمینان دارید؟')) {
+                                  try {
+                                    const token = localStorage.getItem('token');
+                                    const response = await fetch(`/api/gallery?id=${image.id}`, {
+                                      method: 'DELETE',
+                                      headers: { 'Authorization': `Bearer ${token}` }
+                                    });
+                                    if (response.ok) {
+                                      fetchImages();
+                                      alert('تصویر با موفقیت حذف شد');
+                                    } else {
+                                      alert('خطا در حذف تصویر');
+                                    }
+                                  } catch {
+                                    alert('خطا در برقراری ارتباط با سرور');
                                   }
-                                } catch {
-                                  alert('خطا در برقراری ارتباط با سرور');
                                 }
-                              }
-                            }}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      </main>
+        </main>
+      </div>
 
       {/* مودال افزودن دسته‌بندی */}
       {showAddCategory && (
@@ -915,7 +893,7 @@ function EditImageModal({ onClose, onSuccess, categories, image }) {
         console.log('Update response:', data);
         
         if (response.ok) {
-          alert('تصویر با موفقیت بروزرسانی شد');
+          alert('تصویر با успеیت بروزرسانی شد');
           onSuccess();
         } else {
           setError(data.message || 'خطا در ویرایش تصویر');

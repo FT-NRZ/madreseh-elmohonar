@@ -116,6 +116,7 @@ export async function POST(request) {
         lastName: entrance.users.last_name,
         role: entrance.role,
         profileImage: entrance.users.profile_image,
+        nationalCode: entrance.national_code,
         ...additionalInfo
       },
       token

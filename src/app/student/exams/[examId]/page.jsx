@@ -1,4 +1,4 @@
-'use client'
+'use client';
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 
@@ -8,12 +8,26 @@ export default function StudentExamPage() {
   const [answers, setAnswers] = useState({});
   const [file, setFile] = useState(null);
   const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const studentId = 1; // مقدار 1 باید در جدول students وجود داشته باشد
 
   useEffect(() => {
-    fetch(`/api/exams/student/${examId}`)
-      .then(res => res.json())
-      .then(data => setExam(data.exam));
+    async function fetchExam() {
+      try {
+        const res = await fetch(`/api/exams/student/${examId}`);
+        if (!res.ok) {
+          throw new Error('آزمون یافت نشد');
+        }
+        const data = await res.json();
+        setExam(data.exam);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchExam();
   }, [examId]);
 
   const handleQuizChange = (idx, value) => {
@@ -85,7 +99,9 @@ export default function StudentExamPage() {
     else setMessage(data.error || 'خطا در ثبت پاسخ');
   };
 
-  if (!exam) return <div>در حال بارگذاری آزمون...</div>;
+  if (loading) return <div>در حال بارگذاری آزمون...</div>;
+  if (error) return <div className="text-red-600">{error}</div>;
+  if (!exam) return <div>آزمون یافت نشد.</div>;
 
   // --- اصلاح بخش سوالات تستی برای جلوگیری از خطای JSON.parse ---
   let quizQuestions = [];
@@ -108,22 +124,46 @@ export default function StudentExamPage() {
       <h2 className="text-lg font-bold mb-4">{exam.title}</h2>
       {exam.type === 'pdf' && (
         <>
-          <iframe src={exam.pdf_url} width="100%" height="600px" title="PDF آزمون" />
+          <iframe
+            src={exam.pdf_url}
+            width="100%"
+            height="600px"
+            title="PDF آزمون"
+            className="border border-gray-300 rounded"
+          />
           <form onSubmit={handleSubmitFile} className="mt-4">
             <label className="block mb-2">آپلود پاسخ (عکس یا PDF):</label>
-            <input type="file" accept="image/*,application/pdf" onChange={e => setFile(e.target.files[0])} className="block my-2" />
-            <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded">ثبت پاسخ</button>
+            <input
+              type="file"
+              accept="image/*,application/pdf"
+              onChange={e => setFile(e.target.files[0])}
+              className="block my-2"
+            />
+            <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded">
+              ثبت پاسخ
+            </button>
             <div className="mt-2 text-green-700">{message}</div>
           </form>
         </>
       )}
       {exam.type === 'image' && (
         <>
-          <img src={exam.image_url} alt="آزمون تصویری" style={{ maxWidth: '100%' }} />
+          <img
+            src={exam.image_url}
+            alt="آزمون تصویری"
+            className="max-w-full border border-gray-300 rounded"
+          />
           <form onSubmit={handleSubmitFile} className="mt-4">
             <label className="block mb-2">آپلود پاسخ (عکس یا PDF):</label>
-            <input type="file" accept="image/*,application/pdf" onChange={e => setFile(e.target.files[0])} className="block my-2" />
-            <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded">ثبت پاسخ</button>
+            <input
+              type="file"
+              accept="image/*,application/pdf"
+              onChange={e => setFile(e.target.files[0])}
+              className="block my-2"
+            />
+            <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded">
+              ثبت پاسخ
+            </button>
             <div className="mt-2 text-green-700">{message}</div>
           </form>
         </>
@@ -148,7 +188,9 @@ export default function StudentExamPage() {
               ))}
             </div>
           ))}
-          <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded">ثبت پاسخ</button>
+          <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded">
+            ثبت پاسخ
+          </button>
           <div className="mt-2 text-green-700">{message}</div>
         </form>
       )}

@@ -12,9 +12,15 @@ export async function GET(request) {
     if (classId && classId !== 'all') {
       where.class_id = parseInt(classId);
     } else if (gradeId && gradeId !== 'all') {
-      where.classes = {
-        grade_id: parseInt(gradeId)
-      };
+      // دریافت همه کلاس‌های این پایه
+      const classIds = (
+        await prisma.classes.findMany({
+          where: { grade_id: parseInt(gradeId) },
+          select: { id: true }
+        })
+      ).map(c => c.id);
+
+      where.class_id = { in: classIds };
     }
 
     // دریافت تمام برنامه‌های هفتگی

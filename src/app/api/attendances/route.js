@@ -12,6 +12,7 @@ export async function GET() {
     });
     return NextResponse.json({ attendances });
   } catch (error) {
+    console.error('GET attendances error:', error);
     return NextResponse.json({ attendances: [] }, { status: 500 });
   }
 }
@@ -20,17 +21,65 @@ export async function GET() {
 export async function POST(request) {
   try {
     const { student_id, class_id, date, status, reason, is_justified } = await request.json();
-    const existing = await prisma.attendances.findUnique({
-      where: { student_id_date: { student_id, date } }
-    });
-    if (existing) {
-      return NextResponse.json({ error: 'قبلاً ثبت شده' }, { status: 400 });
+    
+    console.log('Received data:', { student_id, class_id, date, status });
+    
+    // بررسی مقادیر ورودی
+    if (!student_id || !class_id || !date || !status) {
+      return NextResponse.json({ 
+        error: 'اطلاعات ناقص است',
+        details: 'student_id, class_id, date, status باید مقدار داشته باشند' 
+      }, { status: 400 });
     }
-    const attendance = await prisma.attendances.create({
-      data: { student_id, class_id, date, status, reason, is_justified }
+    
+    // تبدیل تاریخ به Date object
+    const dateObj = new Date(date);
+    
+    // بررسی وجود رکورد قبلی
+    const existing = await prisma.attendances.findFirst({
+      where: {
+        student_id: parseInt(student_id),
+        date: dateObj
+      }
     });
-    return NextResponse.json({ attendance });
+    
+    let attendance;
+    
+    if (existing) {
+      // اگر رکورد وجود دارد، آن را به‌روزرسانی کن
+      attendance = await prisma.attendances.update({
+        where: { id: existing.id },
+        data: {
+          class_id: parseInt(class_id),
+          status,
+          reason: reason || null,
+          is_justified: Boolean(is_justified)
+          // حذف updated_at اگر در مدل تعریف نشده
+        }
+      });
+    } else {
+      // اگر رکورد وجود ندارد، رکورد جدید ایجاد کن
+      attendance = await prisma.attendances.create({
+        data: {
+          student_id: parseInt(student_id),
+          class_id: parseInt(class_id),
+          date: dateObj,
+          status,
+          reason: reason || null,
+          is_justified: Boolean(is_justified)
+        }
+      });
+    }
+    
+    return NextResponse.json({ 
+      attendance,
+      message: existing ? 'وضعیت به‌روزرسانی شد' : 'حضور و غیاب ثبت شد'
+    });
   } catch (error) {
-    return NextResponse.json({ error: 'خطا در ثبت حضور و غیاب' }, { status: 500 });
+    console.error('POST attendances error:', error.message);
+    return NextResponse.json({ 
+      error: 'خطا در ثبت حضور و غیاب',
+      details: error.message 
+    }, { status: 500 });
   }
 }

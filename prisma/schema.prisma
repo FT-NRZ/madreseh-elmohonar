@@ -376,16 +376,13 @@ model weekly_schedule {
 
 
 model exam_file_answers {
-  id               Int      @id @default(autoincrement())
-  exam_id          Int
-  student_id       Int
-  file_url         String
-  marks_obtained   Decimal?   @db.Decimal(6,2) // نمره عددی (اختیاری)
-  grade_desc       String?    // نمره توصیفی (عالی، خیلی خوب و ...)
-  teacher_feedback String?    // توضیح معلم
-  created_at       DateTime   @default(now())
-  exams            exams      @relation(fields: [exam_id], references: [id])
-  students         students   @relation(fields: [student_id], references: [id])
+  id         Int      @id @default(autoincrement())
+  exam_id    Int
+  student_id Int
+  file_url   String
+  created_at DateTime @default(now())
+  exams      exams    @relation(fields: [exam_id], references: [id])
+  students   students @relation(fields: [student_id], references: [id])
 }
 
 model food_schedule {

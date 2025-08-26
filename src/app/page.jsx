@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Calendar, Clock, Users, BookOpen, Camera, Utensils, Award, Phone, MapPin, Mail, Star, Sparkles, ChevronUp } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, Clock, Users, BookOpen, Camera, Utensils, Award, Phone, MapPin, Mail, Star, Sparkles, ChevronUp, Filter } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 const HomePage = () => {
@@ -10,62 +10,209 @@ const HomePage = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [gallery, setGallery] = useState([]);
+  const [classes, setClasses] = useState([]);
+  const [selectedClass, setSelectedClass] = useState('');
+  const [weeklySchedule, setWeeklySchedule] = useState([]);
+  const [foodSchedule, setFoodSchedule] = useState([]);
   const galleryRef = useRef(null);
   const router = useRouter();
 
-  useEffect(() => {
-  async function fetchGallery() {
-    try {
-      const token = localStorage?.getItem?.('token');
-      const res = await fetch('/api/gallery', {
-        headers: token ? { 'Authorization': `Bearer ${token}` } : undefined
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setGallery(
-          (data.images || data.gallery || []).map((item, idx) => ({
-            id: item.id ?? idx + 1,
-            image: item.image_path
-              ? `/uploads/gallery/${item.image_path.replace(/^\/uploads\/gallery\//, '')}`
-              : "/images/placeholder.jpg",
-            title: item.title || "بدون عنوان",
-            category: item.category || item.gallery_categories?.name || "بدون دسته‌بندی",
-            color: item.color || "bg-gradient-to-br from-[#399918] to-[#22c55e]"
-          }))
-        );
-      } else {
-        setGallery([]);
-      }
-    } catch {
-      setGallery([]);
-    }
-  }
-  fetchGallery();
-}, []);
-  
-  // Auto-scroll effect for gallery
-useEffect(() => {
-  const galleryEl = galleryRef.current;
-  if (!galleryEl || gallery.length <= 2) return;
-  let scrollAmount = 0;
-  let scrollDirection = 1;
-
-  const scrollGallery = () => {
-    if (galleryEl) {
-      scrollAmount += 1 * scrollDirection;
-      galleryEl.scrollLeft = scrollAmount;
-      if (scrollAmount >= galleryEl.scrollWidth - galleryEl.clientWidth) {
-        scrollDirection = -1;
-      }
-      if (scrollAmount <= 0) {
-        scrollDirection = 1;
-      }
-    }
+  // فرمت روزهای هفته فارسی
+  const persianDays = {
+    'saturday': 'شنبه',
+    'sunday': 'یکشنبه',
+    'monday': 'دوشنبه',
+    'tuesday': 'سه‌شنبه',
+    'wednesday': 'چهارشنبه',
+    'thursday': 'پنجشنبه',
+    'friday': 'جمعه'
   };
 
-  const scrollInterval = setInterval(scrollGallery, 40);
-  return () => clearInterval(scrollInterval);
-}, [gallery.length]);
+  // تبدیل رنگ کلاس به کد رنگ
+  const getClassColor = (classId) => {
+    const colors = [
+      'border-[#399918]', 
+      'border-[#22c55e]', 
+      'border-[#16a34a]', 
+      'border-[#15803d]',
+      'border-[#4ade80]'
+    ];
+    return colors[classId % colors.length];
+  };
+
+  // واکشی گالری تصاویر
+  useEffect(() => {
+    async function fetchGallery() {
+      try {
+        const token = localStorage?.getItem?.('token');
+        const res = await fetch('/api/gallery', {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : undefined
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setGallery(
+            (data.images || data.gallery || []).map((item, idx) => ({
+              id: item.id ?? idx + 1,
+              image: item.image_path
+                ? `/uploads/gallery/${item.image_path.replace(/^\/uploads\/gallery\//, '')}`
+                : "/images/placeholder.jpg",
+              title: item.title || "بدون عنوان",
+              category: item.category || item.gallery_categories?.name || "بدون دسته‌بندی",
+              color: item.color || "bg-gradient-to-br from-[#399918] to-[#22c55e]"
+            }))
+          );
+        } else {
+          setGallery([]);
+        }
+      } catch {
+        setGallery([]);
+      }
+    }
+    fetchGallery();
+  }, []);
+
+  // واکشی لیست کلاس‌ها
+  useEffect(() => {
+    async function fetchClasses() {
+      try {
+        const res = await fetch('/api/classes');
+        if (res.ok) {
+          const data = await res.json();
+          setClasses(data.classes || []);
+          // انتخاب کلاس اول به عنوان پیش‌فرض
+          if (data.classes && data.classes.length > 0) {
+            setSelectedClass(data.classes[0].id.toString());
+          }
+        } else {
+          setClasses([]);
+        }
+      } catch (error) {
+        console.error("خطا در دریافت کلاس‌ها:", error);
+        setClasses([]);
+      }
+    }
+    fetchClasses();
+  }, []);
+
+  // واکشی برنامه هفتگی براساس کلاس انتخاب شده
+  useEffect(() => {
+    async function fetchWeeklySchedule() {
+      if (!selectedClass) return;
+      
+      try {
+        const res = await fetch(`/api/schedule?class_id=${selectedClass}`);
+        if (res.ok) {
+          const data = await res.json();
+          console.log('Schedule data:', data);
+          
+          // گروه‌بندی براساس روز هفته
+          const groupedByDay = {};
+          
+          (data.schedules || []).forEach(item => {
+            const day = item.day_of_week;
+            if (!groupedByDay[day]) {
+              groupedByDay[day] = [];
+            }
+            
+            groupedByDay[day].push({
+              ...item,
+              subject: item.subject || 'نامشخص'
+            });
+          });
+          
+          // ترتیب روزهای هفته
+          const orderedDays = ['saturday', 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+          
+          // تبدیل به آرایه برای نمایش
+          const formattedSchedule = orderedDays
+            .filter(day => groupedByDay[day] && groupedByDay[day].length > 0)
+            .map(day => ({
+              day,
+              persianDay: persianDays[day] || day,
+              activities: groupedByDay[day].map(item => item.subject),
+              scheduleItems: groupedByDay[day],
+              color: getClassColor(parseInt(selectedClass))
+            }));
+          
+          setWeeklySchedule(formattedSchedule);
+        } else {
+          setWeeklySchedule([]);
+        }
+      } catch (error) {
+        console.error("خطا در دریافت برنامه هفتگی:", error);
+        setWeeklySchedule([]);
+      }
+    }
+    
+    fetchWeeklySchedule();
+  }, [selectedClass]);
+
+  // واکشی برنامه غذایی
+  useEffect(() => {
+    async function fetchFoodSchedule() {
+      try {
+        const res = await fetch('/api/food-schedule');
+        if (res.ok) {
+          const data = await res.json();
+          if (!data.schedules || data.schedules.length === 0) {
+            setFoodSchedule(fallbackMenuItems);
+            return;
+          }
+
+          // گروه‌بندی بر اساس روز هفته
+          const days = ['saturday', 'sunday', 'monday', 'tuesday', 'wednesday'];
+          const grouped = {};
+          days.forEach((day, idx) => {
+            grouped[day] = {
+              day,
+              persianDay: persianDays[day],
+              breakfast: '-',
+              lunch: '-',
+              color: getClassColor(idx)
+            };
+          });
+
+          data.schedules.forEach(item => {
+            if (grouped[item.weekday]) {
+              grouped[item.weekday].breakfast = item.breakfast || '-';
+              grouped[item.weekday].lunch = item.lunch || '-';
+            }
+          });
+
+          setFoodSchedule(days.map(day => grouped[day]));
+        } else {
+          setFoodSchedule(fallbackMenuItems);
+        }
+      } catch (error) {
+        setFoodSchedule(fallbackMenuItems);
+      }
+    }
+    fetchFoodSchedule();
+  }, []);
+  
+  // Auto-scroll effect for gallery
+  useEffect(() => {
+    const galleryEl = galleryRef.current;
+    if (!galleryEl || gallery.length <= 2) return;
+    let scrollAmount = 0;
+    let scrollDirection = 1;
+
+    const scrollGallery = () => {
+      if (galleryEl) {
+        scrollAmount += 1 * scrollDirection;
+        galleryEl.scrollLeft = scrollAmount;
+        if (scrollAmount >= galleryEl.scrollWidth - galleryEl.clientWidth) {
+          scrollDirection = -1;
+        }
+        if (scrollAmount <= 0) {
+          scrollDirection = 1;
+        }
+      }
+    };
+
+    const scrollInterval = setInterval(scrollGallery, 40);
+    return () => clearInterval(scrollInterval);
+  }, [gallery.length]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -150,22 +297,56 @@ useEffect(() => {
     }
   ];
 
-  const weeklySchedule = [
-    { day: "شنبه", activities: ["ریاضی", "فارسی", "ورزش", "هنر"], color: "border-[#399918]" },
-    { day: "یکشنبه", activities: ["علوم", "انگلیسی", "ریاضی", "موسیقی"], color: "border-[#22c55e]" },
-    { day: "دوشنبه", activities: ["فارسی", "اجتماعی", "علوم", "نقاشی"], color: "border-[#16a34a]" },
-    { day: "سه‌شنبه", activities: ["انگلیسی", "ریاضی", "کار و فناوری", "ورزش"], color: "border-[#399918]" },
-    { day: "چهارشنبه", activities: ["علوم", "فارسی", "هنر", "بازی"], color: "border-[#15803d]" }
+  // داده‌های پیش‌فرض (فقط برای حالت بک‌آپ)
+  const fallbackWeeklySchedule = [
+    { day: "saturday", persianDay: "شنبه", activities: ["ریاضی", "فارسی", "ورزش", "هنر"], color: "border-[#399918]" },
+    { day: "sunday", persianDay: "یکشنبه", activities: ["علوم", "انگلیسی", "ریاضی", "موسیقی"], color: "border-[#22c55e]" },
+    { day: "monday", persianDay: "دوشنبه", activities: ["فارسی", "اجتماعی", "علوم", "نقاشی"], color: "border-[#16a34a]" },
+    { day: "tuesday", persianDay: "سه‌شنبه", activities: ["انگلیسی", "ریاضی", "کار و فناوری", "ورزش"], color: "border-[#399918]" },
+    { day: "wednesday", persianDay: "چهارشنبه", activities: ["علوم", "فارسی", "هنر", "بازی"], color: "border-[#15803d]" }
   ];
 
-  const menuItems = [
-    { day: "شنبه", breakfast: "نان و پنیر و مربا", lunch: "قورمه سبزی با برنج", snack: "میوه فصل", color: "border-[#399918]" },
-    { day: "یکشنبه", breakfast: "کره و عسل", lunch: "جوجه کباب با برنج", snack: "بیسکویت و شیر", color: "border-[#22c55e]" },
-    { day: "دوشنبه", breakfast: "نان و کره", lunch: "خورش فسنجان", snack: "ماست و خیار", color: "border-[#16a34a]" },
-    { day: "سه‌شنبه", breakfast: "صبحانه انگلیسی", lunch: "کوفته برنجی", snack: "کیک خانگی", color: "border-[#399918]" },
-    { day: "چهارشنبه", breakfast: "نان و جام", lunch: "خورش بامیه", snack: "آب میوه طبیعی", color: "border-[#15803d]" }
-  ];
+  const fallbackMenuItems = [
+  { 
+    day: "saturday", 
+    persianDay: "شنبه", 
+    breakfast: "نان و پنیر و مربا", 
+    lunch: "قورمه سبزی با برنج", 
+    color: "border-[#399918]" 
+  },
+  { 
+    day: "sunday", 
+    persianDay: "یکشنبه", 
+    breakfast: "کره و عسل", 
+    lunch: "جوجه کباب با برنج", 
+    color: "border-[#22c55e]" 
+  },
+  { 
+    day: "monday", 
+    persianDay: "دوشنبه", 
+    breakfast: "نان و کره", 
+    lunch: "خورش فسنجان", 
+    color: "border-[#16a34a]" 
+  },
+  { 
+    day: "tuesday", 
+    persianDay: "سه‌شنبه", 
+    breakfast: "صبحانه انگلیسی", 
+    lunch: "کوفته برنجی", 
+    color: "border-[#399918]" 
+  },
+  { 
+    day: "wednesday", 
+    persianDay: "چهارشنبه", 
+    breakfast: "نان و جام", 
+    lunch: "خورش بامیه", 
+    color: "border-[#15803d]" 
+  }
+];
 
+  // استفاده از داده‌های API یا داده‌های پیش‌فرض
+  const displayWeeklySchedule = weeklySchedule.length > 0 ? weeklySchedule : (selectedClass ? [] : fallbackWeeklySchedule);
+  const displayMenuItems = foodSchedule.length > 0 ? foodSchedule : fallbackMenuItems;
   const particles = [
     { top: '10%', left: '15%', size: '12px', color: 'rgba(57, 153, 24, 0.1)', delay: '0s' },
     { top: '20%', left: '80%', size: '8px', color: 'rgba(57, 153, 24, 0.15)', delay: '2s' },
@@ -432,35 +613,62 @@ useEffect(() => {
           <div className="grid lg:grid-cols-2 gap-10">
             {/* Weekly Schedule */}
             <div className="bg-white rounded-2xl shadow-xl p-8 hover:shadow-2xl transition-all duration-300 border border-gray-100 animate-fade-in-left">
-              <div className="flex items-center mb-8">
-                <div className="w-12 h-12 bg-gradient-to-br from-[#399918] to-[#22c55e] rounded-full flex items-center justify-center ml-4 shadow-lg">
-                  <Calendar className="w-6 h-6 text-white" />
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center">
+                  <div className="w-12 h-12 bg-gradient-to-br from-[#399918] to-[#22c55e] rounded-full flex items-center justify-center ml-4 shadow-lg">
+                    <Calendar className="w-6 h-6 text-white" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-800">برنامه درسی</h3>
                 </div>
-                <h3 className="text-2xl font-bold text-gray-800">برنامه درسی</h3>
+                
+                {/* فیلتر کلاس */}
+                {classes.length > 0 && (
+                  <div className="flex items-center bg-green-50 rounded-xl p-2">
+                    <Filter className="w-5 h-5 text-green-600 ml-2" />
+                    <select 
+                      value={selectedClass} 
+                      onChange={(e) => setSelectedClass(e.target.value)}
+                      className="bg-transparent text-green-700 text-sm focus:outline-none border-none"
+                    >
+                      {classes.map(cls => (
+                        <option key={cls.id} value={cls.id}>
+                          {cls.class_name || cls.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
               
               <div className="space-y-6">
-                {weeklySchedule.map((day, index) => (
-                  <div 
-                    key={day.day} 
-                    className={`border-r-4 ${day.color} pr-6 py-4 bg-gradient-to-l from-green-50 to-transparent rounded-r-xl hover:from-[#399918]/5 transition-colors duration-300 animate-fade-in-up delay-${index * 100}`}
-                  >
-                    <h4 className="font-bold text-gray-800 mb-3 text-lg">{day.day}</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {day.activities.map((activity, actIndex) => {
-                        const colors = ['bg-[#399918]', 'bg-[#22c55e]', 'bg-[#16a34a]', 'bg-[#15803d]'];
-                        return (
-                          <span 
-                            key={actIndex} 
-                            className={`${colors[actIndex % colors.length]} text-white px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow duration-200`}
-                          >
-                            {activity}
-                          </span>
-                        );
-                      })}
+                {displayWeeklySchedule.length > 0 ? (
+                  displayWeeklySchedule.map((day, index) => (
+                    <div 
+                      key={day.day} 
+                      className={`border-r-4 ${day.color} pr-6 py-4 bg-gradient-to-l from-green-50 to-transparent rounded-r-xl hover:from-[#399918]/5 transition-colors duration-300 animate-fade-in-up delay-${index * 100}`}
+                    >
+                      <h4 className="font-bold text-gray-800 mb-3 text-lg">{day.persianDay}</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {day.activities.map((activity, actIndex) => {
+                          const colors = ['bg-[#399918]', 'bg-[#22c55e]', 'bg-[#16a34a]', 'bg-[#15803d]'];
+                          return (
+                            <span 
+                              key={actIndex} 
+                              className={`${colors[actIndex % colors.length]} text-white px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow duration-200`}
+                            >
+                              {activity}
+                            </span>
+                          );
+                        })}
+                      </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="text-center py-10 text-gray-500">
+                    <Calendar className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+                    <p>برنامه‌ای برای این کلاس ثبت نشده است</p>
                   </div>
-                ))}
+                )}
               </div>
             </div>
 
@@ -474,12 +682,12 @@ useEffect(() => {
               </div>
               
               <div className="space-y-6">
-                {menuItems.map((menu, index) => (
+                {displayMenuItems.map((menu, index) => (
                   <div 
                     key={menu.day} 
                     className={`border-r-4 ${menu.color} pr-6 py-4 bg-gradient-to-l from-green-50 to-transparent rounded-r-xl hover:from-[#399918]/5 transition-colors duration-300 animate-fade-in-up delay-${index * 100}`}
                   >
-                    <h4 className="font-bold text-gray-800 mb-3 text-lg">{menu.day}</h4>
+                    <h4 className="font-bold text-gray-800 mb-3 text-lg">{menu.persianDay}</h4>
                     <div className="text-sm text-gray-600 space-y-2">
                       <p className="flex items-center">
                         <span className="inline-block w-2 h-2 bg-[#399918] rounded-full ml-2 animate-pulse"></span>
@@ -490,11 +698,6 @@ useEffect(() => {
                         <span className="inline-block w-2 h-2 bg-[#22c55e] rounded-full ml-2 animate-pulse delay-100"></span>
                         <span className="font-medium text-gray-700">ناهار:</span> 
                         <span className="mr-2">{menu.lunch}</span>
-                      </p>
-                      <p className="flex items-center">
-                        <span className="inline-block w-2 h-2 bg-[#16a34a] rounded-full ml-2 animate-pulse delay-200"></span>
-                        <span className="font-medium text-gray-700">میان‌وعده:</span> 
-                        <span className="mr-2">{menu.snack}</span>
                       </p>
                     </div>
                   </div>

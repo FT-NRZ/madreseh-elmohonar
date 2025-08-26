@@ -4,8 +4,18 @@ import { prisma } from '@/lib/database';
 
 export async function GET(request) {
   try {
-    // دریافت تمام برنامه‌های هفتگی
+    const { searchParams } = new URL(request.url);
+    const classId = searchParams.get('class_id');
+    
+    // تعریف شرط‌های جستجو
+    const whereClause = {};
+    if (classId) {
+      whereClause.class_id = parseInt(classId);
+    }
+    
+    // دریافت برنامه‌های هفتگی با فیلتر کلاس
     const schedules = await prisma.weekly_schedule.findMany({
+      where: whereClause,
       include: {
         classes: {
           include: {
@@ -19,7 +29,7 @@ export async function GET(request) {
       ]
     });
 
-    console.log('Found schedules:', schedules.length);
+    console.log(`Found schedules for class ${classId}:`, schedules.length);
     return NextResponse.json({
       success: true,
       schedules

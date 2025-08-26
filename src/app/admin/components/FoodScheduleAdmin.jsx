@@ -5,6 +5,7 @@ import jalaali from 'jalaali-js';
 import DatePicker from "react-multi-date-picker";
 import persian from "react-date-object/calendars/persian";
 import persian_fa from "react-date-object/locales/persian_fa";
+import toast from 'react-hot-toast';
 
 const weekDays = [
   { key: 'saturday', label: 'شنبه' },
@@ -80,9 +81,11 @@ function FoodScheduleAdmin() {
         if (data.success) {
           setSchedules(data.schedules || []);
         }
+      } else {
+        toast.error('خطا در دریافت برنامه‌های غذایی!');
       }
     } catch (error) {
-      console.error('خطا در دریافت برنامه غذایی:', error);
+      toast.error('ارتباط با سرور برقرار نشد!');
     }
     setLoading(false);
   };
@@ -105,24 +108,18 @@ function FoodScheduleAdmin() {
     try {
       for (const day of weekDays) {
         const { breakfast, lunch, date } = weekFood[day.key];
+        const miladiDate = jalaliToGregorian(date);
         if ((breakfast || lunch) && date) {
-          const miladiDate = jalaliToGregorian(date);
-          if (!miladiDate || miladiDate.length !== 10) {
-            errorCount++;
-            errors.push(`تاریخ ${day.label} نامعتبر است`);
-            continue;
-          }
-          const requestData = {
-            date: miladiDate,
-            weekday: day.key,
-            breakfast: breakfast || '',
-            lunch: lunch || ''
-          };
           try {
             const response = await fetch('/api/admin/food-schedule', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(requestData)
+              body: JSON.stringify({
+                date: miladiDate,
+                weekday: day.key,
+                breakfast: breakfast || null,
+                lunch: lunch || null
+              })
             });
             const result = await response.json();
             if (response.ok && result.success) {
@@ -133,47 +130,54 @@ function FoodScheduleAdmin() {
             }
           } catch {
             errorCount++;
-            errors.push(`خطا در ارسال درخواست برای ${day.label}`);
+            errors.push(`خطا در ثبت ${day.label}`);
           }
         }
       }
       await fetchSchedules();
       if (successCount > 0 && errorCount === 0) {
-        alert(`${successCount} برنامه غذایی با موفقیت ثبت شد`);
+        toast.success(`${successCount} روز با موفقیت ثبت شد`);
         setWeekFood(weekDays.reduce((acc, day) => {
           acc[day.key] = { date: '', breakfast: '', lunch: '' };
           return acc;
         }, {}));
       } else if (successCount > 0 && errorCount > 0) {
-        alert(`${successCount} برنامه ثبت شد، ${errorCount} برنامه با خطا مواجه شد:\n${errors.join('\n')}`);
+        toast.success(`${successCount} روز ثبت شد`);
+        toast.error(`${errorCount} روز با خطا مواجه شد:\n${errors.join('\n')}`);
       } else if (errorCount > 0) {
-        alert(`تمام برنامه‌ها با خطا مواجه شدند:\n${errors.join('\n')}`);
+        toast.error(`تمام روزها با خطا مواجه شدند:\n${errors.join('\n')}`);
       } else {
-        alert('لطفاً حداقل یک برنامه غذایی وارد کنید');
+        toast('لطفاً حداقل یک وعده غذایی وارد کنید', { icon: '🍽️' });
       }
     } catch {
-      alert('خطای کلی در ثبت برنامه غذایی');
+      toast.error('خطای کلی در ثبت برنامه غذایی');
     }
     setSubmitting(false);
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('آیا از حذف این برنامه غذایی مطمئن هستید؟')) return;
+    toast.loading('در حال حذف...');
     try {
       const response = await fetch('/api/admin/food-schedule', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id })
       });
+      toast.dismiss();
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
           await fetchSchedules();
-          alert('برنامه غذایی حذف شد');
+          toast.success('برنامه غذایی حذف شد');
+        } else {
+          toast.error('خطا در حذف برنامه غذایی');
         }
+      } else {
+        toast.error('خطا در حذف برنامه غذایی');
       }
     } catch (error) {
-      alert('خطا در حذف برنامه غذایی');
+      toast.dismiss();
+      toast.error('ارتباط با سرور برقرار نشد!');
     }
   };
 
@@ -238,7 +242,7 @@ function FoodScheduleAdmin() {
                         locale={persian_fa}
                         calendarPosition="bottom-right"
                         inputClass="w-full px-2 py-1 border border-green-300 rounded text-xs"
-                        placeholder="تاریخ شمسی"
+                        placeholder="تاریخ"
                         format="YYYY/MM/DD"
                       />
                     </td>

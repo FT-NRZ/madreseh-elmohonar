@@ -7,11 +7,12 @@ import { verifyJWT } from '@/lib/jwt';
 export async function GET(request) {
   try {
     const authHeader = request.headers.get('authorization');
-    const token = authHeader?.replace('Bearer ', '');
-    if (!token) {
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json({ success: false, message: 'احراز هویت مورد نیاز است' }, { status: 401 });
     }
+    const token = authHeader.replace('Bearer ', '');
     const payload = verifyJWT(token);
+
     if (!payload || payload.role !== 'admin') {
       return NextResponse.json({ success: false, message: 'دسترسی مجاز نیست' }, { status: 403 });
     }
@@ -66,17 +67,35 @@ export async function POST(request) {
     if (nationalCode.length !== 10) {
       return NextResponse.json({ success: false, message: 'کد ملی باید 10 رقم باشد' }, { status: 400 });
     }
+    
     const existingEntrance = await prisma.entrances.findUnique({
       where: { national_code: nationalCode }
     });
+    
     if (existingEntrance) {
       return NextResponse.json({ success: false, message: 'کاربری با این کد ملی قبلاً ثبت شده است' }, { status: 409 });
     }
-    // بررسی تکراری بودن ایمیل فقط اگر ایمیل وارد شده باشد
+    
+    // بررسی تکراری بودن شماره تلفن
+    if (phone) {
+      const existingPhone = await prisma.users.findUnique({
+        where: { phone }
+      });
+      
+      if (existingPhone) {
+        return NextResponse.json({
+          success: false,
+          message: 'شماره تلفن وارد شده قبلاً ثبت شده است'
+        }, { status: 409 });
+      }
+    }
+    
+    // بررسی تکراری بودن ایمیل
     if (email) {
       const existingUser = await prisma.users.findUnique({
         where: { email }
       });
+      
       if (existingUser) {
         return NextResponse.json({
           success: false,
@@ -84,6 +103,7 @@ export async function POST(request) {
         }, { status: 409 });
       }
     }
+
     const hashedPassword = await hashPassword(password);
 
     // تعیین کلاس بر اساس پایه اگر دانش‌آموز است و کلاس انتخاب نشده
@@ -116,8 +136,8 @@ export async function POST(request) {
         data: {
           first_name: firstName,
           last_name: lastName,
-          phone: phone || null,
-          email: email || null,
+          phone: phone || null,  // اگر شماره تلفن خالی بود، null ذخیره شود
+          email: email || null,  // اگر ایمیل خالی بود، null ذخیره شود
           is_active: true
         }
       });

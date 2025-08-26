@@ -40,15 +40,14 @@ async function saveFile(file, directory) {
 // بررسی احراز هویت
 async function authenticate(request) {
   const authHeader = request.headers.get('authorization');
-  if (!authHeader) {
-    return { authenticated: false, status: 401, message: 'توکن ارسال نشده است' };
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return { authenticated: false, status: 401, message: 'توکن ارسال نشده یا نامعتبر است' };
   }
   const token = authHeader.replace('Bearer ', '');
   const user = verifyJWT(token);
   if (!user) {
     return { authenticated: false, status: 401, message: 'توکن نامعتبر است' };
   }
-  // فقط برای عملیات مدیریت (POST, PUT, DELETE) نقش admin لازم است
   return { authenticated: true, user };
 }
 

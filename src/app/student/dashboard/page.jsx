@@ -37,7 +37,6 @@ const StudentProfile = ({ studentId }) => (
 );
 
 const dashboardTabs = [
-  { key: 'profile', label: 'پروفایل دانش‌آموز', icon: User },
   { key: 'schedule', label: 'برنامه هفتگی', icon: Calendar },
   { key: 'attendance', label: 'حضور و غیاب', icon: ClipboardList },
   { key: 'report', label: 'کارنامه‌ها', icon: BookOpen },
@@ -81,8 +80,6 @@ export default function StudentDashboardPage() {
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'profile':
-        return <StudentProfile studentId={studentId} />;
       case 'schedule':
         return <WeeklySchedule studentId={studentId} />;
       case 'exams':
@@ -113,80 +110,74 @@ export default function StudentDashboardPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-white">
       <div className="flex">
-        {/* Sidebar */}
-        <aside className="right-0 top-0 w-80 bg-white/95 backdrop-blur-xl shadow-2xl z-0 border-l border-green-200">
-          <div className="p-6 bg-gradient-to-r from-green-600 via-green-500 to-green-700 text-white relative overflow-hidden">
-            <div className="relative z-10">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
-                  <School className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold">پنل دانش‌آموز</h2>
-                  <p className="text-green-100 text-sm">مدرسه علم و هنر</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-white/20 backdrop-blur-lg rounded-xl p-3 text-center">
-                  <p className="text-xl font-bold text-white">18.5</p>
-                  <p className="text-xs text-white/80">معدل</p>
-                </div>
-                <div className="bg-white/20 backdrop-blur-lg rounded-xl p-3 text-center">
-                  <p className="text-xl font-bold text-white">98%</p>
-                  <p className="text-xs text-white/80">حضور</p>
-                </div>
-              </div>
+      {/* Sidebar */} 
+      <aside className="right-0 top-0 w-72 bg-white/95 backdrop-blur-xl shadow-2xl z-0 border-l border-green-100">
+        <div className="p-6 bg-gradient-to-r from-green-200 via-green-100 to-green-50 text-green-800 border-b border-green-100">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center">
+              <School className="w-6 h-6 text-green-700" />
             </div>
-            <div className="absolute top-0 left-0 w-full h-full opacity-10">
-              <div className="w-20 h-20 bg-white rounded-full absolute -top-10 -right-10"></div>
-              <div className="w-16 h-16 bg-white rounded-full absolute -bottom-8 -left-8"></div>
+            <div>
+              <h2 className="text-xl font-bold">پنل دانش‌آموز</h2>
+              <p className="text-green-700 text-sm">مدرسه علم و هنر</p>
             </div>
           </div>
-          <nav className="p-4 space-y-2">
-            <button
-              onClick={() => setActiveTab('dashboard')}
-              className={`group w-full text-right p-4 rounded-2xl font-semibold transition-all duration-300 flex items-center gap-4 relative overflow-hidden ${
-                activeTab === 'dashboard'
-                  ? 'bg-gradient-to-r from-green-600 to-green-500 text-white shadow-xl scale-[1.02] transform'
-                  : 'text-green-700 hover:bg-gradient-to-r hover:from-green-50 hover:to-green-100 hover:shadow-lg hover:scale-[1.01]'
-              }`}
-            >
-              <div className={`p-2 rounded-xl ${activeTab === 'dashboard' ? 'bg-white/20' : 'bg-green-100'}`}>
-                <Home size={18} />
-              </div>
-              <span className="text-sm">داشبورد اصلی</span>
-            </button>
-            {dashboardTabs.map((item) => {
-              const IconComponent = item.icon;
-              const isActive = activeTab === item.key;
-              return (
-                <button
-                  key={item.key}
-                  onClick={() => setActiveTab(item.key)}
-                  className={`group w-full text-right p-4 rounded-2xl font-semibold transition-all duration-300 flex items-center gap-4 relative overflow-hidden ${
-                    isActive
-                      ? 'bg-gradient-to-r from-green-600 to-green-500 text-white shadow-xl scale-[1.02] transform'
-                      : 'text-green-700 hover:bg-gradient-to-r hover:from-green-50 hover:to-green-100 hover:shadow-lg hover:scale-[1.01]'
-                  }`}
-                >
-                  <div className={`p-2 rounded-xl ${isActive ? 'bg-white/20' : 'bg-green-100'}`}>
-                    <IconComponent size={18} />
-                  </div>
-                  <span className="text-sm">{item.label}</span>
-                </button>
-              );
-            })}
-            <button
-              onClick={logout}
-              className="w-full text-right p-4 rounded-2xl font-semibold transition-all duration-300 flex items-center gap-4 text-red-600 hover:bg-red-50 hover:shadow-lg hover:scale-[1.01] mt-6"
-            >
-              <div className="p-2 rounded-xl bg-red-100">
-                <LogOut size={18} />
-              </div>
-              <span className="text-sm">خروج از سیستم</span>
-            </button>
-          </nav>
-        </aside>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-green-50 rounded-xl p-3 text-center border border-green-100">
+              <p className="text-xl font-bold text-green-700">18.5</p>
+              <p className="text-xs text-green-600">معدل</p>
+            </div>
+            <div className="bg-green-50 rounded-xl p-3 text-center border border-green-100">
+              <p className="text-xl font-bold text-green-700">98%</p>
+              <p className="text-xs text-green-600">حضور</p>
+            </div>
+          </div>
+        </div>
+        <nav className="p-4 space-y-2">
+          <button
+            onClick={() => setActiveTab('dashboard')}
+            className={`group w-full text-right p-4 rounded-2xl font-semibold transition-all duration-300 flex items-center gap-4 relative overflow-hidden ${
+              activeTab === 'dashboard'
+                ? 'bg-gradient-to-r from-green-200 to-green-100 text-green-900 shadow-xl scale-[1.02] transform'
+                : 'text-green-700 hover:bg-gradient-to-r hover:from-green-50 hover:to-green-100 hover:shadow-lg hover:scale-[1.01]'
+            }`}
+          >
+            <div className={`p-2 rounded-xl ${activeTab === 'dashboard' ? 'bg-green-100' : 'bg-green-50'}`}>
+              <Home size={18} />
+            </div>
+            <span className="text-sm">داشبورد اصلی</span>
+          </button>
+          {dashboardTabs.map((item) => {
+            const IconComponent = item.icon;
+            const isActive = activeTab === item.key;
+            return (
+              <button
+                key={item.key}
+                onClick={() => setActiveTab(item.key)}
+                className={`group w-full text-right p-4 rounded-2xl font-semibold transition-all duration-300 flex items-center gap-4 relative overflow-hidden ${
+                  isActive
+                    ? 'bg-gradient-to-r from-green-200 to-green-100 text-green-900 shadow-xl scale-[1.02] transform'
+                    : 'text-green-700 hover:bg-gradient-to-r hover:from-green-50 hover:to-green-100 hover:shadow-lg hover:scale-[1.01]'
+                }`}
+              >
+                <div className={`p-2 rounded-xl ${isActive ? 'bg-green-100' : 'bg-green-50'}`}>
+                  <IconComponent size={18} />
+                </div>
+                <span className="text-sm">{item.label}</span>
+              </button>
+            );
+          })}
+          <button
+            onClick={logout}
+            className="w-full text-right p-4 rounded-2xl font-semibold transition-all duration-300 flex items-center gap-4 text-red-600 hover:bg-red-50 hover:shadow-lg hover:scale-[1.01] mt-6"
+          >
+            <div className="p-2 rounded-xl bg-red-100">
+              <LogOut size={18} />
+            </div>
+            <span className="text-sm">خروج از سیستم</span>
+          </button>
+        </nav>
+      </aside>
         {/* Main Content */}
         <main className="flex-1 p-6 space-y-8">
           {activeTab === 'dashboard' && (

@@ -4,7 +4,7 @@ import { prisma } from '@/lib/database';
 export async function PUT(request, { params }) {
   const id = Number(params.attendanceId);
   const data = await request.json();
-  const attendance = await prisma.attendance.update({
+  const attendance = await prisma.attendances.update({ // اصلاح نام مدل
     where: { id },
     data
   });
@@ -13,6 +13,6 @@ export async function PUT(request, { params }) {
 
 export async function DELETE(request, { params }) {
   const id = Number(params.attendanceId);
-  await prisma.attendance.delete({ where: { id } });
+  await prisma.attendances.delete({ where: { id } }); // اصلاح نام مدل
   return NextResponse.json({ success: true });
 }

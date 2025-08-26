@@ -3,23 +3,29 @@ import React, { useEffect, useState } from 'react';
 import { ClipboardList } from 'lucide-react';
 import Link from 'next/link';
 
-const classes = [
-  { id: 1, title: 'پایه اول ابتدایی' },
-  { id: 2, title: 'پایه دوم ابتدایی' },
-  { id: 3, title: 'پایه سوم ابتدایی' },
-  { id: 4, title: 'پایه چهارم ابتدایی' },
-];
-
-const mainGreen = "#399918";
-const lightGreen = "#eafbe6";
-const borderGreen = "#b6e2b2";
-const darkGreen = "#237a13";
-
 export default function ExamsList({ studentId }) {
   const [selectedClassId, setSelectedClassId] = useState('');
+  const [classes, setClasses] = useState([]);
   const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  // دریافت کلاس‌ها از API
+  useEffect(() => {
+    async function fetchClasses() {
+      try {
+        const res = await fetch('/api/classes');
+        const data = await res.json();
+        if (data.success) setClasses(data.classes);
+        else setClasses([]);
+      } catch (err) {
+        console.error('💥 Error fetching classes:', err);
+        setClasses([]);
+      }
+    }
+    fetchClasses();
+  }, []);
+
+  // دریافت آزمون‌ها بر اساس کلاس انتخاب‌شده
   useEffect(() => {
     if (!selectedClassId) return;
     setLoading(true);
@@ -37,114 +43,41 @@ export default function ExamsList({ studentId }) {
   }, [selectedClassId]);
 
   return (
-    <div
-      style={{
-        background: `linear-gradient(135deg,${lightGreen} 60%,#f6fff4 100%)`,
-        borderRadius: 16,
-        boxShadow: `0 4px 24px ${mainGreen}22`,
-        border: `1.5px solid ${borderGreen}`,
-        padding: 28,
-        marginBottom: 32,
-        maxWidth: 500,
-        marginLeft: "auto",
-        marginRight: "auto"
-      }}
-    >
-      <h2
-        style={{
-          fontSize: 20,
-          fontWeight: "bold",
-          color: mainGreen,
-          marginBottom: 20,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          borderBottom: `1.5px solid ${borderGreen}`,
-          paddingBottom: 8,
-          letterSpacing: 1
-        }}
-      >
-        <ClipboardList className="w-6 h-6" color={mainGreen} />
+    <div className="max-w-3xl mx-auto bg-white shadow-lg rounded-lg p-6">
+      <h2 className="text-xl font-bold text-green-700 mb-4 flex items-center gap-2">
+        <ClipboardList className="w-6 h-6" />
         آزمون‌های من
       </h2>
-      <div style={{ marginBottom: 18 }}>
-        <label style={{ display: "block", marginBottom: 7, fontWeight: "bold", color: "#444", fontSize: 15 }}>
-          پایه (کلاس) خود را انتخاب کنید:
-        </label>
+      <div className="mb-4">
+        <label className="block text-sm font-bold text-gray-700 mb-2">پایه (کلاس) خود را انتخاب کنید:</label>
         <select
-          style={{
-            border: `1.5px solid ${borderGreen}`,
-            borderRadius: 7,
-            padding: "9px 12px",
-            width: "100%",
-            fontSize: 15,
-            background: "#fff",
-            color: "#333",
-            outline: "none",
-            boxShadow: "0 1px 6px #39991811"
-          }}
+          className="w-full border border-gray-300 rounded-lg p-2"
           value={selectedClassId}
           onChange={e => setSelectedClassId(e.target.value)}
         >
           <option value="">انتخاب پایه...</option>
           {classes.map(cls => (
-            <option key={cls.id} value={cls.id}>{cls.title}</option>
+            <option key={cls.id} value={cls.id}>
+              {cls.class_name} {cls.grades ? `(${cls.grades.grade_name})` : ""}
+            </option>
           ))}
         </select>
       </div>
-      {loading && (
-        <div style={{ color: mainGreen, fontWeight: "bold", textAlign: "center", margin: "18px 0" }}>
-          در حال دریافت آزمون‌ها...
-        </div>
-      )}
+      {loading && <p className="text-center text-green-600">در حال دریافت آزمون‌ها...</p>}
       {!loading && selectedClassId && (
         exams.length === 0 ? (
-          <div style={{
-            color: "#c62828",
-            background: "#fff",
-            borderRadius: 8,
-            padding: "14px 0",
-            textAlign: "center",
-            fontWeight: "bold",
-            fontSize: 15,
-            boxShadow: `0 1px 6px ${mainGreen}11`
-          }}>
-            آزمونی برای این پایه ثبت نشده است.
-          </div>
+          <p className="text-center text-red-600">آزمونی برای این پایه ثبت نشده است.</p>
         ) : (
-          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-            {exams.map((exam) => (
-              <li
-                key={exam.id}
-                style={{
-                  borderBottom: `1px solid ${borderGreen}`,
-                  padding: "13px 0",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 8,
-                  alignItems: "flex-start",
-                  marginBottom: 2
-                }}
-                className="group"
-              >
-                <div style={{ fontWeight: "bold", color: "#444", fontSize: 16 }}>
-                  {exam.title}
+          <ul className="space-y-4">
+            {exams.map(exam => (
+              <li key={exam.id} className="border border-gray-300 rounded-lg p-4 flex justify-between items-center">
+                <div>
+                  <h3 className="font-bold text-gray-800">{exam.title}</h3>
+                  <p className="text-sm text-gray-600">{exam.type === 'pdf' ? 'PDF' : exam.type === 'image' ? 'تصویری' : 'تستی'}</p>
                 </div>
                 <Link
                   href={`/student/exams/${exam.id}`}
-                  style={{
-                    display: "inline-block",
-                    background: `linear-gradient(90deg,${mainGreen},${darkGreen})`,
-                    color: "#fff",
-                    padding: "7px 22px",
-                    borderRadius: 7,
-                    fontSize: 14,
-                    fontWeight: "bold",
-                    textDecoration: "none",
-                    boxShadow: `0 2px 8px ${mainGreen}22`,
-                    transition: "0.2s",
-                    marginTop: 2
-                  }}
+                  className="bg-green-600 text-white px-4 py-2 rounded-lg"
                 >
                   شرکت در آزمون
                 </Link>

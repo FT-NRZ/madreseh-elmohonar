@@ -3,19 +3,22 @@ import React, { useState, useEffect } from 'react';
 import { 
   Users, UserPlus, GraduationCap, BookOpen, BarChart3, Settings, LogOut, 
   Activity, Calendar, Clock, Crown, Target, RefreshCw, Sparkles,
-  Edit, Trash2, CalendarCheck
+  Edit, Trash2, CalendarCheck,
+  NewspaperIcon
 } from 'lucide-react';
 import { Image, Calendar as CalendarIcon, LayoutGrid, GalleryHorizontalEnd } from 'lucide-react';
 
 const sidebarMenu = [
+  { label: 'داشبورد', icon: LayoutGrid, href: '/admin/dashboard' },
   { label: 'مدیریت کاربران', icon: Users, href: '/admin/users' },
   { label: 'مدیریت کلاس‌ها', icon: GraduationCap, href: '/admin/classes' },
   { label: 'برنامه هفتگی', icon: CalendarIcon, href: '/admin/weekly_schedule' },
   { label: 'برنامه غذایی', icon: GalleryHorizontalEnd, href: '/admin/food-schedule' },
-    { label: 'حضور و غیاب', icon: CalendarCheck, href: '/admin/attendances' },
-  { label: 'گالری', icon: Image, href: '/admin/gallery' },
-  { label: 'گزارش', icon: BarChart3, href: '/admin/reports' },
-  { label: 'تنظیمات', icon: Settings, href: '/admin/settings' }
+  { label: 'حضور و غیاب', icon: CalendarCheck, href: '/admin/attendances' },
+  { label: 'مدیریت گالری', icon: Image, href: '/admin/gallery' },
+  { label: 'گزارش ها', icon: BarChart3, href: '/admin/reports' },
+  { label: 'تنظیمات', icon: Settings, href: '/admin/settings' },
+  { label: 'مدیریت اخبار', icon: NewspaperIcon, href: '/admin/news' }
 ];
 
 export default function AdminDashboard() {
@@ -160,63 +163,57 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-white">
       <div className="flex flex-col sm:flex-row">
         {/* Sidebar - Desktop */}
-        <aside className="hidden sm:block sm:w-80 bg-white/95 backdrop-blur-xl shadow-2xl z-0 border-l border-green-200 p-0">
-          <div className="p-6 bg-gradient-to-r from-green-600 via-green-500 to-green-700 text-white relative overflow-hidden rounded-none mb-0">
-            <div className="relative z-10">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
-                  <Target className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold">پنل مدیریت</h2>
-                  <p className="text-green-100 text-sm">مدرسه علم و هنر</p>
-                </div>
+        <aside className="right-0 top-0 w-72 bg-white/95 backdrop-blur-xl shadow-2xl z-0 border-l border-green-100">
+          <div className="p-6 bg-gradient-to-r from-green-200 via-green-100 to-green-50 text-green-800 border-b border-green-100">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center">
+                <Target className="w-6 h-6 text-green-700" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-white/20 backdrop-blur-lg rounded-xl p-3 text-center">
-                  <p className="text-xl font-bold text-white">{userStats.students}</p>
-                  <p className="text-xs text-white/80">دانش‌آموز</p>
-                </div>
-                <div className="bg-white/20 backdrop-blur-lg rounded-xl p-3 text-center">
-                  <p className="text-xl font-bold text-white">{userStats.teachers}</p>
-                  <p className="text-xs text-white/80">معلم</p>
-                </div>
+              <div>
+                <h2 className="text-xl font-bold">پنل مدیریت</h2>
+                <p className="text-green-700 text-sm">مدرسه علم و هنر</p>
               </div>
             </div>
-            <div className="absolute top-0 left-0 w-full h-full opacity-10">
-              <div className="w-20 h-20 bg-white rounded-full absolute -top-10 -right-10"></div>
-              <div className="w-16 h-16 bg-white rounded-full absolute -bottom-8 -left-8"></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-green-50 rounded-xl p-3 text-center border border-green-100">
+                <p className="text-xl font-bold text-green-700">{userStats.students}</p>
+                <p className="text-xs text-green-600">دانش‌آموز</p>
+              </div>
+              <div className="bg-green-50 rounded-xl p-3 text-center border border-green-100">
+                <p className="text-xl font-bold text-green-700">{userStats.teachers}</p>
+                <p className="text-xs text-green-600">معلم</p>
+              </div>
             </div>
           </div>
           <nav className="p-4 space-y-2">
             {sidebarMenu.map((item) => {
               const IconComponent = item.icon;
-              const isActive = window.location.pathname === item.href;
+              const isActive = item.active || (typeof window !== 'undefined' && window.location.pathname === item.href);
               return (
                 <button
                   key={item.label}
                   onClick={() => (window.location.href = item.href)}
-                  className={`group w-full text-right p-4 rounded-2xl font-semibold transition-all duration-300 flex items-center gap-4 relative overflow-hidden text-sm
-                    ${isActive
-                      ? 'bg-gradient-to-r from-green-600 to-green-500 text-white shadow-xl scale-[1.02] transform'
+                  className={`group w-full text-right p-4 rounded-2xl font-semibold transition-all duration-300 flex items-center gap-4 relative overflow-hidden ${
+                    isActive
+                      ? 'bg-gradient-to-r from-green-200 to-green-100 text-green-900 shadow-xl scale-[1.02] transform'
                       : 'text-green-700 hover:bg-gradient-to-r hover:from-green-50 hover:to-green-100 hover:shadow-lg hover:scale-[1.01]'
-                    }`}
+                  }`}
                 >
-                  <div className={`p-2 rounded-xl ${isActive ? 'bg-white/20' : 'bg-green-100'}`}>
+                  <div className={`p-2 rounded-xl ${isActive ? 'bg-green-100' : 'bg-green-50'}`}>
                     <IconComponent size={18} />
                   </div>
-                  <span>{item.label}</span>
+                  <span className="text-sm">{item.label}</span>
                 </button>
               );
             })}
             <button
               onClick={logout}
-              className="w-full text-right p-4 rounded-2xl font-semibold transition-all duration-300 flex items-center gap-4 text-sm text-red-600 hover:bg-red-50 hover:shadow-lg hover:scale-[1.01] mt-6"
+              className="w-full text-right p-4 rounded-2xl font-semibold transition-all duration-300 flex items-center gap-4 text-red-600 hover:bg-red-50 hover:shadow-lg hover:scale-[1.01] mt-6"
             >
               <div className="p-2 rounded-xl bg-red-100">
                 <LogOut size={18} />
               </div>
-              <span>خروج از سیستم</span>
+              <span className="text-sm">خروج از سیستم</span>
             </button>
           </nav>
         </aside>

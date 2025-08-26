@@ -1,3 +1,4 @@
+import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 
 const globalForPrisma = globalThis;
@@ -6,14 +7,25 @@ if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
 export async function GET(request) {
   try {
+    console.log('📋 Fetching grades from database...');
+    
     // دریافت تمام پایه‌ها از جدول grades
     const grades = await prisma.grades.findMany({
-      orderBy: { id: 'asc' } // مرتب‌سازی بر اساس id
+      orderBy: { grade_level: 'asc' } // مرتب‌سازی بر اساس grade_level
     });
 
-    return Response.json({ success: true, grades });
+    console.log('📋 Found grades:', grades.length, grades);
+
+    return NextResponse.json({ 
+      success: true, 
+      grades: grades 
+    });
   } catch (error) {
-    console.error('Error fetching grades:', error);
-    return Response.json({ success: false, message: 'خطا در دریافت پایه‌ها' }, { status: 500 });
+    console.error('💥 Error fetching grades:', error);
+    return NextResponse.json({ 
+      success: false, 
+      message: 'خطا در دریافت پایه‌ها',
+      error: error.message 
+    }, { status: 500 });
   }
 }

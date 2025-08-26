@@ -72,10 +72,10 @@ export default function Header({ onLoginClick }) {
       name: 'پروفایل من',
       icon: <UserCircle className="w-5 h-5 ml-2 text-green-600" />,
       href: user?.role === 'admin'
-        ? '/admin/profile'
+        ? '/profile'
         : user?.role === 'teacher'
-        ? '/teacher/profile'
-        : '/student/profile'
+        ? '/profile'
+        : '/profile'
     },
     {
       name: 'پنل مدیریت',
