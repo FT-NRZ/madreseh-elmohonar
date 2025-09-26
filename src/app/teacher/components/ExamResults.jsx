@@ -20,51 +20,103 @@ export default function ExamResults({ examId }) {
   const [data, setData] = useState(null);
   const [scoreInputs, setScoreInputs] = useState({});
   const [fileInputs, setFileInputs] = useState({});
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!examId) return;
-    fetch(`/api/teacher/exams/${examId}/answers`)
-      .then(res => res.json())
-      .then(setData);
+    
+    console.log('🔄 Fetching exam results for examId:', examId);
+    setLoading(true);
+    
+    // ✅ ارسال توکن احراز هویت
+    const token = localStorage.getItem('token');
+    
+    fetch(`/api/teacher/exams/${examId}/answers`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+      .then(res => {
+        console.log('📡 API Response status:', res.status);
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        return res.json();
+      })
+      .then(result => {
+        console.log('📊 API Response data:', result);
+        setData(result);
+      })
+      .catch(error => {
+        console.error('💥 Error fetching exam results:', error);
+        alert('خطا در دریافت نتایج آزمون');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, [examId]);
 
   // هندل ثبت نمره تستی
   const handleScoreSubmit = async (resultId, grade) => {
-    const res = await fetch(`/api/exam-results/${resultId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ grade_desc: grade })
-    });
-    if (res.ok) {
-      alert('نمره ثبت شد!');
-      setData(prev => ({
-        ...prev,
-        quizAnswers: prev.quizAnswers.map(ans =>
-          ans.id === resultId ? { ...ans, grade_desc: grade } : ans
-        )
-      }));
-    } else {
-      alert('خطا در ثبت نمره');
+    console.log('💾 Submitting score:', { resultId, grade });
+    
+    try {
+      const res = await fetch(`/api/exam-results/${resultId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ grade_desc: grade })
+      });
+      
+      const result = await res.json();
+      console.log('💾 Score submit response:', result);
+      
+      if (res.ok && result.success) {
+        alert('نمره با موفقیت ثبت شد! ✅');
+        setData(prev => ({
+          ...prev,
+          quizAnswers: prev.quizAnswers.map(ans =>
+            ans.id === resultId ? { ...ans, grade_desc: grade } : ans
+          )
+        }));
+      } else {
+        alert(`خطا در ثبت نمره: ${result.error || 'خطای ناشناخته'}`);
+      }
+    } catch (error) {
+      console.error('💥 Error submitting score:', error);
+      alert('خطا در ارتباط با سرور');
     }
   };
 
   // هندل ثبت نمره و توضیح فایل
   const handleFileFeedback = async (answerId, grade, feedback) => {
-    const res = await fetch(`/api/exam-file-answers/${answerId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ grade_desc: grade, teacher_feedback: feedback })
-    });
-    if (res.ok) {
-      alert('بازخورد ثبت شد!');
-      setData(prev => ({
-        ...prev,
-        fileAnswers: prev.fileAnswers.map(ans =>
-          ans.id === answerId ? { ...ans, grade_desc: grade, teacher_feedback: feedback } : ans
-        )
-      }));
-    } else {
-      alert('خطا در ثبت بازخورد');
+    console.log('💾 Submitting file feedback:', { answerId, grade, feedback });
+    
+    try {
+      const res = await fetch(`/api/exam-file-answers/${answerId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ grade_desc: grade, teacher_feedback: feedback })
+      });
+      
+      const result = await res.json();
+      console.log('💾 File feedback response:', result);
+      
+      if (res.ok && result.success) {
+        alert('بازخورد با موفقیت ثبت شد! ✅');
+        setData(prev => ({
+          ...prev,
+          fileAnswers: prev.fileAnswers.map(ans =>
+            ans.id === answerId ? { ...ans, grade_desc: grade, teacher_feedback: feedback } : ans
+          )
+        }));
+      } else {
+        alert(`خطا در ثبت بازخورد: ${result.error || 'خطای ناشناخته'}`);
+      }
+    } catch (error) {
+      console.error('💥 Error submitting file feedback:', error);
+      alert('خطا در ارتباط با سرور');
     }
   };
 
@@ -82,7 +134,8 @@ export default function ExamResults({ examId }) {
       آزمون انتخاب نشده است.
     </div>
   );
-  if (!data) return (
+
+  if (loading) return (
     <div style={{
       background: "#fff",
       borderRadius: 14,
@@ -93,13 +146,28 @@ export default function ExamResults({ examId }) {
       fontWeight: "bold",
       fontSize: 15
     }}>
-      در حال بارگذاری...
+      در حال بارگذاری نتایج...
+    </div>
+  );
+
+  if (!data) return (
+    <div style={{
+      background: "#fff",
+      borderRadius: 14,
+      padding: 28,
+      boxShadow: `0 2px 18px ${mainGreen}22`,
+      color: "#c62828",
+      textAlign: "center",
+      fontWeight: "bold",
+      fontSize: 15
+    }}>
+      خطا در دریافت اطلاعات آزمون.
     </div>
   );
 
   return (
     <div style={{
-      maxWidth: 650,
+      maxWidth: 900,
       margin: "32px auto",
       background: `linear-gradient(135deg,${lightGreen} 60%,#f6fff4 100%)`,
       borderRadius: 16,
@@ -122,10 +190,11 @@ export default function ExamResults({ examId }) {
             boxShadow: `0 2px 12px ${mainGreen}33`,
             transition: "0.2s"
           }}>
-            ← بازگشت به لیست آزمون‌ها
+            ← بازگشت به داشبورد
           </button>
         </Link>
       </div>
+
       <h2 style={{
         textAlign: "center",
         marginBottom: 22,
@@ -135,7 +204,47 @@ export default function ExamResults({ examId }) {
         letterSpacing: 1,
         borderBottom: `1.5px solid ${borderGreen}`,
         paddingBottom: 8
-      }}>نتایج آزمون</h2>
+      }}>
+        نتایج آزمون #{examId}
+        {data.exam && (
+          <div style={{ fontSize: 16, color: darkGreen, marginTop: 8 }}>
+            {data.exam.title}
+          </div>
+        )}
+      </h2>
+
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: 18,
+        marginBottom: 20
+      }}>
+        <div style={{
+          background: "#fff",
+          borderRadius: 12,
+          padding: 16,
+          border: `1px solid ${borderGreen}`,
+          textAlign: "center"
+        }}>
+          <div style={{ color: mainGreen, fontSize: 24, fontWeight: "bold" }}>
+            {data.quizAnswers?.length || 0}
+          </div>
+          <div style={{ color: darkGreen, fontSize: 14 }}>پاسخ تستی</div>
+        </div>
+        <div style={{
+          background: "#fff",
+          borderRadius: 12,
+          padding: 16,
+          border: `1px solid ${borderGreen}`,
+          textAlign: "center"
+        }}>
+          <div style={{ color: mainGreen, fontSize: 24, fontWeight: "bold" }}>
+            {data.fileAnswers?.length || 0}
+          </div>
+          <div style={{ color: darkGreen, fontSize: 14 }}>پاسخ فایلی</div>
+        </div>
+      </div>
+
       <div style={{
         display: "flex",
         gap: 18,
@@ -160,9 +269,14 @@ export default function ExamResults({ examId }) {
             marginBottom: 12,
             borderBottom: `1px solid ${borderGreen}`,
             paddingBottom: 6
-          }}>پاسخ‌های تستی</h3>
+          }}>پاسخ‌های تستی ({data.quizAnswers?.length || 0})</h3>
+          
           <ul style={{ padding: 0, listStyle: "none" }}>
-            {(!data.quizAnswers || data.quizAnswers.length === 0) && <li style={{ color: "#888", fontSize: 13 }}>پاسخی ثبت نشده است.</li>}
+            {(!data.quizAnswers || data.quizAnswers.length === 0) && (
+              <li style={{ color: "#888", fontSize: 13, textAlign: "center", padding: 20 }}>
+                هیچ پاسخ تستی ثبت نشده است.
+              </li>
+            )}
             {data.quizAnswers && data.quizAnswers.map(ans => (
               <li key={ans.id} style={{
                 marginBottom: 18,
@@ -174,19 +288,25 @@ export default function ExamResults({ examId }) {
                 padding: 10
               }}>
                 <div style={{ fontWeight: "bold", color: mainGreen, marginBottom: 4, fontSize: 14 }}>
-                  👤 {ans.students?.full_name || ans.student_id}
+                  👤 {ans.students?.users ? `${ans.students.users.first_name} ${ans.students.users.last_name}` : `دانش‌آموز ${ans.student_id}`}
                 </div>
-                <div style={{ color: mainGreen, fontSize: 13 }}>
-                  نمره: <b>{ans.grade_desc ?? "---"}</b>
+                <div style={{ color: darkGreen, fontSize: 13, marginBottom: 8 }}>
+                  نمره عددی: <b>{ans.marks_obtained || '---'}</b> | 
+                  نمره توصیفی: <b>{ans.grade_desc || "ثبت نشده"}</b>
                 </div>
+                
                 {/* فرم ثبت نمره توصیفی */}
                 <form
                   onSubmit={e => {
                     e.preventDefault();
                     const grade = scoreInputs[ans.id] ?? ans.grade_desc ?? "";
+                    if (!grade) {
+                      alert('لطفاً نمره توصیفی را انتخاب کنید');
+                      return;
+                    }
                     handleScoreSubmit(ans.id, grade);
                   }}
-                  style={{ marginTop: 10, display: "flex", gap: 8, alignItems: "center" }}
+                  style={{ marginTop: 10, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}
                 >
                   <select
                     name="marks"
@@ -196,7 +316,7 @@ export default function ExamResults({ examId }) {
                       [ans.id]: e.target.value
                     }))}
                     style={{
-                      width: 140,
+                      width: 160,
                       padding: "5px 8px",
                       borderRadius: 6,
                       border: `1px solid ${borderGreen}`,
@@ -229,7 +349,8 @@ export default function ExamResults({ examId }) {
             ))}
           </ul>
         </div>
-        {/* پاسخ‌های فایل (PDF/تصویر) با فرم ثبت نمره و توضیح توصیفی */}
+
+        {/* پاسخ‌های فایل */}
         <div style={{
           flex: 1,
           minWidth: 260,
@@ -247,48 +368,62 @@ export default function ExamResults({ examId }) {
             marginBottom: 12,
             borderBottom: `1px solid ${borderGreen}`,
             paddingBottom: 6
-          }}>پاسخ‌های فایل (PDF/تصویر)</h3>
+          }}>پاسخ‌های فایلی ({data.fileAnswers?.length || 0})</h3>
+          
           <ul style={{ padding: 0, listStyle: "none" }}>
-            {(!data.fileAnswers || data.fileAnswers.length === 0) && <li style={{ color: "#888", fontSize: 13 }}>پاسخی ثبت نشده است.</li>}
+            {(!data.fileAnswers || data.fileAnswers.length === 0) && (
+              <li style={{ color: "#888", fontSize: 13, textAlign: "center", padding: 20 }}>
+                هیچ پاسخ فایلی ثبت نشده است.
+              </li>
+            )}
             {data.fileAnswers && data.fileAnswers.map(ans => (
               <li key={ans.id} style={{
-                marginBottom: 10,
+                marginBottom: 15,
                 background: lightGreen,
                 borderRadius: 8,
                 boxShadow: `0 1px 4px ${mainGreen}11`,
-                padding: 10
+                padding: 12
               }}>
-                <div style={{ fontWeight: "bold", color: mainGreen, marginBottom: 4, fontSize: 14 }}>
-                  👤 {ans.students?.full_name || ans.student_id}
+                <div style={{ fontWeight: "bold", color: mainGreen, marginBottom: 6, fontSize: 14 }}>
+                  👤 {ans.students?.users ? `${ans.students.users.first_name} ${ans.students.users.last_name}` : `دانش‌آموز ${ans.student_id}`}
                 </div>
-                <a
-                  href={ans.file_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    background: `linear-gradient(90deg,${mainGreen},${darkGreen})`,
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: 6,
-                    padding: "6px 18px",
-                    fontSize: 13,
-                    fontWeight: "bold",
-                    cursor: "pointer",
-                    textDecoration: "none",
-                    transition: "0.2s"
-                  }}
-                >
-                  دانلود فایل
-                </a>
-                {/* فرم ثبت نمره و توضیح توصیفی */}
+                
+                <div style={{ marginBottom: 10 }}>
+                  <a
+                    href={ans.file_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      background: `linear-gradient(90deg,${mainGreen},${darkGreen})`,
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: 6,
+                      padding: "8px 20px",
+                      fontSize: 13,
+                      fontWeight: "bold",
+                      cursor: "pointer",
+                      textDecoration: "none",
+                      display: "inline-block",
+                      transition: "0.2s"
+                    }}
+                  >
+                    📁 مشاهده فایل
+                  </a>
+                </div>
+
+                {/* فرم ثبت نمره و بازخورد */}
                 <form
                   onSubmit={e => {
                     e.preventDefault();
                     const grade = fileInputs[ans.id]?.marks ?? ans.grade_desc ?? "";
                     const feedback = fileInputs[ans.id]?.feedback ?? ans.teacher_feedback ?? "";
+                    if (!grade) {
+                      alert('لطفاً نمره توصیفی را انتخاب کنید');
+                      return;
+                    }
                     handleFileFeedback(ans.id, grade, feedback);
                   }}
-                  style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}
+                  style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 10 }}
                 >
                   <select
                     name="marks"
@@ -300,7 +435,13 @@ export default function ExamResults({ examId }) {
                         marks: e.target.value
                       }
                     }))}
-                    style={{ width: 140, padding: "5px 8px", borderRadius: 6, border: "1px solid #b6e2b2", fontSize: 13 }}
+                    style={{ 
+                      width: "100%", 
+                      padding: "8px 10px", 
+                      borderRadius: 6, 
+                      border: `1px solid ${borderGreen}`, 
+                      fontSize: 13 
+                    }}
                     required
                   >
                     <option value="">انتخاب نمره توصیفی</option>
@@ -308,10 +449,11 @@ export default function ExamResults({ examId }) {
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
                   </select>
+                  
                   <textarea
                     name="feedback"
                     value={fileInputs[ans.id]?.feedback ?? ans.teacher_feedback ?? ""}
-                    placeholder="توضیحات معلم (اختیاری)"
+                    placeholder="توضیحات و بازخورد معلم (اختیاری)"
                     onChange={e => setFileInputs(inputs => ({
                       ...inputs,
                       [ans.id]: {
@@ -319,29 +461,52 @@ export default function ExamResults({ examId }) {
                         feedback: e.target.value
                       }
                     }))}
-                    style={{ borderRadius: 6, border: "1px solid #b6e2b2", fontSize: 13, padding: 6 }}
+                    style={{ 
+                      borderRadius: 6, 
+                      border: `1px solid ${borderGreen}`, 
+                      fontSize: 13, 
+                      padding: 8,
+                      minHeight: 60,
+                      resize: "vertical"
+                    }}
                   />
+                  
                   <button
                     type="submit"
                     style={{
-                      background: `linear-gradient(90deg,#399918,#237a13)`,
+                      background: `linear-gradient(90deg,${mainGreen},${darkGreen})`,
                       color: "#fff",
                       border: "none",
                       borderRadius: 6,
-                      padding: "6px 18px",
+                      padding: "8px 20px",
                       fontSize: 13,
                       fontWeight: "bold",
                       cursor: "pointer"
                     }}
                   >
-                    ثبت بازخورد
+                    💾 ثبت بازخورد
                   </button>
                 </form>
+
                 {/* نمایش بازخورد فعلی */}
                 {(ans.teacher_feedback || ans.grade_desc) && (
-                  <div style={{ marginTop: 8, fontSize: 13, color: mainGreen }}>
-                    {ans.grade_desc && <>نمره ثبت‌شده: <b>{ans.grade_desc}</b><br /></>}
-                    {ans.teacher_feedback && <>توضیح معلم: <span>{ans.teacher_feedback}</span></>}
+                  <div style={{ 
+                    marginTop: 12, 
+                    fontSize: 12, 
+                    color: darkGreen,
+                    background: "#f0f9f0",
+                    padding: 8,
+                    borderRadius: 6,
+                    border: `1px solid ${borderGreen}`
+                  }}>
+                    {ans.grade_desc && (
+                      <div><strong>نمره ثبت‌شده:</strong> {ans.grade_desc}</div>
+                    )}
+                    {ans.teacher_feedback && (
+                      <div style={{ marginTop: 4 }}>
+                        <strong>بازخورد:</strong> {ans.teacher_feedback}
+                      </div>
+                    )}
                   </div>
                 )}
               </li>

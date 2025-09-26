@@ -8,11 +8,12 @@ import {
   NewspaperIcon,
   GalleryHorizontal,
   GalleryHorizontalEnd,
-  CalendarCheck
+  CalendarCheck,
+  FileText,
+  Shield
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 
-// سایدبار منوها مثل داشبورد
 const sidebarMenu = [
   { label: 'داشبورد', icon: LayoutGrid, href: '/admin/dashboard' },
   { label: 'مدیریت کاربران', icon: Users, href: '/admin/users' },
@@ -21,9 +22,11 @@ const sidebarMenu = [
   { label: 'برنامه غذایی', icon: GalleryHorizontalEnd, href: '/admin/food-schedule' },
   { label: 'حضور و غیاب', icon: CalendarCheck, href: '/admin/attendances' },
   { label: 'مدیریت گالری', icon: Image, href: '/admin/gallery' },
-  { label: 'گزارش‌ها', icon: BarChart3, href: '/admin/reports' },
+  { label: 'مدیریت اخبار', icon: NewspaperIcon, href: '/admin/news' },
+  { label: 'مدیریت بخشنامه ها', icon: FileText, href: '/admin/circular' },
+  { label: 'توبیخی و تشویقی', icon: Shield, href: '/admin/disciplinary' },
+  { label: 'گزارش ها', icon: BarChart3, href: '/admin/reports' },
   { label: 'تنظیمات', icon: Settings, href: '/admin/settings' },
-  { label: 'مدیریت اخبار', icon: NewspaperIcon, href: '/admin/news' }
 ];
 
 export default function AdminClasses() {
@@ -36,7 +39,6 @@ export default function AdminClasses() {
   const [user, setUser] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // بررسی احراز هویت
   useEffect(() => {
     const token = localStorage.getItem('token');
     const userData = localStorage.getItem('user');
@@ -56,7 +58,6 @@ export default function AdminClasses() {
     }
   }, []);
 
-  // دریافت لیست کلاس‌ها
   useEffect(() => {
     fetchClasses();
   }, []);
@@ -79,7 +80,6 @@ export default function AdminClasses() {
     }
   };
 
-  // توابع مدیریت مودال
   const openModal = () => setShowModal(true);
   const closeModal = () => {
     setShowModal(false);
@@ -87,7 +87,6 @@ export default function AdminClasses() {
     setSelectedClass(null);
   };
 
-  // توابع ویرایش و حذف
   const handleEdit = (classItem) => {
     setSelectedClass(classItem);
     setEditMode(true);
@@ -124,7 +123,7 @@ export default function AdminClasses() {
     window.location.href = '/';
   };
 
-  // کامپوننت نمایش لیست کلاس‌ها
+  // لیست کلاس‌ها - ریسپانسیو
   const ClassesList = () => {
     if (loading) {
       return (
@@ -143,28 +142,62 @@ export default function AdminClasses() {
       );
     }
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {classes.map(classItem => (
-          <div key={classItem.id} className="bg-white rounded-2xl shadow-md p-6 border border-gray-100 hover:shadow-lg transition-all duration-300">
-            <h3 className="text-xl font-semibold text-gray-800 mb-2">{classItem.class_name}</h3>
-            <p className="text-gray-600 mb-4">شماره کلاس: {classItem.class_number}</p>
-            <div className="flex justify-end space-x-2 rtl:space-x-reverse">
-              <button
-                onClick={() => handleEdit(classItem)}
-                className="p-2 text-gray-500 hover:text-green-700 transition-colors"
-              >
-                <Edit className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => handleDelete(classItem.id)}
-                className="p-2 text-gray-500 hover:text-red-600 transition-colors"
-              >
-                <Trash2 className="w-5 h-5" />
-              </button>
+      <>
+        {/* موبایل: کارت ساده و جمع‌وجور */}
+        <div className="md:hidden grid grid-cols-1 gap-3">
+          {classes.map(classItem => (
+            <div key={classItem.id} className="bg-white rounded-xl shadow p-3 border border-gray-100 flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-bold text-green-700">{classItem.class_name}</h3>
+                <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-bold">{classItem.class_number}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs text-gray-500">
+                <span>پایه: {classItem.grade_name || '-'}</span>
+                <span>ظرفیت: {classItem.capacity || '-'}</span>
+              </div>
+              <div className="flex gap-2 justify-end pt-1 border-t border-green-50 mt-2">
+                <button
+                  onClick={() => handleEdit(classItem)}
+                  className="p-1 text-green-600 bg-green-50 rounded hover:bg-green-100 transition"
+                  title="ویرایش"
+                >
+                  <Edit className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => handleDelete(classItem.id)}
+                  className="p-1 text-red-600 bg-red-50 rounded hover:bg-red-100 transition"
+                  title="حذف"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+        {/* دسکتاپ: حالت قبلی */}
+        <div className="hidden md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {classes.map(classItem => (
+            <div key={classItem.id} className="bg-white rounded-2xl shadow-md p-6 border border-gray-100 hover:shadow-lg transition-all duration-300">
+              <h3 className="text-xl font-semibold text-gray-800 mb-2">{classItem.class_name}</h3>
+              <p className="text-gray-600 mb-4">شماره کلاس: {classItem.class_number}</p>
+              <div className="flex justify-end space-x-2 rtl:space-x-reverse">
+                <button
+                  onClick={() => handleEdit(classItem)}
+                  className="p-2 text-gray-500 hover:text-green-700 transition-colors"
+                >
+                  <Edit className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => handleDelete(classItem.id)}
+                  className="p-2 text-gray-500 hover:text-red-600 transition-colors"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </>
     );
   };
 
@@ -183,9 +216,98 @@ export default function AdminClasses() {
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-white">
       <Toaster position="bottom-center" />
 
-      <div className="flex">
-        {/* Sidebar - Fixed on right */}
-        <aside className="right-0 top-0 w-72 bg-white shadow-lg border-l border-green-100">
+      {/* موبایل: هدر و دکمه منو */}
+      <div className="md:hidden sticky top-0 z-40 bg-white/90 border-b border-green-100 shadow">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-2">
+            <Target className="w-7 h-7 text-green-700" />
+            <span className="font-bold text-green-700">پنل مدیریت</span>
+          </div>
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition"
+          >
+            <Menu className="w-6 h-6" />
+          </button>
+        </div>
+      </div>
+
+      {/* موبایل: سایدبار drawer */}
+      {sidebarOpen && (
+        <div className="md:hidden fixed inset-0 z-50">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setSidebarOpen(false)}
+          ></div>
+          <aside className="absolute right-0 top-0 h-full w-72 bg-white shadow-2xl flex flex-col">
+            <div className="p-4 bg-gradient-to-r from-green-200 via-green-100 to-green-50 text-green-800 border-b border-green-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-green-100 rounded-2xl flex items-center justify-center">
+                  <Target className="w-5 h-5 text-green-700" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold">پنل مدیریت</h2>
+                  <p className="text-green-700 text-sm">مدرسه علم و هنر</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="p-2 rounded-full bg-green-50 hover:bg-green-200 transition"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <nav className="p-3 space-y-1 flex-1 overflow-y-auto">
+              <button
+                onClick={openModal}
+                className="w-full flex items-center gap-2 px-3 py-3 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-xl font-semibold hover:from-green-700 hover:to-green-600 transition shadow"
+              >
+                <Plus className="w-4 h-4" />
+                <span className="text-sm">افزودن کلاس جدید</span>
+              </button>
+              {sidebarMenu.map((item) => {
+                const IconComponent = item.icon;
+                const isActive = item.active;
+                return (
+                  <button
+                    key={item.label}
+                    onClick={() => {
+                      setSidebarOpen(false);
+                      window.location.href = item.href;
+                    }}
+                    className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-semibold transition-all duration-300 ${
+                      isActive
+                        ? 'bg-gradient-to-r from-green-200 to-green-100 text-green-900 shadow scale-[1.02]'
+                        : 'text-green-700 hover:bg-green-50 hover:shadow'
+                    }`}
+                  >
+                    <div className={`p-2 rounded-xl ${isActive ? 'bg-green-100' : 'bg-green-50'}`}>
+                      <IconComponent size={16} />
+                    </div>
+                    <span className="text-sm">{item.label}</span>
+                  </button>
+                );
+              })}
+              <button
+                onClick={() => {
+                  setSidebarOpen(false);
+                  logout();
+                }}
+                className="w-full flex items-center gap-3 px-3 py-3 rounded-xl font-semibold text-red-600 hover:bg-red-50 mt-4 transition"
+              >
+                <div className="p-2 rounded-xl bg-red-100">
+                  <LogOut size={16} />
+                </div>
+                <span className="text-sm">خروج از سیستم</span>
+              </button>
+            </nav>
+          </aside>
+        </div>
+      )}
+
+      <div className="flex flex-col md:flex-row">
+        {/* Sidebar - Desktop */}
+        <aside className="hidden md:block right-0 top-0 w-72 bg-white shadow-lg border-l border-green-100">
           <div className="p-6 bg-green-50 text-green-900 border-b border-green-100">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
@@ -207,9 +329,7 @@ export default function AdminClasses() {
               </div>
             </div>
           </div>
-          
           <nav className="p-4 space-y-2">
-            {/* افزودن کلاس جدید */}
             <button
               onClick={openModal}
               className="w-full flex items-center space-x-3 rtl:space-x-reverse p-4 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-2xl hover:from-green-700 hover:to-green-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
@@ -218,9 +338,7 @@ export default function AdminClasses() {
               <span className="font-medium flex-1 text-right">افزودن کلاس جدید</span>
               <ChevronLeft className="w-4 h-4" />
             </button>
-            
-            {/* منوهای اصلی مدیریت */}
-            {sidebarMenu.map((item, idx) => {
+            {sidebarMenu.map((item) => {
               const IconComponent = item.icon;
               const isActive = item.active;
               return (
@@ -240,8 +358,6 @@ export default function AdminClasses() {
                 </button>
               );
             })}
-            
-            {/* Logout Button */}
             <button
               onClick={logout}
               className="w-full text-right p-4 rounded-2xl font-semibold transition-all duration-300 flex items-center gap-4 text-red-600 hover:bg-red-50 hover:shadow-lg hover:scale-[1.01] mt-6"
@@ -254,44 +370,44 @@ export default function AdminClasses() {
           </nav>
         </aside>
 
-        {/* Main Content - with margin for sidebar */}
-        <main className="flex-1 p-6 space-y-8">
+        {/* Main Content */}
+        <main className="flex-1 p-3 md:p-6 space-y-6 md:space-y-8">
           {/* Welcome Card */}
-          <div className="relative bg-gradient-to-r from-green-600 via-green-500 to-green-600 rounded-3xl p-8 text-white shadow-2xl overflow-hidden">
+          <div className="relative bg-gradient-to-r from-green-600 via-green-500 to-green-600 rounded-2xl md:rounded-3xl p-4 md:p-8 text-white shadow-2xl overflow-hidden">
             <div className="absolute inset-0 bg-black/10"></div>
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-32 translate-x-32"></div>
+            <div className="absolute top-0 right-0 w-32 h-32 md:w-64 md:h-64 bg-white/10 rounded-full -translate-y-10 md:-translate-y-32 translate-x-10 md:translate-x-32"></div>
             <div className="relative z-10">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col md:flex-row justify-between gap-2 md:gap-4">
                 <div>
-                  <h2 className="text-4xl font-bold mb-3 bg-gradient-to-r from-white to-green-100 bg-clip-text text-transparent">
+                  <h2 className="text-lg md:text-4xl font-bold mb-1 md:mb-3 bg-gradient-to-r from-white to-green-100 bg-clip-text text-transparent">
                     مدیریت کلاس‌های مدرسه
                   </h2>
-                  <p className="text-white/90 mb-6 text-lg">افزودن، ویرایش و حذف کلاس‌ها</p>
-                  <div className="flex items-center space-x-6 text-white/80">
-                    <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-lg rounded-xl px-4 py-2">
+                  <p className="text-white/90 mb-2 md:mb-6 text-xs md:text-lg">افزودن، ویرایش و حذف کلاس‌ها</p>
+                  <div className="flex mt-5 items-center gap-1 md:gap-6 text-white/80">
+                    <div className="flex items-center gap-1 md:gap-2 bg-white/20 backdrop-blur-lg rounded-xl px-2 md:px-4 py-1 md:py-2">
                       <Calendar className="w-4 h-4" />
-                      <span className="text-sm font-medium">{new Date().toLocaleDateString('fa-IR')}</span>
+                      <span className="text-xs md:text-sm font-medium">{new Date().toLocaleDateString('fa-IR')}</span>
                     </div>
-                    <div className="flex items-center space-x-2 rtl:space-x-reverse bg-white/20 backdrop-blur-lg rounded-xl px-4 py-2">
+                    <div className="flex items-center gap-1 md:gap-2 bg-white/20 backdrop-blur-lg rounded-xl px-2 md:px-4 py-1 md:py-2">
                       <Clock className="w-4 h-4" />
-                      <span className="text-sm font-medium">{new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })}</span>
+                      <span className="text-xs md:text-sm font-medium">{new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                   </div>
                 </div>
-                <div className="w-32 h-32 bg-white/20 backdrop-blur-lg rounded-3xl flex items-center justify-center shadow-2xl">
-                  <GraduationCap className="w-16 h-16 text-white" />
+                <div className="w-14 hidden h-14 md:w-32 md:h-32 bg-white/20 backdrop-blur-lg rounded-2xl md:rounded-3xl md:flex items-center justify-center shadow-2xl">
+                  <GraduationCap className="w-8 h-8 md:w-16 md:h-16 text-white" />
                 </div>
               </div>
             </div>
           </div>
 
           {/* لیست کلاس‌ها */}
-          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-xl border border-green-200 p-8">
-            <div className="flex justify-between items-center mb-8">
-              <h1 className="text-2xl font-bold text-gray-800">لیست کلاس‌ها ({classes.length})</h1>
+          <div className="bg-white/95 backdrop-blur-xl rounded-2xl md:rounded-3xl shadow-xl border border-green-200 p-3 md:p-8">
+            <div className="flex flex-row justify-between items-center mb-4 md:mb-8 gap-2">
+              <h1 className="text-base md:text-2xl font-bold text-gray-800">لیست کلاس‌ها ({classes.length})</h1>
               <button
                 onClick={fetchClasses}
-                className="flex items-center px-6 py-3 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-2xl hover:from-green-700 hover:to-green-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                className="flex items-center px-4 py-2 md:px-6 md:py-3 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-xl md:rounded-2xl hover:from-green-700 hover:to-green-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 text-xs md:text-base"
               >
                 <RefreshCw className="w-4 h-4 ml-2" />
                 بروزرسانی

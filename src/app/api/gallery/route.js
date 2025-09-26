@@ -58,11 +58,12 @@ export async function GET(request) {
     if (!auth.authenticated) {
       return Response.json({ success: false, message: auth.message }, { status: auth.status });
     }
-    
+
     // بررسی پارامترهای URL
     const url = new URL(request.url);
     const categoryId = url.searchParams.get('categoryId');
     const classId = url.searchParams.get('classId');
+    const gradeId = url.searchParams.get('gradeId'); // اینجا منتقل شود
     const featured = url.searchParams.get('featured');
     const page = parseInt(url.searchParams.get('page') || '1');
     const limit = parseInt(url.searchParams.get('limit') || '20');
@@ -75,6 +76,9 @@ export async function GET(request) {
     }
     if (classId) {
       where.class_id = parseInt(classId);
+    }
+    if (gradeId) { // اینجا منتقل شود
+      where.grade_id = parseInt(gradeId);
     }
     if (featured === 'true') {
       where.is_featured = true;
@@ -183,6 +187,7 @@ export async function POST(request) {
     const classId = formData.get('class_id') || null;
     const altText = formData.get('alt_text') || null;
     const isFeatured = formData.get('is_featured') === 'true';
+    const gradeId = formData.get('grade_id') || null;
     
     // ذخیره فایل تصویر
     const imagePath = await saveFile(imageFile, 'uploads/gallery');
@@ -192,6 +197,7 @@ export async function POST(request) {
       data: {
         category_id: parseInt(categoryId),
         class_id: classId ? parseInt(classId) : null,
+        grade_id: gradeId ? parseInt(gradeId) : null, // اضافه شود
         title,
         description,
         image_path: imagePath,
@@ -284,7 +290,10 @@ export async function PUT(request) {
           (formData.get('class_id') ? parseInt(formData.get('class_id')) : null) : 
           existingImage.class_id,
         alt_text: formData.get('alt_text') !== undefined ? formData.get('alt_text') : existingImage.alt_text,
-        is_featured: formData.has('is_featured') ? formData.get('is_featured') === 'true' : existingImage.is_featured
+        is_featured: formData.has('is_featured') ? formData.get('is_featured') === 'true' : existingImage.is_featured,
+        grade_id: formData.get('grade_id') !== undefined ? 
+          (formData.get('grade_id') ? parseInt(formData.get('grade_id')) : null) : 
+          existingImage.grade_id
       };
       
       // اگر فایل جدید آپلود شده
@@ -328,14 +337,18 @@ export async function PUT(request) {
       }
       
       updateData = {
-        category_id: body.category_id ? parseInt(body.category_id) : existingImage.category_id,
+        ...updateData,
         title: body.title !== undefined ? body.title : existingImage.title,
         description: body.description !== undefined ? body.description : existingImage.description,
+        category_id: body.category_id !== undefined ? parseInt(body.category_id) : existingImage.category_id,
         class_id: body.class_id !== undefined ? 
           (body.class_id ? parseInt(body.class_id) : null) : 
           existingImage.class_id,
         alt_text: body.alt_text !== undefined ? body.alt_text : existingImage.alt_text,
-        is_featured: body.is_featured !== undefined ? body.is_featured : existingImage.is_featured
+        is_featured: body.is_featured !== undefined ? body.is_featured === true : existingImage.is_featured,
+        grade_id: body.grade_id !== undefined ? 
+          (body.grade_id ? parseInt(body.grade_id) : null) : 
+          existingImage.grade_id
       };
     }
     

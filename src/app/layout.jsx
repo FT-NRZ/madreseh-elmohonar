@@ -16,7 +16,12 @@ export default function RootLayout({ children }) {
           <Header onLoginClick={() => setShowLogin(true)} />
           <main className="flex-1">
             {children}
-            <Toaster position="top-center" />
+            <Toaster position="top-center"     
+            toastOptions={{
+            style: {
+              marginTop: '80px', 
+              },
+            }} />
           </main>
           <Footer />
         </div>

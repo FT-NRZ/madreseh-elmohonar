@@ -1,0 +1,22 @@
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/database';
+
+export async function GET() {
+  try {
+    const workshops = await prisma.workshops.findMany({
+      where: { is_active: true },
+      orderBy: { workshop_name: 'asc' }
+    });
+    
+    return NextResponse.json({
+      success: true,
+      workshops
+    });
+  } catch (error) {
+    console.error('Error fetching workshops:', error);
+    return NextResponse.json({
+      success: false,
+      workshops: []
+    }, { status: 500 });
+  }
+}

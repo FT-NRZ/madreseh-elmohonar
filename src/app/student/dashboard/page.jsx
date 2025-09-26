@@ -6,32 +6,25 @@ import ExamsList from '../components/ExamsList';
 import WeeklySchedule from '../components/WeeklySchedule';
 import MealSchedule from '../components/MealSchedule';
 import ExamResults from '../components/ExamResults';
+import ReportCard from '../components/ReportCard';
+import SpecialClasses from '../components/SpecialClasses';
+import StudentSpecialNews from '../components/StudentSpecialNews';
+import Reminders from '../components/Reminders';
 import {
   Menu, X, User, Calendar, ClipboardList, BookOpen, FileText, Newspaper, School, Image, UtensilsCrossed,
   MessageSquare, Bell, LogOut, Home, Award, ChevronRight, TrendingUp, Clock, Star, Users
 } from 'lucide-react';
+import ClassNews from '../components/ClassNews';
 
-const StudentProfile = ({ studentId }) => (
-  <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-    <div className="flex items-center gap-4 mb-6">
-      <div className="w-20 h-20 bg-gradient-to-br from-[#399918] to-green-600 rounded-full flex items-center justify-center text-white text-2xl font-bold">
-        د
-      </div>
-      <div>
-        <h2 className="text-xl font-bold text-gray-900">پروفایل دانش‌آموز</h2>
-        <p className="text-gray-600 mt-1">کلاس ششم ابتدایی</p>
-        <p className="text-gray-500 text-sm">کد دانش‌آموزی: {studentId}</p>
-      </div>
+const StudentProfile = ({ studentId, user }) => (
+  <div className="bg-white rounded-3xl shadow-2xl p-8 border border-green-100 flex items-center gap-6 student-profile">
+    <div className="w-24 h-24 bg-gradient-to-br from-[#399918] to-green-600 rounded-full flex items-center justify-center text-white text-3xl font-bold shadow-lg">
+      {user?.firstName?.[0] || 'د'}
     </div>
-    <div className="grid grid-cols-2 gap-4">
-      <div className="bg-gray-50 p-4 rounded-xl text-center">
-        <p className="text-gray-600 text-sm mb-1">رتبه کلاس</p>
-        <p className="text-2xl font-bold text-[#399918]">3</p>
-      </div>
-      <div className="bg-gray-50 p-4 rounded-xl text-center">
-        <p className="text-gray-600 text-sm mb-1">معدل کل</p>
-        <p className="text-2xl font-bold text-[#399918]">18.5</p>
-      </div>
+    <div>
+      <h2 className="text-2xl font-extrabold text-green-800 mb-1">پروفایل دانش‌آموز</h2>
+      <p className="text-green-600 text-lg">{user?.className || 'کلاس ابتدایی'}</p>
+      <p className="text-gray-400 text-sm mt-1">کد دانش‌آموزی: {studentId}</p>
     </div>
   </div>
 );
@@ -39,21 +32,21 @@ const StudentProfile = ({ studentId }) => (
 const dashboardTabs = [
   { key: 'schedule', label: 'برنامه هفتگی', icon: Calendar },
   { key: 'attendance', label: 'حضور و غیاب', icon: ClipboardList },
-  { key: 'report', label: 'کارنامه‌ها', icon: BookOpen },
+  { key: 'reportCard', label: 'کارنامه', icon: BookOpen },
   { key: 'exams', label: 'آزمون‌ها', icon: FileText },
   { key: 'examResults', label: 'نتایج آزمون', icon: Award },
   { key: 'classnews', label: 'اخبار کلاس', icon: Newspaper },
-  { key: 'schoolnews', label: 'اخبار مدرسه', icon: School },
+  { key: 'reminders', label: 'یادآوری‌ها', icon: Bell },
   { key: 'gallery', label: 'گالری', icon: Image },
   { key: 'meals', label: 'برنامه غذایی', icon: UtensilsCrossed },
   { key: 'suggestion', label: 'ارسال نظر/پیشنهاد', icon: MessageSquare },
 ];
 
 const quickActions = [
-  { title: 'مشاهده نمرات', icon: TrendingUp },
-  { title: 'برنامه امروز', icon: Clock },
-  { title: 'آزمون‌ها', icon: Star },
-  { title: 'گروه کلاسی', icon: Users },
+  { title: 'برنامه امروز', icon: Clock, tab: 'schedule' },
+  { title: 'آزمون‌ها', icon: Star, tab: 'exams' },
+  { title: 'گروه کلاسی', icon: Users, tab: 'classnews' },
+  { title: 'برنامه غذایی', icon: UtensilsCrossed, tab: 'meals' },
 ];
 
 export default function StudentDashboardPage() {
@@ -62,37 +55,120 @@ export default function StudentDashboardPage() {
   const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState(null);
   const [studentId, setStudentId] = useState(null);
+  const [gradeId, setGradeId] = useState(null);
+  const [gradeName, setGradeName] = useState(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     const userData = localStorage.getItem('user');
     if (userData) {
-      const userObj = JSON.parse(userData);
-      setUser(userObj);
-      setStudentId(userObj.id); // فرض: id دانش‌آموز در user ذخیره شده
+      try {
+        const userObj = JSON.parse(userData);
+        setUser(userObj);
+        setStudentId(userObj.id);
+        fetchStudentInfo(userObj.id);
+      } catch {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/';
+      }
     } else {
-      setUser({ id: 1 });
-      setStudentId(1);
+      window.location.href = '/';
     }
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
+  // گرفتن اطلاعات دانش‌آموز و gradeId
+  const fetchStudentInfo = async (userId) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        window.location.href = '/';
+        return;
+      }
+      const response = await fetch(`/api/student/${userId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.student) {
+          if (data.student.class?.grade) {
+            setGradeId(data.student.class.grade.id);
+            setGradeName(data.student.class.grade.name);
+          } else {
+            setGradeId(null);
+            setGradeName(null);
+          }
+        }
+      } else if (response.status === 401 || response.status === 403) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/';
+      }
+    } catch {}
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case 'schedule':
-        return <WeeklySchedule studentId={studentId} />;
+        return (
+          <>
+            <WeeklySchedule studentId={studentId} />
+            <div className="mt-8">
+              <SpecialClasses gradeId={gradeId || 1} />
+            </div>
+          </>
+        );
+      case 'attendance':
+        return (
+          <div className="bg-white rounded-2xl shadow-lg p-6 border border-green-100">
+            <h3 className="text-xl font-bold text-green-800 mb-4">حضور و غیاب</h3>
+            <p className="text-gray-600">محتوای حضور و غیاب در حال توسعه است.</p>
+          </div>
+        );
       case 'exams':
-        return studentId ? <ExamsList studentId={studentId} /> : <div>شناسه دانش‌آموز یافت نشد.</div>;
+        return studentId ? <ExamsList studentId={studentId} /> : <div>در حال بارگذاری...</div>;
+      case 'examResults':
+        return studentId ? <ExamResults studentId={studentId} /> : <div>در حال بارگذاری...</div>;
+      case 'reportCard':
+        return studentId ? <ReportCard studentId={studentId} /> : <div>در حال بارگذاری...</div>;
+      case 'classnews':
+        return studentId ? (
+          <ClassNews studentId={studentId} gradeId={gradeId} />
+        ) : (
+          <div>در حال بارگذاری...</div>
+        );
+      case 'reminders':
+        return studentId ? (
+          <Reminders studentId={studentId} gradeId={gradeId} />
+        ) : (
+          <div>در حال بارگذاری...</div>
+        );
+      case 'gallery':
+        return (
+          <div className="bg-white rounded-2xl shadow-lg p-6 border border-green-100">
+            <h3 className="text-xl font-bold text-green-800 mb-4">گالری</h3>
+            <p className="text-gray-600">محتوای گالری در حال توسعه است.</p>
+          </div>
+        );
       case 'meals':
-        return studentId ? <MealSchedule studentId={studentId} /> : <div>شناسه دانش‌آموز یافت نشد.</div>;
-    case 'examResults':
-  return studentId ? <ExamResults studentId={studentId} /> : <div>شناسه دانش‌آموز یافت نشد.</div>;
-        // سایر caseها را طبق نیاز اضافه کن
+        return studentId ? <MealSchedule studentId={studentId} /> : <div>در حال بارگذاری...</div>;
+      case 'suggestion':
+        return (
+          <div className="bg-white rounded-2xl shadow-lg p-6 border border-green-100">
+            <h3 className="text-xl font-bold text-green-800 mb-4">ارسال نظر/پیشنهاد</h3>
+            <p className="text-gray-600">فرم ارسال نظر و پیشنهاد در حال توسعه است.</p>
+          </div>
+        );
       default:
         return (
-          <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">
+          <div className="bg-white rounded-2xl shadow-lg p-6 border border-green-100">
+            <h3 className="text-xl font-bold text-green-800 mb-4">
               {dashboardTabs.find(tab => tab.key === activeTab)?.label}
             </h3>
             <p className="text-gray-600">محتوای این بخش در حال توسعه است.</p>
@@ -110,80 +186,116 @@ export default function StudentDashboardPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-white">
       <div className="flex">
-      {/* Sidebar */} 
-      <aside className="right-0 top-0 w-72 bg-white/95 backdrop-blur-xl shadow-2xl z-0 border-l border-green-100">
-        <div className="p-6 bg-gradient-to-r from-green-200 via-green-100 to-green-50 text-green-800 border-b border-green-100">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center">
-              <School className="w-6 h-6 text-green-700" />
+        {/* Sidebar */}
+        <aside className="right-0 top-0 w-72 bg-white/95 backdrop-blur-xl shadow-2xl z-0 border-l border-green-100">
+          <div className="p-6 bg-gradient-to-r from-green-200 via-green-100 to-green-50 text-green-800 border-b border-green-100">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center">
+                <School className="w-6 h-6 text-green-700" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold">پنل دانش‌آموز</h2>
+                <p className="text-green-700 text-sm">مدرسه علم و هنر</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-xl font-bold">پنل دانش‌آموز</h2>
-              <p className="text-green-700 text-sm">مدرسه علم و هنر</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-green-50 rounded-xl p-3 text-center border border-green-100">
+                <p className="text-xl font-bold text-green-700">18.5</p>
+                <p className="text-xs text-green-600">معدل</p>
+              </div>
+              <div className="bg-green-50 rounded-xl p-3 text-center border border-green-100">
+                <p className="text-xl font-bold text-green-700">98%</p>
+                <p className="text-xs text-green-600">حضور</p>
+              </div>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-green-50 rounded-xl p-3 text-center border border-green-100">
-              <p className="text-xl font-bold text-green-700">18.5</p>
-              <p className="text-xs text-green-600">معدل</p>
-            </div>
-            <div className="bg-green-50 rounded-xl p-3 text-center border border-green-100">
-              <p className="text-xl font-bold text-green-700">98%</p>
-              <p className="text-xs text-green-600">حضور</p>
-            </div>
-          </div>
-        </div>
-        <nav className="p-4 space-y-2">
-          <button
-            onClick={() => setActiveTab('dashboard')}
-            className={`group w-full text-right p-4 rounded-2xl font-semibold transition-all duration-300 flex items-center gap-4 relative overflow-hidden ${
-              activeTab === 'dashboard'
-                ? 'bg-gradient-to-r from-green-200 to-green-100 text-green-900 shadow-xl scale-[1.02] transform'
-                : 'text-green-700 hover:bg-gradient-to-r hover:from-green-50 hover:to-green-100 hover:shadow-lg hover:scale-[1.01]'
-            }`}
-          >
-            <div className={`p-2 rounded-xl ${activeTab === 'dashboard' ? 'bg-green-100' : 'bg-green-50'}`}>
-              <Home size={18} />
-            </div>
-            <span className="text-sm">داشبورد اصلی</span>
-          </button>
-          {dashboardTabs.map((item) => {
-            const IconComponent = item.icon;
-            const isActive = activeTab === item.key;
-            return (
-              <button
-                key={item.key}
-                onClick={() => setActiveTab(item.key)}
-                className={`group w-full text-right p-4 rounded-2xl font-semibold transition-all duration-300 flex items-center gap-4 relative overflow-hidden ${
-                  isActive
-                    ? 'bg-gradient-to-r from-green-200 to-green-100 text-green-900 shadow-xl scale-[1.02] transform'
-                    : 'text-green-700 hover:bg-gradient-to-r hover:from-green-50 hover:to-green-100 hover:shadow-lg hover:scale-[1.01]'
-                }`}
-              >
-                <div className={`p-2 rounded-xl ${isActive ? 'bg-green-100' : 'bg-green-50'}`}>
-                  <IconComponent size={18} />
-                </div>
-                <span className="text-sm">{item.label}</span>
-              </button>
-            );
-          })}
-          <button
-            onClick={logout}
-            className="w-full text-right p-4 rounded-2xl font-semibold transition-all duration-300 flex items-center gap-4 text-red-600 hover:bg-red-50 hover:shadow-lg hover:scale-[1.01] mt-6"
-          >
-            <div className="p-2 rounded-xl bg-red-100">
-              <LogOut size={18} />
-            </div>
-            <span className="text-sm">خروج از سیستم</span>
-          </button>
-        </nav>
-      </aside>
+          <nav className="p-4 space-y-2">
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className={`group w-full text-right p-4 rounded-2xl font-semibold transition-all duration-300 flex items-center gap-4 relative overflow-hidden ${
+                activeTab === 'dashboard'
+                  ? 'bg-gradient-to-r from-green-200 to-green-100 text-green-900 shadow-xl scale-[1.02] transform'
+                  : 'text-green-700 hover:bg-gradient-to-r hover:from-green-50 hover:to-green-100 hover:shadow-lg hover:scale-[1.01]'
+              }`}
+            >
+              <div className={`p-2 rounded-xl ${activeTab === 'dashboard' ? 'bg-green-100' : 'bg-green-50'}`}>
+                <Home size={18} />
+              </div>
+              <span className="text-sm">داشبورد اصلی</span>
+            </button>
+            {dashboardTabs.map((item) => {
+              const IconComponent = item.icon;
+              const isActive = activeTab === item.key;
+              return (
+                <button
+                  key={item.key}
+                  onClick={() => setActiveTab(item.key)}
+                  className={`group w-full text-right p-4 rounded-2xl font-semibold transition-all duration-300 flex items-center gap-4 relative overflow-hidden ${
+                    isActive
+                      ? 'bg-gradient-to-r from-green-200 to-green-100 text-green-900 shadow-xl scale-[1.02] transform'
+                      : 'text-green-700 hover:bg-gradient-to-r hover:from-green-50 hover:to-green-100 hover:shadow-lg hover:scale-[1.01]'
+                  }`}
+                >
+                  <div className={`p-2 rounded-xl ${isActive ? 'bg-green-100' : 'bg-green-50'}`}>
+                    <IconComponent size={18} />
+                  </div>
+                  <span className="text-sm">{item.label}</span>
+                </button>
+              );
+            })}
+            <button
+              onClick={logout}
+              className="w-full text-right p-4 rounded-2xl font-semibold transition-all duration-300 flex items-center gap-4 text-red-600 hover:bg-red-50 hover:shadow-lg hover:scale-[1.01] mt-6"
+            >
+              <div className="p-2 rounded-xl bg-red-100">
+                <LogOut size={18} />
+              </div>
+              <span className="text-sm">خروج از سیستم</span>
+            </button>
+          </nav>
+        </aside>
         {/* Main Content */}
         <main className="flex-1 p-6 space-y-8">
           {activeTab === 'dashboard' && (
             <div className="space-y-6">
-              {/* ... داشبورد اصلی ... */}
-              {/* این بخش را تغییر ندادم */}
+              <StudentProfile studentId={studentId} user={user} />
+              {/* Quick Actions */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {quickActions.map((action, idx) => {
+                  const IconComponent = action.icon;
+                  return (
+                    <button
+                      key={idx}
+                      className="bg-white/95 backdrop-blur-xl rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 cursor-pointer border border-green-100 flex flex-col items-center gap-2"
+                      onClick={() => setActiveTab(action.tab)}
+                    >
+                      <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-green-600 rounded-2xl flex items-center justify-center mb-2">
+                        <IconComponent className="w-6 h-6 text-white" />
+                      </div>
+                      <span className="font-bold text-gray-800">{action.title}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {/* برنامه امروز و کلاس ویژه */}
+              <div className="bg-gradient-to-br from-green-100 via-white to-green-50 rounded-2xl shadow-lg p-4 border border-green-100 flex flex-col gap-4 items-center transition-all duration-300">
+                <div className="w-full">
+                  <h3 className="text-base font-bold text-green-700 mb-2">برنامه امروز</h3>
+                  <WeeklySchedule studentId={studentId} todayOnly />
+                </div>
+                <div className="w-full mt-4">
+                  <SpecialClasses gradeId={gradeId || 1} />
+                </div>
+              </div>
+              {/* آزمون‌های فعال */}
+              <div className="bg-gradient-to-br from-green-100 via-white to-green-50 rounded-2xl shadow-lg p-4 border border-green-100 transition-all duration-300">
+                <h3 className="text-base font-bold text-green-700 mb-2">آزمون‌های فعال</h3>
+                <ExamsList studentId={studentId} activeOnly />
+              </div>
+              {/* اخبار ویژه دانش‌آموز */}
+              <div className="space-y-6">
+                <StudentSpecialNews studentId={studentId} />
+              </div>
             </div>
           )}
           {activeTab !== 'dashboard' && (

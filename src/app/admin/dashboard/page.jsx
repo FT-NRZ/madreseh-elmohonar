@@ -1,10 +1,12 @@
 'use client'
 import React, { useState, useEffect } from 'react';
+import { EditUserModal, DeleteConfirmModal } from '../users/page.jsx';
 import { 
   Users, UserPlus, GraduationCap, BookOpen, BarChart3, Settings, LogOut, 
   Activity, Calendar, Clock, Crown, Target, RefreshCw, Sparkles,
   Edit, Trash2, CalendarCheck,
-  NewspaperIcon
+  NewspaperIcon,
+  FileText, Shield, Menu, X
 } from 'lucide-react';
 import { Image, Calendar as CalendarIcon, LayoutGrid, GalleryHorizontalEnd } from 'lucide-react';
 
@@ -16,9 +18,11 @@ const sidebarMenu = [
   { label: 'برنامه غذایی', icon: GalleryHorizontalEnd, href: '/admin/food-schedule' },
   { label: 'حضور و غیاب', icon: CalendarCheck, href: '/admin/attendances' },
   { label: 'مدیریت گالری', icon: Image, href: '/admin/gallery' },
+  { label: 'مدیریت اخبار', icon: NewspaperIcon, href: '/admin/news' },
+  { label: 'مدیریت بخشنامه ها', icon: FileText, href: '/admin/circular' },
+  { label: 'توبیخی و تشویقی', icon: Shield, href: '/admin/disciplinary' },
   { label: 'گزارش ها', icon: BarChart3, href: '/admin/reports' },
   { label: 'تنظیمات', icon: Settings, href: '/admin/settings' },
-  { label: 'مدیریت اخبار', icon: NewspaperIcon, href: '/admin/news' }
 ];
 
 export default function AdminDashboard() {
@@ -36,6 +40,8 @@ export default function AdminDashboard() {
   });
   const [showEditUser, setShowEditUser] = useState(false);
   const [userToEdit, setUserToEdit] = useState(null);
+  // اضافه کنید:
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const openEditModal = (user) => {
     setUserToEdit(user);
@@ -160,10 +166,94 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-white">
+    <div className="min-h-screen bg-gradient-to-br mb-10 from-green-50 to-white">
+      {/* موبایل: هدر و دکمه منو - اضافه شده */}
+      <div className="sm:hidden sticky top-0 z-40 bg-white/90 border-b border-green-100 shadow">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-2">
+            <Target className="w-7 h-7 text-green-700" />
+            <span className="font-bold text-green-700">پنل مدیریت</span>
+          </div>
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition"
+          >
+            <Menu className="w-6 h-6" />
+          </button>
+        </div>
+      </div>
+
+      {/* موبایل: سایدبار drawer - اضافه شده */}
+      {sidebarOpen && (
+        <div className="sm:hidden fixed inset-0 z-50">
+          {/* پس‌زمینه تار */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setSidebarOpen(false)}
+          ></div>
+          {/* سایدبار */}
+          <aside className="absolute right-0 top-0 h-full w-72 bg-white shadow-2xl flex flex-col">
+            <div className="p-4 bg-gradient-to-r from-green-200 via-green-100 to-green-50 text-green-800 border-b border-green-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-green-100 rounded-2xl flex items-center justify-center">
+                  <Target className="w-5 h-5 text-green-700" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold">پنل مدیریت</h2>
+                  <p className="text-green-700 text-sm">مدرسه علم و هنر</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="p-2 rounded-full bg-green-50 hover:bg-green-200 transition"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <nav className="p-3 space-y-1 flex-1 overflow-y-auto">
+              {sidebarMenu.map((item) => {
+                const IconComponent = item.icon;
+                const isActive = typeof window !== 'undefined' && window.location.pathname === item.href;
+                return (
+                  <button
+                    key={item.label}
+                    onClick={() => {
+                      setSidebarOpen(false);
+                      window.location.href = item.href;
+                    }}
+                    className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-semibold transition-all duration-300 ${
+                      isActive
+                        ? 'bg-gradient-to-r from-green-200 to-green-100 text-green-900 shadow scale-[1.02]'
+                        : 'text-green-700 hover:bg-green-50 hover:shadow'
+                    }`}
+                  >
+                    <div className={`p-2 rounded-xl ${isActive ? 'bg-green-100' : 'bg-green-50'}`}>
+                      <IconComponent size={16} />
+                    </div>
+                    <span className="text-sm">{item.label}</span>
+                  </button>
+                );
+              })}
+              <button
+                onClick={() => {
+                  setSidebarOpen(false);
+                  logout();
+                }}
+                className="w-full flex items-center gap-3 px-3 py-3 rounded-xl font-semibold text-red-600 hover:bg-red-50 mt-4 transition"
+              >
+                <div className="p-2 rounded-xl bg-red-100">
+                  <LogOut size={16} />
+                </div>
+                <span className="text-sm">خروج از سیستم</span>
+              </button>
+            </nav>
+          </aside>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row">
-        {/* Sidebar - Desktop */}
-        <aside className="right-0 top-0 w-72 bg-white/95 backdrop-blur-xl shadow-2xl z-0 border-l border-green-100">
+        {/* Sidebar - Desktop - اصلاح شده */}
+        <aside className="hidden sm:block right-0 top-0 w-72 bg-white/95 backdrop-blur-xl shadow-2xl z-0 border-l border-green-100">
           <div className="p-6 bg-gradient-to-r from-green-200 via-green-100 to-green-50 text-green-800 border-b border-green-100">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center">
@@ -245,12 +335,12 @@ export default function AdminDashboard() {
 
         {/* Main Content */}
         <main className="flex-1 pb-16 sm:pb-0 p-2 sm:p-6 space-y-3 sm:space-y-8 mt-2 sm:mt-0">
-          {/* Welcome Card */}
+          {/* Welcome Card - اصلاح شده */}
           <div className="relative bg-gradient-to-r from-green-600 via-green-500 to-green-600 rounded-2xl sm:rounded-3xl p-3 sm:p-8 text-white shadow-2xl overflow-hidden">
             <div className="absolute inset-0 bg-black/10"></div>
             <div className="absolute top-0 right-0 w-24 h-24 sm:w-64 sm:h-64 bg-white/10 rounded-full -translate-y-10 translate-x-10 sm:-translate-y-32 sm:translate-x-32"></div>
             <div className="relative z-10">
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-4">
+              <div className="flex flex-col sm:flex-row justify-between gap-2 sm:gap-4">
                 <div>
                   <h2 className="text-lg sm:text-4xl font-bold mb-1 sm:mb-3 bg-gradient-to-r from-white to-green-100 bg-clip-text text-transparent">
                     سلام {user?.firstName} عزیز! 🌟
@@ -267,7 +357,7 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 </div>
-                <div className="w-14 h-14 sm:w-32 sm:h-32 bg-white/20 backdrop-blur-lg rounded-2xl sm:rounded-3xl flex items-center justify-center shadow-2xl">
+                <div className="w-14 hidden h-14 sm:w-32 sm:h-32 bg-white/20 backdrop-blur-lg rounded-2xl sm:rounded-3xl md:flex items-center justify-center shadow-2xl">
                   <Crown className="w-8 h-8 sm:w-16 sm:h-16 text-white" />
                 </div>
               </div>
@@ -306,8 +396,8 @@ export default function AdminDashboard() {
             />
           </div>
 
-          {/* حضور و غیاب - کارت جدید */}
-          <div className="bg-gradient-to-r from-green-400 to-green-300 rounded-2xl p-4 flex items-center justify-between shadow mb-4">
+          {/* حضور و غیاب - کارت جدید - اصلاح شده */}
+          <div className="bg-gradient-to-r from-green-400 to-green-300 rounded-2xl p-4 flex flex-col sm:flex-row justify-between shadow mb-4 gap-2">
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <CalendarCheck className="w-6 h-6 text-white" />
@@ -412,6 +502,7 @@ export default function AdminDashboard() {
   );
 }
 
+
 // Stats Card Component
 function StatsCard({ title, value, icon: Icon, gradient, iconGradient }) {
   return (
@@ -468,19 +559,37 @@ function ActivityItem({ text, time }) {
 // Users Table Component
 function UsersTable({ users, loading, onRefresh, onDeleteUser, onEditUser }) {
   const [searchTerm, setSearchTerm] = useState('');
-  const filteredUsers = users.filter(user => 
-    user.firstName?.includes(searchTerm) || 
-    user.lastName?.includes(searchTerm) || 
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [page, setPage] = useState(1);
+
+  // فیلتر نقش
+  const filteredByRole = roleFilter === 'all'
+    ? users
+    : users.filter(user => user.role === roleFilter);
+
+  // فیلتر جستجو
+  const filteredUsers = filteredByRole.filter(user =>
+    user.firstName?.includes(searchTerm) ||
+    user.lastName?.includes(searchTerm) ||
     user.nationalCode?.includes(searchTerm)
   );
 
-  // موبایل: کارت، دسکتاپ: جدول
+  // صفحه‌بندی
+  const pageSize = 4;
+  const totalPages = Math.ceil(filteredUsers.length / pageSize);
+  const pagedUsers = filteredUsers.slice((page - 1) * pageSize, page * pageSize);
+
+  // تغییر صفحه هنگام تغییر فیلتر یا جستجو
+  useEffect(() => {
+    setPage(1);
+  }, [roleFilter, searchTerm]);
+
   return (
     <div className="bg-white/95 backdrop-blur-xl rounded-2xl sm:rounded-3xl shadow-xl overflow-hidden border border-green-200">
       <div className="p-3 sm:p-8 border-b border-green-200">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 sm:mb-6 gap-2 sm:gap-0">
           <h3 className="text-base sm:text-2xl font-bold text-gray-800 flex items-center">
-            <div className="w-7 h-7 sm:w-10 sm:h-10 bg-gradient-to-r from-green-600 to-green-500 rounded-2xl flex items-center justify-center mr-2 sm:mr-3">
+            <div className="w-7 h-7 ml-2 sm:w-10 sm:h-10 bg-gradient-to-r from-green-600 to-green-500 rounded-2xl flex items-center justify-center mr-2 sm:mr-3">
               <Users className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </div>
             لیست کاربران ({filteredUsers.length})
@@ -493,15 +602,24 @@ function UsersTable({ users, loading, onRefresh, onDeleteUser, onEditUser }) {
             بروزرسانی
           </button>
         </div>
-        <div className="relative">
+        <div className="flex flex-col sm:flex-row gap-2 mb-2">
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="جستجو در کاربران..."
-            className="w-full pr-8 pl-3 py-2 sm:py-4 border border-green-200 rounded-xl sm:rounded-2xl focus:ring-2 focus:ring-green-600 focus:border-green-600 bg-green-50 backdrop-blur-lg transition-all duration-300 text-xs sm:text-base"
+            className="w-full sm:w-1/2 pr-8 pl-3 py-2 sm:py-4 border border-green-200 rounded-xl sm:rounded-2xl focus:ring-2 focus:ring-green-600 focus:border-green-600 bg-green-50 backdrop-blur-lg transition-all duration-300 text-xs sm:text-base"
           />
-          <Users className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <select
+            value={roleFilter}
+            onChange={e => setRoleFilter(e.target.value)}
+            className="w-full sm:w-40 px-3 py-2 border border-green-200 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition text-xs sm:text-base"
+          >
+            <option value="all">همه نقش‌ها</option>
+            <option value="student">دانش‌آموز</option>
+            <option value="teacher">معلم</option>
+            <option value="admin">مدیر</option>
+          </select>
         </div>
       </div>
       {/* Desktop Table */}
@@ -526,7 +644,7 @@ function UsersTable({ users, loading, onRefresh, onDeleteUser, onEditUser }) {
                   </div>
                 </td>
               </tr>
-            ) : filteredUsers.length === 0 ? (
+            ) : pagedUsers.length === 0 ? (
               <tr>
                 <td colSpan="5" className="px-8 py-12 text-center">
                   <div className="flex flex-col items-center">
@@ -536,7 +654,7 @@ function UsersTable({ users, loading, onRefresh, onDeleteUser, onEditUser }) {
                 </td>
               </tr>
             ) : (
-              filteredUsers.map((user, index) => (
+              pagedUsers.map((user, index) => (
                 <tr key={user.id || index} className="hover:bg-green-50 transition-all duration-300">
                   <td className="px-8 py-6">
                     <div className="flex items-center space-x-4">
@@ -596,21 +714,49 @@ function UsersTable({ users, loading, onRefresh, onDeleteUser, onEditUser }) {
             )}
           </tbody>
         </table>
+        {/* Paging - اضافه شده */}
+        {totalPages > 1 && (
+          <div className="flex justify-center items-center gap-2 py-4">
+            <button
+              onClick={() => setPage(page - 1)}
+              disabled={page === 1}
+              className="px-3 py-1 rounded-lg bg-green-50 border border-green-200 text-green-700 disabled:opacity-50"
+            >
+              قبلی
+            </button>
+            {[...Array(totalPages)].map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setPage(i + 1)}
+                className={`px-3 py-1 rounded-lg border ${page === i + 1 ? 'bg-green-600 text-white' : 'bg-green-50 text-green-700 border-green-200'}`}
+              >
+                {i + 1}
+              </button>
+            ))}
+            <button
+              onClick={() => setPage(page + 1)}
+              disabled={page === totalPages}
+              className="px-3 py-1 rounded-lg bg-green-50 border border-green-200 text-green-700 disabled:opacity-50"
+            >
+              بعدی
+            </button>
+          </div>
+        )}
       </div>
-      {/* Mobile Cards */}
+      {/* Mobile Cards - اصلاح شده */}
       <div className="sm:hidden p-2 space-y-2">
         {loading ? (
           <div className="flex flex-col items-center py-8">
             <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin mb-4"></div>
             <p className="text-gray-500 text-xs">در حال بارگذاری...</p>
           </div>
-        ) : filteredUsers.length === 0 ? (
+        ) : pagedUsers.length === 0 ? (
           <div className="flex flex-col items-center py-8">
             <Users className="w-10 h-10 text-gray-400 mb-2" />
             <p className="text-gray-500 text-xs">کاربری یافت نشد</p>
           </div>
         ) : (
-          filteredUsers.map((user, index) => (
+          pagedUsers.map((user, index) => (
             <div key={user.id || index} className="rounded-xl border border-green-100 bg-green-50 shadow-sm p-2 flex items-center gap-2">
               <div className="w-10 h-10 bg-gradient-to-r from-green-600 to-green-500 rounded-xl flex items-center justify-center shadow">
                 <span className="text-white font-bold text-sm">
@@ -652,6 +798,34 @@ function UsersTable({ users, loading, onRefresh, onDeleteUser, onEditUser }) {
               </div>
             </div>
           ))
+        )}
+        {/* Paging for mobile - اضافه شده */}
+        {totalPages > 1 && (
+          <div className="flex justify-center items-center gap-2 py-4">
+            <button
+              onClick={() => setPage(page - 1)}
+              disabled={page === 1}
+              className="px-3 py-1 rounded-lg bg-green-50 border border-green-200 text-green-700 disabled:opacity-50"
+            >
+              قبلی
+            </button>
+            {[...Array(totalPages)].map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setPage(i + 1)}
+                className={`px-3 py-1 rounded-lg border ${page === i + 1 ? 'bg-green-600 text-white' : 'bg-green-50 text-green-700 border-green-200'}`}
+              >
+                {i + 1}
+              </button>
+            ))}
+            <button
+              onClick={() => setPage(page + 1)}
+              disabled={page === totalPages}
+              className="px-3 py-1 rounded-lg bg-green-50 border border-green-200 text-green-700 disabled:opacity-50"
+            >
+              بعدی
+            </button>
+          </div>
         )}
       </div>
     </div>

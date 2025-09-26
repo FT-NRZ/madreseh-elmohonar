@@ -5,9 +5,10 @@ import {
   Settings, LogOut, Image, LayoutGrid, NewspaperIcon,
   Edit, Trash2, RefreshCw, X, Plus, Eye, Target,
   ArrowLeft, ChevronLeft, ChevronRight,
-  GalleryHorizontal,
   GalleryHorizontalEnd,
   CalendarCheck,
+  FileText,
+  Shield,
 } from 'lucide-react';
 import moment from 'jalali-moment';
 
@@ -20,12 +21,18 @@ export default function NewsAdminPage() {
   const [selectedNewsId, setSelectedNewsId] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
+  const [teachers, setTeachers] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [form, setForm] = useState({
     id: null,
     title: '',
     content: '',
     is_published: false,
     publish_date: '',
+    image_url: null,
+    target_type: 'public',
+    target_user_id: null,
   });
 
   // سایدبار مشابه داشبورد مدیریت
@@ -37,10 +44,41 @@ export default function NewsAdminPage() {
     { label: 'برنامه غذایی', icon: GalleryHorizontalEnd, href: '/admin/food-schedule' },
     { label: 'حضور و غیاب', icon: CalendarCheck, href: '/admin/attendances' },
     { label: 'مدیریت گالری', icon: Image, href: '/admin/gallery' },
-    { label: 'گزارش‌ ها', icon: BarChart3, href: '/admin/reports' },
+    { label: 'مدیریت اخبار', icon: NewspaperIcon, href: '/admin/news', active: true },
+    { label: 'مدیریت بخشنامه ها', icon: FileText, href: '/admin/circular' },
+    { label: 'توبیخی و تشویقی', icon: Shield, href: '/admin/disciplinary' },
+    { label: 'گزارش ها', icon: BarChart3, href: '/admin/reports' },
     { label: 'تنظیمات', icon: Settings, href: '/admin/settings' },
-    { label: 'مدیریت اخبار', icon: NewspaperIcon, href: '/admin/news', active: true }
   ];
+
+  const resetForm = () => {
+    setForm({
+      id: null,
+      title: '',
+      content: '',
+      is_published: false,
+      publish_date: '',
+      image_url: null,
+      target_type: 'public',
+      target_user_id: null,
+    });
+    setSelectedDate(null);
+    setShowModal(false);
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const teachersRes = await fetch('/api/users/list?role=teachers');
+      const teachersData = await teachersRes.json();
+      if (teachersData.success) setTeachers(teachersData.users);
+
+      const studentsRes = await fetch('/api/users/list?role=students');
+      const studentsData = await studentsRes.json();
+      if (studentsData.success) setStudents(studentsData.users);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+  };
 
   useEffect(() => {
     const token = localStorage?.getItem?.('token');
@@ -57,12 +95,12 @@ export default function NewsAdminPage() {
       }
       setUser(parsedUser);
       fetchNews();
+      fetchUsers();
     } catch {
       window.location.href = '/login';
     }
   }, []);
 
-  // تبدیل تاریخ انتخاب‌شده به میلادی برای ذخیره
   useEffect(() => {
     if (selectedDate) {
       try {
@@ -75,7 +113,6 @@ export default function NewsAdminPage() {
     }
   }, [selectedDate]);
 
-  // هنگام ویرایش، تاریخ میلادی را به شمسی تبدیل کن
   useEffect(() => {
     if (showModal && form.publish_date && !selectedDate) {
       try {
@@ -93,7 +130,6 @@ export default function NewsAdminPage() {
     }
   }, [showModal, form.publish_date]);
 
-  // دریافت اخبار
   const fetchNews = async () => {
     setLoading(true);
     try {
@@ -112,7 +148,6 @@ export default function NewsAdminPage() {
     }
   };
 
-  // ارسال فرم (ایجاد یا ویرایش خبر)
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -124,7 +159,16 @@ export default function NewsAdminPage() {
       });
       const data = await res.json();
       if (data.success) {
-        setForm({ id: null, title: '', content: '', is_published: false, publish_date: '' });
+        setForm({
+          id: null,
+          title: '',
+          content: '',
+          is_published: false,
+          publish_date: '',
+          image_url: null,
+          target_type: 'public',
+          target_user_id: null,
+        });
         setSelectedDate(null);
         setShowModal(false);
         fetchNews();
@@ -132,11 +176,11 @@ export default function NewsAdminPage() {
         alert(data.error || 'خطا در ذخیره خبر');
       }
     } catch (error) {
+      console.error('Submit error:', error);
       alert('خطا در ارتباط با سرور');
     }
   };
 
-  // ویرایش خبر
   const handleEdit = (item) => {
     setForm({
       id: item.id,
@@ -144,17 +188,18 @@ export default function NewsAdminPage() {
       content: item.content,
       is_published: item.is_published,
       publish_date: item.publish_date ? item.publish_date.split('T')[0] : '',
+      image_url: item.image_url || null,
+      target_type: item.target_type || 'public',
+      target_user_id: item.target_user_id || null,
     });
     setShowModal(true);
   };
 
-  // نمایش مودال حذف
   const handleDeleteClick = (id) => {
     setSelectedNewsId(id);
     setShowDeleteModal(true);
   };
 
-  // حذف خبر
   const confirmDelete = async () => {
     try {
       const res = await fetch(`/api/news?id=${selectedNewsId}`, { method: 'DELETE' });
@@ -178,7 +223,6 @@ export default function NewsAdminPage() {
     window.location.href = '/';
   };
 
-  // تابع تبدیل تاریخ میلادی به شمسی برای نمایش
   const formatPersianDate = (dateString) => {
     if (!dateString) return 'تعیین نشده';
     try {
@@ -201,9 +245,91 @@ export default function NewsAdminPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-white">
-      <div className="flex">
-        {/* Sidebar */}
-        <aside className="right-0 top-0 w-72 bg-white/95 backdrop-blur-xl shadow-2xl z-0 border-l border-green-100">
+      {/* موبایل: هدر و دکمه منو */}
+      <div className="md:hidden sticky top-0 z-40 bg-white/90 border-b border-green-100 shadow">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-2">
+            <Target className="w-7 h-7 text-green-700" />
+            <span className="font-bold text-green-700">پنل مدیریت</span>
+          </div>
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition"
+          >
+            <BookOpen className="w-6 h-6" />
+          </button>
+        </div>
+      </div>
+
+      {/* موبایل: سایدبار drawer */}
+      {sidebarOpen && (
+        <div className="md:hidden fixed inset-0 z-50">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setSidebarOpen(false)}
+          ></div>
+          <aside className="absolute right-0 top-0 h-full w-72 bg-white shadow-2xl flex flex-col">
+            <div className="p-4 bg-gradient-to-r from-green-200 via-green-100 to-green-50 text-green-800 border-b border-green-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-green-100 rounded-2xl flex items-center justify-center">
+                  <Target className="w-5 h-5 text-green-700" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold">پنل مدیریت</h2>
+                  <p className="text-green-700 text-sm">مدرسه علم و هنر</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="p-2 rounded-full bg-green-50 hover:bg-green-200 transition"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <nav className="p-3 space-y-1 flex-1 overflow-y-auto">
+              {sidebarMenu.map((item) => {
+                const IconComponent = item.icon;
+                const isActive = item.active;
+                return (
+                  <button
+                    key={item.label}
+                    onClick={() => {
+                      setSidebarOpen(false);
+                      window.location.href = item.href;
+                    }}
+                    className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-semibold transition-all duration-300 ${
+                      isActive
+                        ? 'bg-gradient-to-r from-green-200 to-green-100 text-green-900 shadow scale-[1.02]'
+                        : 'text-green-700 hover:bg-green-50 hover:shadow'
+                    }`}
+                  >
+                    <div className={`p-2 rounded-xl ${isActive ? 'bg-green-100' : 'bg-green-50'}`}>
+                      <IconComponent size={16} />
+                    </div>
+                    <span className="text-sm">{item.label}</span>
+                  </button>
+                );
+              })}
+              <button
+                onClick={() => {
+                  setSidebarOpen(false);
+                  logout();
+                }}
+                className="w-full flex items-center gap-3 px-3 py-3 rounded-xl font-semibold text-red-600 hover:bg-red-50 mt-4 transition"
+              >
+                <div className="p-2 rounded-xl bg-red-100">
+                  <LogOut size={16} />
+                </div>
+                <span className="text-sm">خروج از سیستم</span>
+              </button>
+            </nav>
+          </aside>
+        </div>
+      )}
+
+      <div className="flex flex-col md:flex-row">
+        {/* Sidebar - Desktop */}
+        <aside className="hidden md:block right-0 top-0 w-72 bg-white/95 backdrop-blur-xl shadow-2xl z-0 border-l border-green-100">
           <div className="p-6 bg-gradient-to-r from-green-200 via-green-100 to-green-50 text-green-800 border-b border-green-100">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center">
@@ -259,46 +385,46 @@ export default function NewsAdminPage() {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 p-6 space-y-8">
+        <main className="flex-1 p-4 md:p-6 space-y-4 md:space-y-8">
           {/* Header */}
-          <div className="relative bg-gradient-to-r from-green-600 via-green-500 to-green-600 rounded-3xl p-8 text-white shadow-2xl overflow-hidden">
+          <div className="relative bg-gradient-to-r from-green-600 via-green-500 to-green-600 rounded-2xl md:rounded-3xl p-4 md:p-8 text-white shadow-2xl overflow-hidden">
             <div className="absolute inset-0 bg-black/10"></div>
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-32 translate-x-32"></div>
+            <div className="absolute top-0 right-0 w-32 h-32 md:w-64 md:h-64 bg-white/10 rounded-full -translate-y-16 md:-translate-y-32 translate-x-16 md:translate-x-32"></div>
             <div className="relative z-10">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-row items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-4xl font-bold mb-3 bg-gradient-to-r from-white to-green-100 bg-clip-text text-transparent">
+                  <h2 className="text-lg md:text-4xl font-bold mb-2 md:mb-3 bg-gradient-to-r from-white to-green-100 bg-clip-text text-transparent">
                     مدیریت اخبار و اطلاعیه‌ها
                   </h2>
-                  <p className="text-white/90 mb-6 text-lg">ایجاد، ویرایش و انتشار اخبار مدرسه</p>
-                  <div className="flex items-center space-x-6 text-white/80">
-                    <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-lg rounded-xl px-4 py-2">
-                      <Calendar className="w-4 h-4" />
-                      <span className="text-sm font-medium">{moment().format('jYYYY/jMM/jDD')}</span>
+                  <p className="text-white/90 mb-3 md:mb-6 text-xs md:text-lg">ایجاد، ویرایش و انتشار اخبار مدرسه</p>
+                  <div className="flex flex-col md:flex-row items-start md:items-center gap-2 md:gap-6 text-white/80">
+                    <div className="flex items-center gap-1 md:gap-2 bg-white/20 backdrop-blur-lg rounded-lg md:rounded-xl px-2 md:px-4 py-1 md:py-2">
+                      <Calendar className="w-3 h-3 md:w-4 md:h-4" />
+                      <span className="text-xs md:text-sm font-medium">{moment().format('jYYYY/jMM/jDD')}</span>
                     </div>
                   </div>
                 </div>
-                <div className="w-32 h-32 bg-white/20 backdrop-blur-lg rounded-3xl flex items-center justify-center shadow-2xl">
-                  <NewspaperIcon className="w-16 h-16 text-white" />
+                <div className="w-16 h-16 md:w-32 md:h-32 bg-white/20 backdrop-blur-lg rounded-2xl md:rounded-3xl flex items-center justify-center shadow-2xl">
+                  <NewspaperIcon className="w-8 h-8 md:w-16 md:h-16 text-white" />
                 </div>
               </div>
             </div>
           </div>
 
           {/* Controls */}
-          <div className="max-w-4xl mx-auto px-4 py-6 flex items-center justify-between">
-            <h2 className="text-xl font-bold text-gray-800">لیست اخبار ({news.length})</h2>
+          <div className="max-w-4xl mx-auto px-2 md:px-4 py-4 md:py-6 flex flex-col md:flex-row items-center justify-between gap-2">
+            <h2 className="text-base md:text-xl font-bold text-gray-800">لیست اخبار ({news.length})</h2>
             <div className="flex gap-2">
               <button
                 onClick={fetchNews}
-                className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-xl border border-green-200 hover:bg-green-200 transition"
+                className="flex items-center gap-2 px-3 md:px-4 py-2 bg-green-100 text-green-700 rounded-xl border border-green-200 hover:bg-green-200 transition text-xs md:text-sm"
               >
                 <RefreshCw className="w-4 h-4" />
                 بروزرسانی
               </button>
               <button
                 onClick={() => setShowModal(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition"
+                className="flex items-center gap-2 px-3 md:px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition text-xs md:text-sm"
               >
                 <Plus className="w-4 h-4" />
                 ایجاد خبر جدید
@@ -306,69 +432,107 @@ export default function NewsAdminPage() {
             </div>
           </div>
 
-          {/* News Table */}
-          <div className="max-w-4xl mx-auto px-4 pb-10">
-            <div className="bg-white rounded-2xl shadow-lg border border-green-100 overflow-hidden">
-              {loading ? (
-                <div className="flex justify-center py-12">
-                  <div className="w-12 h-12 border-4 border-green-600 border-t-transparent rounded-full animate-spin"></div>
-                </div>
-              ) : news.length === 0 ? (
-                <div className="text-center py-12">
-                  <NewspaperIcon className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-500">خبری یافت نشد</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-green-50 border-b border-green-100">
-                      <tr>
-                        <th className="px-6 py-4 text-right text-sm font-bold text-green-700">عنوان</th>
-                        <th className="px-6 py-4 text-right text-sm font-bold text-green-700">تاریخ انتشار</th>
-                        <th className="px-6 py-4 text-right text-sm font-bold text-green-700">وضعیت</th>
-                        <th className="px-6 py-4 text-right text-sm font-bold text-green-700">عملیات</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {news.map((item, index) => (
-                        <tr key={item.id} className={`border-b border-green-50 ${index % 2 === 0 ? 'bg-white' : 'bg-green-25'}`}>
-                          <td className="px-6 py-4">
-                            <div className="font-bold text-gray-800">{item.title}</div>
-                            <div className="text-sm text-gray-500 mt-1 line-clamp-2">{item.content.substring(0, 100)}...</div>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-600">
-                            {formatPersianDate(item.publish_date)}
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className={`px-3 py-1 text-xs rounded-full ${item.is_published ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                              {item.is_published ? 'منتشر شده' : 'پیش‌نویس'}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleEdit(item)}
-                                className="p-2 bg-blue-50 text-blue-600 rounded-full shadow hover:bg-blue-100 transition"
-                                title="ویرایش"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteClick(item.id)}
-                                className="p-2 bg-red-50 text-red-600 rounded-full shadow hover:bg-red-100 transition"
-                                title="حذف"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+          <div className="max-w-6xl mx-auto px-2 md:px-4 pb-6 md:pb-10">
+            {loading ? (
+              <div className="flex justify-center py-8 md:py-12">
+                <div className="w-8 h-8 md:w-12 md:h-12 border-4 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            ) : news.length === 0 ? (
+              <div className="text-center py-8 md:py-12 bg-white rounded-2xl shadow-lg border border-green-100">
+                <NewspaperIcon className="w-8 h-8 md:w-12 md:h-12 text-gray-400 mx-auto mb-2" />
+                <p className="text-gray-500 text-xs md:text-base">خبری یافت نشد</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                {news.map((item, index) => (
+                  <div
+                    key={item.id}
+                    className="group bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-green-100 overflow-hidden hover:scale-[1.02]"
+                  >
+                    {/* عکس یا رنگ دیفالت */}
+                    <div className="relative h-32 md:h-48 overflow-hidden">
+                      {item.image_url ? (
+                        <img
+                          src={item.image_url}
+                          alt={item.title}
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-[#399918] to-[#22c55e] flex items-center justify-center">
+                          <div className="text-center text-white">
+                            <NewspaperIcon className="w-8 h-8 md:w-12 md:h-12 mx-auto mb-2 opacity-80" />
+                            <div className="text-xl md:text-3xl font-bold opacity-90">
+                              {item.title?.[0] || "خ"}
                             </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
+                          </div>
+                        </div>
+                      )}
+                      {/* وضعیت انتشار و هدف */}
+                      <div className="absolute top-2 md:top-3 right-2 md:right-3 flex flex-col gap-2">
+                        <span className={`px-2 md:px-3 py-1 text-xs rounded-full font-semibold ${
+                          item.is_published
+                            ? 'bg-green-100 text-green-700 border border-green-200'
+                            : 'bg-gray-100 text-gray-600 border border-gray-200'
+                        }`}>
+                          {item.is_published ? 'منتشر شده' : 'پیش‌نویس'}
+                        </span>
+                        <span className={`px-2 md:px-3 py-1 text-xs rounded-full font-semibold ${
+                          item.target_type === 'public'
+                            ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                            : item.target_type === 'teachers' || item.target_type === 'specific_teacher'
+                            ? 'bg-orange-100 text-orange-700 border border-orange-200'
+                            : 'bg-purple-100 text-purple-700 border border-purple-200'
+                        }`}>
+                          {item.target_type === 'public' && 'عمومی'}
+                          {item.target_type === 'teachers' && 'معلمین'}
+                          {item.target_type === 'students' && 'دانش‌آموزان'}
+                          {item.target_type === 'specific_teacher' && `معلم: ${item.target_user?.first_name} ${item.target_user?.last_name}`}
+                          {item.target_type === 'specific_student' && `دانش‌آموز: ${item.target_user?.first_name} ${item.target_user?.last_name}`}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* محتوای کارت */}
+                    <div className="p-4 md:p-6">
+                      <h3 className="text-base md:text-lg font-bold text-gray-800 mb-2 md:mb-3 line-clamp-2 group-hover:text-green-700 transition-colors">
+                        {item.title}
+                      </h3>
+                      <p className="text-xs md:text-sm text-gray-600 mb-2 md:mb-4 line-clamp-3 leading-relaxed">
+                        {item.content.substring(0, 120)}
+                        {item.content.length > 120 && '...'}
+                      </p>
+                      <div className="flex items-center gap-2 text-xs text-gray-500 mb-2 md:mb-4">
+                        <Calendar className="w-4 h-4" />
+                        <span>{formatPersianDate(item.publish_date)}</span>
+                      </div>
+                      <div className="flex justify-between items-center pt-2 md:pt-4 border-t border-gray-100">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEdit(item)}
+                            className="flex items-center gap-1 px-2 md:px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors text-xs md:text-sm font-medium"
+                            title="ویرایش"
+                          >
+                            <Edit className="w-4 h-4" />
+                            <span>ویرایش</span>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteClick(item.id)}
+                            className="flex items-center gap-1 px-2 md:px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-colors text-xs md:text-sm font-medium"
+                            title="حذف"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            <span>حذف</span>
+                          </button>
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          #{index + 1}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Modal for Create/Edit News */}
@@ -404,6 +568,66 @@ export default function NewsAdminPage() {
                     placeholder="عنوان خبر"
                     required
                   />
+                  <div>
+                    <label className="text-sm font-bold text-gray-700">عکس خبر (اختیاری)</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={async (e) => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+                        const formData = new FormData();
+                        formData.append('file', file);
+                        const res = await fetch('/api/upload', { method: 'POST', body: formData });
+                        const data = await res.json();
+                        if (data.success && data.url) {
+                          setForm(prev => ({ ...prev, image_url: data.url }));
+                        } else {
+                          alert('خطا در آپلود عکس');
+                        }
+                      }}
+                      className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 mt-2"
+                    />
+                    {form.image_url && (
+                      <img src={form.image_url} alt="خبر" className="mt-2 w-32 h-32 object-cover rounded-xl border" />
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-gray-700">هدف خبر</label>
+                    <select
+                      value={form.target_type}
+                      onChange={(e) => {
+                        setForm({ ...form, target_type: e.target.value, target_user_id: null });
+                      }}
+                      className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition"
+                    >
+                      <option value="public">عمومی (همه کاربران)</option>
+                      <option value="teachers">همه معلمین</option>
+                      <option value="students">همه دانش‌آموزان</option>
+                      <option value="specific_teacher">معلم خاص</option>
+                      <option value="specific_student">دانش‌آموز خاص</option>
+                    </select>
+                  </div>
+                  {(form.target_type === 'specific_teacher' || form.target_type === 'specific_student') && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-gray-700">
+                        انتخاب {form.target_type === 'specific_teacher' ? 'معلم' : 'دانش‌آموز'}
+                      </label>
+                      <select
+                        value={form.target_user_id || ''}
+                        onChange={(e) => setForm({ ...form, target_user_id: parseInt(e.target.value) })}
+                        className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition"
+                        required
+                      >
+                        <option value="">انتخاب کنید...</option>
+                        {(form.target_type === 'specific_teacher' ? teachers : students).map(user => (
+                          <option key={user.id} value={user.id}>
+                            {user.name} - {form.target_type === 'specific_teacher' ? user.teacher_code : user.student_number}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   <textarea
                     value={form.content}
                     onChange={(e) => setForm({ ...form, content: e.target.value })}
@@ -420,15 +644,13 @@ export default function NewsAdminPage() {
                         className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition text-right flex items-center justify-between"
                       >
                         <span>
-                          {selectedDate 
+                          {selectedDate
                             ? `${selectedDate.year}/${selectedDate.month.toString().padStart(2, '0')}/${selectedDate.day.toString().padStart(2, '0')}`
                             : 'انتخاب تاریخ'
                           }
                         </span>
                         <Calendar className="w-4 h-4 text-gray-500" />
                       </button>
-                      
-                      {/* Persian Date Picker */}
                       {showDatePicker && (
                         <PersianDatePicker
                           selectedDate={selectedDate}
@@ -478,7 +700,6 @@ export default function NewsAdminPage() {
           {showDeleteModal && (
             <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
               <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-red-100 p-0 overflow-hidden">
-                {/* Header */}
                 <div className="flex justify-between items-center px-6 py-5 bg-gradient-to-r from-red-100 to-red-50 border-b border-red-100">
                   <div className="flex items-center gap-2">
                     <Trash2 className="w-6 h-6 text-red-600" />
@@ -492,7 +713,6 @@ export default function NewsAdminPage() {
                     <X className="w-5 h-5 text-gray-500" />
                   </button>
                 </div>
-                {/* Content */}
                 <div className="px-6 py-6 space-y-4">
                   <p className="text-gray-700">آیا مطمئن هستید می‌خواهید این خبر را حذف کنید؟</p>
                   <p className="text-sm text-red-600">این عمل غیرقابل بازگشت است.</p>
@@ -520,8 +740,6 @@ export default function NewsAdminPage() {
   );
 }
 
-// Persian Date Picker Component
-// Persian Date Picker Component - کامپوننت بهبود یافته
 function PersianDatePicker({ selectedDate, onDateSelect, onClose }) {
   const [currentYear, setCurrentYear] = useState(selectedDate?.year || moment().jYear());
   const [currentMonth, setCurrentMonth] = useState(selectedDate?.month || moment().jMonth() + 1);
@@ -607,12 +825,12 @@ function PersianDatePicker({ selectedDate, onDateSelect, onClose }) {
                 setCurrentYear(currentYear + 1);
                 setCurrentMonth(1);
               } else {
-                setCurrentMonth(currentMonth + 1);
+                setCurrentMonth(currentMonth - 1);
               }
             }}
             className="p-1 hover:bg-gray-100 rounded"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronRight className="w-4 h-4" />
           </button>
           
           <div className="text-center flex items-center space-x-2 rtl:space-x-reverse">
@@ -643,12 +861,12 @@ function PersianDatePicker({ selectedDate, onDateSelect, onClose }) {
                 setCurrentYear(currentYear - 1);
                 setCurrentMonth(12);
               } else {
-                setCurrentMonth(currentMonth - 1);
+                setCurrentMonth(currentMonth + 1);
               }
             }}
             className="p-1 hover:bg-gray-100 rounded"
           >
-            <ChevronRight className="w-4 h-4" />
+            <ChevronLeft className="w-4 h-4" />
           </button>
         </div>
         

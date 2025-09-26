@@ -1,142 +1,89 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/database';
 
-const prisma = new PrismaClient();
-
-export async function GET(request) {
+export async function GET() {
   try {
-    console.log('📋 GET /api/teacher/exams called');
-    
-    const exams = await prisma.exams.findMany({
-      include: {
-        classes: true
-      },
-      orderBy: {
-        created_at: 'desc'
-      }
-    });
-
-    console.log('📋 Found exams:', exams.length);
+    const exams = await prisma.exams.findMany({ orderBy: { created_at: 'desc' } });
     return NextResponse.json(exams);
   } catch (error) {
-    console.error('💥 GET /api/teacher/exams error:', error);
-    return NextResponse.json({ error: 'خطا در دریافت لیست آزمون‌ها', detail: error.message }, { status: 500 });
+    console.error('GET /teacher/exams error:', error);
+    return NextResponse.json({ error: 'خطا در دریافت لیست آزمون‌ها' }, { status: 500 });
   }
 }
 
-export async function POST(request) {
+export async function POST(req) {
   try {
-    console.log('📥 POST /api/teacher/exams called');
-    
-    const data = await request.json();
-    console.log('📥 Received data:', JSON.stringify(data, null, 2));
+    const body = await req.json().catch(() => ({}));
+    const { title, type, class_id, pdf_url, image_url, questions, duration_minutes, total_marks } = body;
 
-    const { title, type, class_id, pdf_url, image_url, questions } = data;
-
-    // بررسی فیلدهای اجباری
-    if (!title) {
-      console.error('❌ Missing title');
+    if (!title || typeof title !== 'string') {
       return NextResponse.json({ error: 'عنوان آزمون الزامی است' }, { status: 400 });
     }
-    
-    if (!type) {
-      console.error('❌ Missing type');
-      return NextResponse.json({ error: 'نوع آزمون الزامی است' }, { status: 400 });
-    }
-    
-    if (!class_id) {
-      console.error('❌ Missing class_id');
-      return NextResponse.json({ error: 'کلاس آزمون الزامی است' }, { status: 400 });
-    }
-
-    // تبدیل class_id به عدد
-    const classIdNumber = parseInt(class_id);
-    if (isNaN(classIdNumber)) {
-      console.error('❌ Invalid class_id:', class_id);
-      return NextResponse.json({ error: 'شناسه کلاس نامعتبر است' }, { status: 400 });
-    }
-
-    console.log('✅ Validation passed, creating exam...');
-
-    let examData = {
-      title,
-      type,
-      class_id: classIdNumber,
-      duration_minutes: 60,
-      total_marks: 100       
-    };
-
-    // اضافه کردن فیلدهای اختیاری بر اساس نوع
-    if (type === 'pdf') {
-      if (!pdf_url) {
-        console.error('❌ Missing pdf_url for PDF exam');
-        return NextResponse.json({ error: 'لینک فایل PDF الزامی است' }, { status: 400 });
-      }
-      examData.pdf_url = pdf_url;
-    } else if (type === 'image') {
-      if (!image_url) {
-        console.error('❌ Missing image_url for image exam');
-        return NextResponse.json({ error: 'لینک تصویر آزمون الزامی است' }, { status: 400 });
-      }
-      examData.image_url = image_url;
-    } else if (type === 'quiz') {
-      if (!questions || !Array.isArray(questions)) {
-        console.error('❌ Missing or invalid questions for quiz exam');
-        return NextResponse.json({ error: 'سوالات آزمون الزامی است' }, { status: 400 });
-      }
-      examData.questions = JSON.stringify(questions);
-    } else {
-      console.error('❌ Invalid exam type:', type);
+    const allowedTypes = ['pdf', 'image', 'quiz'];
+    if (!type || !allowedTypes.includes(type)) {
       return NextResponse.json({ error: 'نوع آزمون نامعتبر است' }, { status: 400 });
     }
 
-    console.log('📝 Creating exam with data:', JSON.stringify(examData, null, 2));
-
-    const exam = await prisma.exams.create({
-      data: examData
-    });
-
-    console.log('✅ Exam created successfully:', exam.id);
-    return NextResponse.json(exam);
-
-  } catch (error) {
-    console.error('💥 POST /api/teacher/exams error:');
-    console.error('💥 Error message:', error.message);
-    console.error('💥 Error code:', error.code);
-    console.error('💥 Error stack:', error.stack);
-    
-    // بررسی نوع خطا
-    if (error.code === 'P2002') {
-      return NextResponse.json({ error: 'آزمون با این مشخصات قبلاً ثبت شده است' }, { status: 400 });
-    } else if (error.code === 'P2003') {
-      return NextResponse.json({ error: 'کلاس انتخاب شده موجود نیست' }, { status: 400 });
-    } else if (error.code?.startsWith('P')) {
-      return NextResponse.json({ error: 'خطای دیتابیس: ' + error.message }, { status: 500 });
-    }
-    
-    return NextResponse.json({ 
-      error: 'خطا در ثبت آزمون', 
-      detail: error.message 
-    }, { status: 500 });
-  }
-}
-
-export async function DELETE(request) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
-
-    if (!id) {
-      return NextResponse.json({ error: 'شناسه آزمون الزامی است' }, { status: 400 });
+    // کلاس (اختیاری، اما اگر آمد باید وجود داشته باشد)
+    let classIdToSave = null;
+    if (class_id !== undefined && class_id !== null && String(class_id).trim() !== '') {
+      const classIdNum = Number(class_id);
+      if (Number.isNaN(classIdNum) || classIdNum <= 0) {
+        return NextResponse.json({ error: 'شناسه کلاس نامعتبر است' }, { status: 400 });
+      }
+      const cls = await prisma.classes.findUnique({ where: { id: classIdNum } });
+      if (!cls) {
+        return NextResponse.json({ error: 'کلاس انتخابی در پایگاه‌داده موجود نیست. ابتدا جدول کلاس‌ها را مقداردهی کنید.' }, { status: 400 });
+      }
+      classIdToSave = classIdNum;
     }
 
-    await prisma.exams.delete({
-      where: { id: parseInt(id) }
+    const pdfUrl = pdf_url ? String(pdf_url).trim() : null;
+    const imageUrl = image_url ? String(image_url).trim() : null;
+    if (type === 'pdf' && !pdfUrl) return NextResponse.json({ error: 'لطفاً فایل PDF را آپلود کنید' }, { status: 400 });
+    if (type === 'image' && !imageUrl) return NextResponse.json({ error: 'لطفاً تصویر آزمون را آپلود کنید' }, { status: 400 });
+
+    let questionsStr = null;
+    let computedTotal = 20;
+    if (type === 'quiz') {
+      if (!Array.isArray(questions) || questions.length === 0) {
+        return NextResponse.json({ error: 'برای آزمون تستی، سوالات الزامی است' }, { status: 400 });
+      }
+      const bad = questions.find(
+        q => !q ||
+          typeof q.question !== 'string' ||
+          !Array.isArray(q.options) || q.options.length < 4 ||
+          q.options.some(o => typeof o !== 'string' || !o.trim()) ||
+          typeof q.answer !== 'number' || q.answer < 0 || q.answer >= q.options.length
+      );
+      if (bad) return NextResponse.json({ error: 'ساختار سوالات تستی نامعتبر است' }, { status: 400 });
+      questionsStr = JSON.stringify(questions);
+      computedTotal = questions.length;
+    }
+
+    const duration = duration_minutes != null ? Number(duration_minutes) : 60;
+    if (Number.isNaN(duration) || duration <= 0) {
+      return NextResponse.json({ error: 'مدت آزمون نامعتبر است' }, { status: 400 });
+    }
+    const totalMarks = total_marks != null ? String(total_marks) : String(computedTotal);
+
+    const created = await prisma.exams.create({
+      data: {
+        title: title.trim(),
+        type,
+        class_id: classIdToSave,
+        pdf_url: type === 'pdf' ? pdfUrl : null,
+        image_url: type === 'image' ? imageUrl : null,
+        questions: type === 'quiz' ? questionsStr : null,
+        is_active: true,
+        duration_minutes: duration,
+        total_marks: totalMarks
+      }
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json(created, { status: 201 });
   } catch (error) {
-    console.error('خطا در حذف آزمون:', error);
-    return NextResponse.json({ error: 'خطا در حذف آزمون' }, { status: 500 });
+    console.error('POST /teacher/exams error:', error);
+    return NextResponse.json({ error: 'ثبت آزمون با خطا مواجه شد' }, { status: 500 });
   }
 }

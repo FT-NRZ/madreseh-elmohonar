@@ -11,10 +11,21 @@ export default function ExamResults({ studentId }) {
   useEffect(() => {
     if (!studentId) return;
     setLoading(true);
-    fetch(`/api/exam-results?student_id=${studentId}`)
+    // تغییر API به مسیر صحیح
+    fetch(`/api/student/${studentId}/exam-results`)
       .then(res => res.json())
       .then(data => {
-        setResults(data.results || []);
+        if (data.success) {
+          setResults(data.results || []);
+        } else {
+          console.error('خطا در دریافت نتایج:', data.error);
+          setResults([]);
+        }
+        setLoading(false);
+      })
+      .catch(error => {
+        console.error('خطا در دریافت نتایج:', error);
+        setResults([]);
         setLoading(false);
       });
   }, [studentId]);
@@ -22,79 +33,172 @@ export default function ExamResults({ studentId }) {
   const handleShowDetail = async (examId) => {
     setOpenDetailId(openDetailId === examId ? null : examId);
     if (openDetailId === examId) return;
+    
     setDetailLoading(true);
     setDetail(null);
-    // فرض: API زیر پاسخ‌های دانش‌آموز را برمی‌گرداند
-    const res = await fetch(`/api/exams/${examId}/student/${studentId}/answers`);
-    const data = await res.json();
-    setDetail(data);
-    setDetailLoading(false);
+    
+    try {
+      const res = await fetch(`/api/teacher/exams/${examId}/answers/${studentId}`);
+      const data = await res.json();
+      setDetail(data);
+    } catch (error) {
+      console.error('خطا در دریافت جزئیات:', error);
+      setDetail(null);
+    } finally {
+      setDetailLoading(false);
+    }
   };
 
-  if (loading) return <div>در حال دریافت نتایج...</div>;
+  if (loading) return (
+    <div className="bg-white rounded-xl shadow p-4 mt-4">
+      <div className="text-center text-green-600">در حال دریافت نتایج...</div>
+    </div>
+  );
 
   return (
     <div className="bg-white rounded-xl shadow p-4 mt-4">
       <h2 className="font-bold mb-3 text-green-700">نتایج آزمون‌های من</h2>
-      {results.length === 0 && <div>هنوز نتیجه‌ای ثبت نشده است.</div>}
-      <ul>
+      
+      {results.length === 0 && (
+        <div className="text-center text-gray-500 py-4">
+          هنوز در هیچ آزمونی شرکت نکرده‌اید یا نتیجه‌ای ثبت نشده است.
+        </div>
+      )}
+      
+      <ul className="space-y-3">
         {results.map(res => (
-          <li key={res.id} className="border-b py-2 flex flex-col gap-2">
-            <div className="flex justify-between items-center">
-              <span>{res.exams?.title || 'آزمون'}</span>
-              <span className="font-bold text-green-700">{res.marks_obtained} / {res.exams?.total_marks}</span>
-              <span className="text-xs text-gray-500">{res.status === 'completed' ? 'پایان یافته' : 'در انتظار تصحیح'}</span>
+          <li key={res.id} className="border border-gray-200 rounded-lg p-4">
+            <div className="flex justify-between items-center mb-2">
+              <div>
+                <h3 className="font-bold text-gray-800">{res.exam?.title || 'آزمون'}</h3>
+                <div className="text-xs text-gray-500 mt-1">
+                  تاریخ: {new Date(res.completed_at || res.created_at).toLocaleDateString('fa-IR')}
+                  <span className="mx-2">•</span>
+                  نوع: {res.exam?.type === 'quiz' ? 'تستی' : 
+                        res.exam?.type === 'pdf' ? 'PDF' : 
+                        res.exam?.type === 'image' ? 'تصویری' : 'نامشخص'}
+                </div>
+              </div>
+              
+              <div className="text-left">
+                {/* نمایش نمره عددی برای تستی */}
+                {res.marks_obtained !== null && (
+                  <div className="font-bold text-green-700 text-lg">
+                    {res.marks_obtained} / {res.exam?.total_marks || '---'}
+                  </div>
+                )}
+                
+                {/* نمایش وضعیت */}
+                <div className={`text-xs px-2 py-1 rounded-full ${
+                  res.grade_desc ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                }`}>
+                  {res.grade_desc ? 'نتیجه اعلام شد' : 'در انتظار بررسی'}
+                </div>
+              </div>
+            </div>
+
+            {/* نمایش نتیجه نهایی اگر موجود باشد */}
+            {res.grade_desc && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 mt-3">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <span className="text-sm text-gray-600">نمره توصیفی:</span>
+                    <div className="font-bold text-green-800 text-lg">{res.grade_desc}</div>
+                  </div>
+                </div>
+                
+                {/* بازخورد معلم */}
+                {res.teacher_feedback && (
+                  <div className="mt-2 pt-2 border-t border-green-200">
+                    <span className="text-sm text-gray-600 block mb-1">نظر معلم:</span>
+                    <p className="text-gray-800 bg-white rounded p-2 text-sm">
+                      {res.teacher_feedback}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* دکمه مشاهده جزئیات */}
+            <div className="mt-3 pt-3 border-t border-gray-200">
               <button
-                className="text-blue-600 text-xs underline"
-                onClick={() => handleShowDetail(res.exam_id)}
+                className="text-blue-600 text-sm underline hover:text-blue-800"
+                onClick={() => handleShowDetail(res.exam?.id)}
               >
-                {openDetailId === res.exam_id ? 'بستن جزئیات' : 'مشاهده جزئیات'}
+                {openDetailId === res.exam?.id ? 'بستن جزئیات' : 'مشاهده جزئیات پاسخ‌ها'}
               </button>
             </div>
-            {openDetailId === res.exam_id && (
-              <div className="bg-gray-50 rounded p-3 mt-2">
-                {detailLoading && <div className="text-xs text-gray-400">در حال دریافت جزئیات...</div>}
-                {detail && (
+
+            {/* نمایش جزئیات */}
+            {openDetailId === res.exam?.id && (
+              <div className="bg-gray-50 rounded-lg p-3 mt-3">
+                {detailLoading && (
+                  <div className="text-center text-gray-500">در حال دریافت جزئیات...</div>
+                )}
+                
+                {detail && !detailLoading && (
                   <>
+                    {/* پاسخ‌های تستی */}
                     {detail.quizResult && detail.quizResult.student_answers?.length > 0 ? (
-                      <div>
-                        <div className="font-bold mb-2 text-green-700">پاسخ‌های تستی:</div>
-                        <ul className="text-sm">
+                      <div className="mb-4">
+                        <div className="font-bold mb-2 text-green-700">پاسخ‌های تستی شما:</div>
+                        <ul className="space-y-2">
                           {detail.quizResult.student_answers.map((ans, idx) => (
-                            <li key={ans.id || idx} className="mb-2">
-                              <span>سوال: {ans.exam_questions?.question_text || ans.question_id}</span>
-                              <br />
-                              <span>
-                                پاسخ شما: <b className={ans.is_correct ? "text-green-600" : "text-red-600"}>
-                                  {ans.question_options?.option_text || ans.selected_option_id}
-                                </b>
-                                {ans.is_correct !== undefined && (
-                                  <span className="ml-2">
-                                    {ans.is_correct ? '✅ صحیح' : '❌ غلط'}
-                                  </span>
-                                )}
-                              </span>
+                            <li key={ans.id || idx} className="text-sm bg-white rounded p-2">
+                              <div className="font-medium mb-1">
+                                سوال {idx + 1}: {ans.exam_questions?.question_text || `شناسه سوال: ${ans.question_id}`}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span>پاسخ شما:</span>
+                                <span className={`font-bold px-2 py-1 rounded text-xs ${
+                                  ans.is_correct ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                                }`}>
+                                  {ans.question_options?.option_text || `گزینه ${ans.selected_option_id}`}
+                                </span>
+                                <span className="text-xs">
+                                  {ans.is_correct ? '✅ صحیح' : '❌ غلط'}
+                                </span>
+                              </div>
                             </li>
                           ))}
                         </ul>
                       </div>
                     ) : (
-                      <div className="text-xs text-gray-500">پاسخ تستی ثبت نشده است.</div>
+                      <div className="text-sm text-gray-500 mb-4">پاسخ تستی ثبت نشده است.</div>
                     )}
+
+                    {/* پاسخ‌های فایل */}
                     {detail.fileAnswers && detail.fileAnswers.length > 0 && (
-                      <div className="mt-3">
-                        <div className="font-bold mb-2 text-green-700">پاسخ‌های فایل:</div>
-                        <ul className="text-sm">
+                      <div>
+                        <div className="font-bold mb-2 text-green-700">فایل‌های ارسالی شما:</div>
+                        <ul className="space-y-2">
                           {detail.fileAnswers.map((fa, idx) => (
-                            <li key={fa.id || idx} className="mb-2">
-                              <span>فایل: <a href={fa.file_url} className="text-blue-600 underline" target="_blank" rel="noopener noreferrer">دانلود</a></span>
-                              {fa.teacher_comment && (
-                                <div className="text-xs text-gray-600 mt-1">نظر معلم: {fa.teacher_comment}</div>
+                            <li key={fa.id || idx} className="text-sm bg-white rounded p-2">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span>فایل ارسالی:</span>
+                                <a 
+                                  href={fa.file_url} 
+                                  className="text-blue-600 underline hover:text-blue-800" 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                >
+                                  دانلود فایل
+                                </a>
+                              </div>
+                              {fa.teacher_feedback && (
+                                <div className="mt-1 p-2 bg-yellow-50 rounded">
+                                  <span className="font-medium text-xs">نظر معلم:</span>
+                                  <p className="text-xs text-gray-700 mt-1">{fa.teacher_feedback}</p>
+                                </div>
                               )}
                             </li>
                           ))}
                         </ul>
                       </div>
+                    )}
+
+                    {!detail.quizResult?.student_answers?.length && !detail.fileAnswers?.length && (
+                      <div className="text-center text-gray-500">هیچ جزئیاتی موجود نیست.</div>
                     )}
                   </>
                 )}

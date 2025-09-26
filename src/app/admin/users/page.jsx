@@ -2,10 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   Users, UserPlus, Search, Edit, Trash2, Eye, EyeOff, X, AlertCircle,
-  RefreshCw, ArrowLeft, GraduationCap, Calendar, BookOpen, BarChart3,
-  Settings, LogOut, Image, LayoutGrid, NewspaperIcon, Target, // ← این خط را اضافه کن
-  GalleryHorizontalEnd,
-  CalendarCheck
+  RefreshCw, GraduationCap, Calendar, Image, LayoutGrid, Target,
+  GalleryHorizontalEnd, CalendarCheck, Settings, LogOut,
+  Newspaper as NewspaperIcon
 } from 'lucide-react';
 
 export default function AdminUsersPage() {
@@ -18,8 +17,9 @@ export default function AdminUsersPage() {
   const [showEditUser, setShowEditUser] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState('');
 
-  // سایدبار مشابه داشبورد مدیریت
   const sidebarMenu = [
     { label: 'داشبورد', icon: LayoutGrid, href: '/admin/dashboard' },
     { label: 'مدیریت کاربران', icon: Users, href: '/admin/users', active: true },
@@ -28,7 +28,7 @@ export default function AdminUsersPage() {
     { label: 'برنامه غذایی', icon: GalleryHorizontalEnd, href: '/admin/food-schedule' },
     { label: 'حضور و غیاب', icon: CalendarCheck, href: '/admin/attendances' },
     { label: 'مدیریت گالری', icon: Image, href: '/admin/gallery' },
-    { label: 'گزارش‌ها', icon: BarChart3, href: '/admin/reports' },
+    { label: 'گزارش‌ها', icon: Users, href: '/admin/reports' },
     { label: 'تنظیمات', icon: Settings, href: '/admin/settings' },
     { label: 'مدیریت اخبار', icon: NewspaperIcon, href: '/admin/news' }
   ];
@@ -47,36 +47,55 @@ export default function AdminUsersPage() {
         return;
       }
       setUser(parsedUser);
+
+      fetch('/api/admin/stats', {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store'
+      }).catch(() => {});
+
       fetchUsers();
     } catch {
       window.location.href = '/login';
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const fetchUsers = async () => {
-    setLoading(true);
-    try {
-      const token = localStorage?.getItem?.('token');
-      const response = await fetch('/api/admin/users', {
-        method: 'GET',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setUsers(data.users || []);
-      } else {
-        setUsers([]);
-      }
-    } catch {
+const fetchUsers = async () => {
+  setLoading(true);
+  try {
+    const token = localStorage?.getItem?.('token');
+    // تغییر مسیر API به نسخه صحیح
+    const response = await fetch('/api/admin/users', {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${token}` },
+      cache: 'no-store'
+    });
+    if (response.ok) {
+      const data = await response.json();
+      setUsers(Array.isArray(data.users) ? data.users : []);
+    } else if (response.status === 403) {
       setUsers([]);
-    } finally {
-      setLoading(false);
+      setMessage('دسترسی مجاز نیست (403). دوباره وارد شوید.');
+      setMessageType('error');
+    } else {
+      setUsers([]);
     }
-  };
+  } catch {
+    setUsers([]);
+  } finally {
+    setLoading(false);
+    setTimeout(() => setMessage(''), 3000);
+  }
+};
 
   const filteredUsers = users.filter(u => {
-    const search = searchTerm.trim();
-    const matchesSearch = u.firstName?.includes(search) || u.lastName?.includes(search) || u.nationalCode?.includes(search) || u.phone?.includes(search);
+    const s = searchTerm.trim();
+    const matchesSearch =
+      (u.firstName || '').includes(s) ||
+      (u.lastName || '').includes(s) ||
+      (u.nationalCode || '').includes(s) ||
+      (u.phone || '').includes(s);
     const matchesRole = filterRole === 'all' || u.role === filterRole;
     return matchesSearch && matchesRole;
   });
@@ -84,28 +103,43 @@ export default function AdminUsersPage() {
   const handleDeleteUser = async (userId) => {
     try {
       const token = localStorage?.getItem?.('token');
-      await fetch(`/api/admin/users/${userId}`, {
+      const response = await fetch(`/api/admin/users/${userId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      setUsers(prev => prev.filter(u => u.id !== userId));
-    } catch {}
+      const data = await response.json();
+      if (response.ok && data.success) {
+        setMessage(data.message || 'حذف شد');
+        setMessageType('success');
+        setUsers(prev => prev.filter(u => u.id !== userId));
+      } else {
+        setMessage(data.message || 'خطا در حذف کاربر');
+        setMessageType('error');
+      }
+    } catch {
+      setMessage('خطا در ارتباط با سرور');
+      setMessageType('error');
+    }
     setShowDeleteModal(false);
     setSelectedUser(null);
+    setTimeout(() => setMessage(''), 3000);
   };
 
   const toggleUserStatus = async (userId) => {
     try {
       const token = localStorage?.getItem?.('token');
-      await fetch(`/api/admin/users/${userId}/toggle-status`, {
+      const res = await fetch(`/api/admin/users/${userId}/toggle-status`, {
         method: 'PATCH',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` },
+        cache: 'no-store'
       });
-      setUsers(prev =>
-        prev.map(u =>
-          u.id === userId ? { ...u, isActive: !u.isActive } : u
-        )
-      );
+      if (res.ok) {
+        setUsers(prev =>
+          prev.map(u =>
+            u.id === userId ? { ...u, isActive: !u.isActive } : u
+          )
+        );
+      }
     } catch {}
   };
 
@@ -129,7 +163,7 @@ export default function AdminUsersPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-white">
       <div className="flex">
-        {/* Sidebar - ست شده با داشبورد مدیریت */}
+        {/* Sidebar */}
         <aside className="right-0 top-0 w-72 bg-white shadow-lg border-l border-green-100">
           <div className="p-6 bg-gradient-to-r from-green-200 via-green-100 to-green-50 text-green-800 border-b border-green-100">
             <div className="flex items-center gap-3 mb-6">
@@ -185,8 +219,15 @@ export default function AdminUsersPage() {
           </nav>
         </aside>
 
-        {/* Main Content */}
+        {/* Main */}
         <main className="flex-1 p-6 space-y-8 bg-gradient-to-br from-green-50 to-white">
+          <div className="max-w-4xl mx-auto px-4">
+            {message && (
+              <div className={`mb-4 rounded-xl p-3 text-sm ${messageType === 'error' ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
+                {message}
+              </div>
+            )}
+          </div>
 
           {/* Controls */}
           <div className="max-w-4xl mx-auto px-4 py-6 flex flex-col md:flex-row gap-4 items-center">
@@ -281,7 +322,6 @@ export default function AdminUsersPage() {
   );
 }
 
-// User Card Component
 function UserCard({ user, onEdit, onDelete, onToggleStatus }) {
   const roleLabel = user.role === 'admin' ? 'مدیر' : user.role === 'teacher' ? 'معلم' : 'دانش‌آموز';
   const roleColor = user.role === 'admin' ? 'bg-gradient-to-br from-purple-400 to-purple-600' : user.role === 'teacher' ? 'bg-gradient-to-br from-blue-400 to-blue-600' : 'bg-gradient-to-br from-green-400 to-green-600';
@@ -290,7 +330,7 @@ function UserCard({ user, onEdit, onDelete, onToggleStatus }) {
     <div className="bg-white rounded-2xl shadow-lg border border-green-100 p-8 w-full flex flex-col gap-4 hover:shadow-2xl hover:-translate-y-1 transition-all duration-200">
       <div className="flex items-center gap-6">
         <div className={`w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-2xl shadow ${roleColor}`}>
-          {user.firstName?.[0]}{user.lastName?.[0]}
+          {(user.firstName || '')[0] || '?'}{(user.lastName || '')[0] || ''}
         </div>
         <div className="flex-1">
           <div className="font-bold text-green-800 text-xl mb-2">{user.firstName} {user.lastName}</div>
@@ -300,12 +340,29 @@ function UserCard({ user, onEdit, onDelete, onToggleStatus }) {
           </div>
           <div className="flex items-center gap-2 text-sm text-green-700 mb-1">
             <PhoneIcon className="w-4 h-4" />
-            <span>موبایل: {user.phone}</span>
+            <span>موبایل: {user.phone || '-'}</span>
           </div>
-          {user.role === 'student' && user.grade && (
-            <div className="flex items-center gap-2 text-sm text-green-700 mt-1">
-              <GraduationCap className="w-4 h-4" />
-              <span>پایه: {user.grade}</span>
+          {/* اطلاعات تکمیلی برای معلم */}
+          {user.role === 'teacher' && (
+            <div className="mt-2 space-y-1">
+              <div className="text-xs text-gray-600">کد معلم: {user.teacherCode}</div>
+              <div className="text-xs text-gray-600">
+                نوع: {user.teachingType === 'grade' ? 'معلم پایه' : 'معلم کارگاه'}
+              </div>
+              {user.workshopName && (
+                <div className="text-xs text-gray-600">کارگاه: {user.workshopName}</div>
+              )}
+              {user.subject && (
+                <div className="text-xs text-gray-600">درس: {user.subject}</div>
+              )}
+            </div>
+          )}
+          {/* اطلاعات تکمیلی برای دانش‌آموز */}
+          {user.role === 'student' && (
+            <div className="mt-2 space-y-1">
+              <div className="text-xs text-gray-600">شماره دانش‌آموزی: {user.studentNumber}</div>
+              <div className="text-xs text-gray-600">کلاس: {user.className}</div>
+              <div className="text-xs text-gray-600">پایه: {user.gradeName}</div>
             </div>
           )}
         </div>
@@ -319,7 +376,7 @@ function UserCard({ user, onEdit, onDelete, onToggleStatus }) {
           {user.isActive ? 'فعال' : 'غیرفعال'}
         </button>
       </div>
-      <div className="flex gap-2 justify-end pt-2 border-t border-green-100">
+      <div className="flex gap-2 justify-end pt-2 border-top border-green-100">
         <button
           onClick={onEdit}
           className="p-2 bg-blue-50 text-blue-600 rounded-full shadow hover:bg-blue-100 transition"
@@ -348,27 +405,69 @@ function PhoneIcon(props) {
   );
 }
 
-// Edit User Modal
 function EditUserModal({ user, onClose, onSuccess }) {
   const [formData, setFormData] = useState({
     firstName: user.firstName || '',
     lastName: user.lastName || '',
     nationalCode: user.nationalCode || '',
     phone: user.phone || '',
+    email: user.email || '',
     role: user.role || 'student',
-    grade: user.grade || '',
-    password: ''
+    password: '',
+    // فیلدهای جدید معلم
+    teachingType: user.teachingType || '',
+    gradeId: user.gradeId || '',
+    workshopId: user.workshopId || '',
+    subject: user.subject || '',
+    // فیلدهای دانش‌آموز
+    classId: user.classId || ''
   });
+  
+  const [classes, setClasses] = useState([]);
+  const [grades, setGrades] = useState([]);        
+  const [workshops, setWorkshops] = useState([]);  
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const gradeToClassId = {
-    'اول ابتدایی': '1',
-    'دوم ابتدایی': '2',
-    'سوم ابتدایی': '3',
-    'چهارم ابتدایی': '4'
-  };
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const token = localStorage?.getItem?.('token');
+        
+        // دریافت کلاس‌ها
+        const classesRes = await fetch('/api/admin/classes', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (classesRes.ok) {
+          const classesData = await classesRes.json();
+          setClasses(Array.isArray(classesData.classes) ? classesData.classes : []);
+        }
+
+        // دریافت پایه‌ها
+        const gradesRes = await fetch('/api/grades', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (gradesRes.ok) {
+          const gradesData = await gradesRes.json();
+          setGrades(Array.isArray(gradesData.grades) ? gradesData.grades : []);
+        }
+
+        // دریافت کارگاه‌ها  
+        const workshopsRes = await fetch('/api/workshops', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (workshopsRes.ok) {
+          const workshopsData = await workshopsRes.json();
+          setWorkshops(Array.isArray(workshopsData.workshops) ? workshopsData.workshops : []);
+        }
+
+      } catch (error) {
+        console.error('خطا در دریافت داده‌ها:', error);
+      }
+    }
+    fetchData();
+  }, []);
 
   const generatePassword = () => {
     const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -377,23 +476,76 @@ function EditUserModal({ user, onClose, onSuccess }) {
     setFormData(prev => ({ ...prev, password }));
   };
 
+  const handleRoleChange = (newRole) => {
+    setFormData(prev => ({
+      ...prev,
+      role: newRole,
+      // ریست کردن فیلدهای مربوط به هر نقش
+      classId: '',
+      teachingType: '',
+      gradeId: '',
+      workshopId: '',
+      subject: ''
+    }));
+  };
+
+  const handleTeachingTypeChange = (type) => {
+    setFormData(prev => ({
+      ...prev,
+      teachingType: type,
+      gradeId: '',
+      workshopId: ''
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
-    let submitData = { ...formData };
-    if (formData.role === 'student') {
-      submitData.classId = gradeToClassId[formData.grade] || '';
+
+    // اعتبارسنجی برای معلم
+    if (formData.role === 'teacher') {
+      if (!formData.teachingType) {
+        setError('انتخاب نوع تدریس برای معلم الزامی است');
+        setIsLoading(false);
+        return;
+      }
+      if (formData.teachingType === 'grade' && !formData.gradeId) {
+        setError('انتخاب پایه برای معلم پایه‌ای الزامی است');
+        setIsLoading(false);
+        return;
+      }
+      if (formData.teachingType === 'workshop' && !formData.workshopId) {
+        setError('انتخاب کارگاه برای معلم کارگاه الزامی است');
+        setIsLoading(false);
+        return;
+      }
     }
+
     try {
       const token = localStorage?.getItem?.('token');
       const response = await fetch(`/api/admin/users/${user.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify(submitData)
+        body: JSON.stringify({
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          nationalCode: formData.nationalCode,
+          phone: formData.phone || null,
+          email: formData.email || null,
+          role: formData.role,
+          password: formData.password || undefined,
+          // برای دانش‌آموز
+          classId: formData.role === 'student' && formData.classId ? Number(formData.classId) : undefined,
+          // برای معلم
+          teachingType: formData.role === 'teacher' ? formData.teachingType : undefined,
+          gradeId: formData.role === 'teacher' && formData.teachingType === 'grade' ? Number(formData.gradeId) : undefined,
+          workshopId: formData.role === 'teacher' && formData.teachingType === 'workshop' ? Number(formData.workshopId) : undefined,
+          subject: formData.role === 'teacher' ? formData.subject : undefined
+        })
       });
       const data = await response.json();
-      if (data?.success || response.ok) {
+      if (response.ok && (data?.success ?? true)) {
         onSuccess();
       } else {
         setError(data?.message || 'خطا در ویرایش کاربر');
@@ -407,23 +559,19 @@ function EditUserModal({ user, onClose, onSuccess }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-green-100 p-0 overflow-hidden">
-        {/* Header */}
+      <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-green-100 p-0 overflow-hidden max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center px-6 py-5 bg-gradient-to-r from-green-100 to-green-50 border-b border-green-100">
           <div className="flex items-center gap-2">
             <Edit className="w-6 h-6 text-green-600" />
             <h2 className="text-lg font-bold text-green-700">ویرایش کاربر</h2>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-full bg-green-50 hover:bg-green-200 transition"
-            title="بستن"
-          >
+          <button onClick={onClose} className="p-2 rounded-full bg-green-50 hover:bg-green-200 transition" title="بستن">
             <X className="w-5 h-5 text-gray-500" />
           </button>
         </div>
-        {/* Form */}
+
         <form onSubmit={handleSubmit} className="space-y-4 px-6 py-6">
+          {/* اطلاعات پایه */}
           <div className="grid grid-cols-2 gap-3">
             <input
               type="text"
@@ -442,6 +590,7 @@ function EditUserModal({ user, onClose, onSuccess }) {
               required
             />
           </div>
+
           <input
             type="text"
             value={formData.nationalCode}
@@ -450,6 +599,7 @@ function EditUserModal({ user, onClose, onSuccess }) {
             placeholder="کد ملی"
             required
           />
+
           <input
             type="tel"
             value={formData.phone}
@@ -457,29 +607,133 @@ function EditUserModal({ user, onClose, onSuccess }) {
             className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition"
             placeholder="شماره موبایل"
           />
+
+          <input
+            type="email"
+            value={formData.email}
+            onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))}
+            className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition"
+            placeholder="ایمیل (اختیاری)"
+          />
+
+          {/* انتخاب نقش */}
           <select
             value={formData.role}
-            onChange={e => setFormData(prev => ({ ...prev, role: e.target.value }))}
+            onChange={e => handleRoleChange(e.target.value)}
             className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition"
           >
             <option value="student">دانش‌آموز</option>
             <option value="teacher">معلم</option>
             <option value="admin">مدیر</option>
           </select>
+
+          {/* فیلدهای مخصوص دانش‌آموز */}
           {formData.role === 'student' && (
-            <select
-              value={formData.grade || ''}
-              onChange={e => setFormData(prev => ({ ...prev, grade: e.target.value }))}
-              className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition"
-              required
-            >
-              <option value="">انتخاب پایه</option>
-              <option value="اول ابتدایی">اول ابتدایی</option>
-              <option value="دوم ابتدایی">دوم ابتدایی</option>
-              <option value="سوم ابتدایی">سوم ابتدایی</option>
-              <option value="چهارم ابتدایی">چهارم ابتدایی</option>
-            </select>
+            <div>
+              <select
+                value={formData.classId}
+                onChange={e => setFormData(prev => ({ ...prev, classId: e.target.value }))}
+                className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition"
+              >
+                <option value="">انتخاب کلاس (اختیاری)</option>
+                {classes.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.class_name} {c.class_number ? `- شماره ${c.class_number}` : ''} {c.academic_year ? `(${c.academic_year})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
           )}
+
+          {/* فیلدهای مخصوص معلم */}
+          {formData.role === 'teacher' && (
+            <div className="space-y-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
+              <h3 className="font-semibold text-blue-800">اطلاعات معلم</h3>
+              
+              {/* نوع تدریس */}
+              <div>
+                <label className="block text-sm font-bold mb-2 text-gray-700">نوع تدریس *</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleTeachingTypeChange('grade')}
+                    className={`p-3 border-2 rounded-lg text-center transition ${
+                      formData.teachingType === 'grade'
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="text-lg mb-1">📚</div>
+                    <div className="font-semibold text-sm">معلم پایه</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleTeachingTypeChange('workshop')}
+                    className={`p-3 border-2 rounded-lg text-center transition ${
+                      formData.teachingType === 'workshop'
+                        ? 'border-green-500 bg-green-50 text-green-700'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="text-lg mb-1">🎪</div>
+                    <div className="font-semibold text-sm">معلم کارگاه</div>
+                  </button>
+                </div>
+              </div>
+
+              {/* انتخاب پایه برای معلم پایه‌ای */}
+              {formData.teachingType === 'grade' && (
+                <div>
+                  <label className="block text-sm font-bold mb-2 text-gray-700">انتخاب پایه تحصیلی *</label>
+                  <select
+                    value={formData.gradeId}
+                    onChange={e => setFormData(prev => ({ ...prev, gradeId: e.target.value }))}
+                    className="w-full px-3 py-2 border border-blue-100 rounded-xl bg-blue-50 focus:ring-2 focus:ring-blue-400 outline-none transition"
+                    required
+                  >
+                    <option value="">انتخاب پایه...</option>
+                    {grades.map(grade => (
+                      <option key={grade.id} value={grade.id}>
+                        📚 {grade.grade_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* انتخاب کارگاه برای معلم کارگاه */}
+              {formData.teachingType === 'workshop' && (
+                <div>
+                  <label className="block text-sm font-bold mb-2 text-gray-700">انتخاب کارگاه *</label>
+                  <select
+                    value={formData.workshopId}
+                    onChange={e => setFormData(prev => ({ ...prev, workshopId: e.target.value }))}
+                    className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition"
+                    required
+                  >
+                    <option value="">انتخاب کارگاه...</option>
+                    {workshops.map(workshop => (
+                      <option key={workshop.id} value={workshop.id}>
+                        {workshop.icon || '🎪'} {workshop.workshop_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* موضوع تدریس */}
+              <input 
+                type="text" 
+                value={formData.subject} 
+                onChange={e => setFormData(prev => ({ ...prev, subject: e.target.value }))} 
+                className="w-full px-3 py-2 border border-blue-100 rounded-xl bg-blue-50 focus:ring-2 focus:ring-blue-400 outline-none transition" 
+                placeholder="موضوع تدریس (اختیاری)" 
+              />
+            </div>
+          )}
+
+          {/* رمز عبور */}
           <div className="relative">
             <input
               type={showPassword ? 'text' : 'password'}
@@ -488,36 +742,21 @@ function EditUserModal({ user, onClose, onSuccess }) {
               className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition"
               placeholder="رمز جدید (اختیاری)"
             />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute left-2 top-2 text-gray-400"
-              title={showPassword ? "مخفی کردن" : "نمایش رمز"}
-            >
+            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute left-2 top-2 text-gray-400" title={showPassword ? 'مخفی کردن' : 'نمایش رمز'}>
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
-            <button
-              type="button"
-              onClick={generatePassword}
-              className="absolute left-10 top-2 text-xs bg-green-100 px-2 py-1 rounded-xl shadow hover:bg-green-200 transition"
-              title="تولید رمز"
-            >
+            <button type="button" onClick={generatePassword} className="absolute left-10 top-2 text-xs bg-green-100 px-2 py-1 rounded-xl shadow hover:bg-green-200 transition">
               تولید
             </button>
           </div>
-          {error && <div className="text-sm text-red-600">{error}</div>}
+
+          {error && <div className="bg-red-50 text-red-700 p-3 rounded-lg border border-red-200">{error}</div>}
+
           <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-100 rounded-xl text-gray-700 shadow hover:bg-gray-200 transition"
-            >
+            <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-100 rounded-xl text-gray-700 shadow hover:bg-gray-200 transition">
               انصراف
             </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 rounded-xl text-white shadow hover:scale-105 transition"
-            >
+            <button type="submit" className="px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 rounded-xl text-white shadow hover:scale-105 transition" disabled={isLoading}>
               {isLoading ? 'در حال ذخیره...' : 'ذخیره'}
             </button>
           </div>
@@ -527,37 +766,61 @@ function EditUserModal({ user, onClose, onSuccess }) {
   );
 }
 
-// Create User Modal
 function CreateUserModal({ onClose, onSuccess }) {
   const [formData, setFormData] = useState({
-    firstName: '', lastName: '', nationalCode: '', phone: '', role: 'student', grade: '', password: ''
+    firstName: '', lastName: '', nationalCode: '', phone: '', email: '', 
+    role: 'student', classId: '', password: '',
+    // فیلدهای جدید معلم
+    teachingType: '', gradeId: '', workshopId: '', subject: ''
   });
+  
   const [classes, setClasses] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [grades, setGrades] = useState([]);        
+  const [workshops, setWorkshops] = useState([]);  
   const [classesLoading, setClassesLoading] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // بارگذاری لیست کلاس‌ها
   useEffect(() => {
-    async function fetchClasses() {
+    async function fetchData() {
       try {
         const token = localStorage?.getItem?.('token');
-        const response = await fetch('/api/admin/classes', {
+        
+        // دریافت کلاس‌ها
+        const classesRes = await fetch('/api/admin/classes', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (response.ok) {
-          const data = await response.json();
-          setClasses(data.classes || []);
+        if (classesRes.ok) {
+          const classesData = await classesRes.json();
+          setClasses(Array.isArray(classesData.classes) ? classesData.classes : []);
         }
+
+        // دریافت پایه‌ها
+        const gradesRes = await fetch('/api/grades', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (gradesRes.ok) {
+          const gradesData = await gradesRes.json();
+          setGrades(Array.isArray(gradesData.grades) ? gradesData.grades : []);
+        }
+
+        // دریافت کارگاه‌ها  
+        const workshopsRes = await fetch('/api/workshops', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (workshopsRes.ok) {
+          const workshopsData = await workshopsRes.json();
+          setWorkshops(Array.isArray(workshopsData.workshops) ? workshopsData.workshops : []);
+        }
+
       } catch (error) {
-        console.error("خطا در بارگذاری کلاس‌ها:", error);
+        console.error('خطا در دریافت داده‌ها:', error);
       } finally {
         setClassesLoading(false);
       }
     }
-    fetchClasses();
+    fetchData();
   }, []);
 
   const generatePassword = () => {
@@ -567,27 +830,82 @@ function CreateUserModal({ onClose, onSuccess }) {
     setFormData(prev => ({ ...prev, password }));
   };
 
+  const handleRoleChange = (newRole) => {
+    setFormData(prev => ({
+      ...prev,
+      role: newRole,
+      // ریست کردن فیلدهای مربوط به هر نقش
+      classId: '',
+      teachingType: '',
+      gradeId: '',
+      workshopId: '',
+      subject: ''
+    }));
+  };
+
+  const handleTeachingTypeChange = (type) => {
+    setFormData(prev => ({
+      ...prev,
+      teachingType: type,
+      gradeId: '',
+      workshopId: ''
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
-    
-    // بررسی کلاس برای دانش‌آموز
-    if (formData.role === 'student' && !formData.classId && !formData.grade) {
-      setError('برای دانش‌آموز باید کلاس یا پایه انتخاب شود');
+
+    // اعتبارسنجی
+    if (formData.role === 'student' && !formData.classId) {
+      setError('انتخاب کلاس برای دانش‌آموز الزامی است');
       setIsLoading(false);
       return;
     }
-    
+
+    if (formData.role === 'teacher') {
+      if (!formData.teachingType) {
+        setError('انتخاب نوع تدریس برای معلم الزامی است');
+        setIsLoading(false);
+        return;
+      }
+      if (formData.teachingType === 'grade' && !formData.gradeId) {
+        setError('انتخاب پایه برای معلم پایه‌ای الزامی است');
+        setIsLoading(false);
+        return;
+      }
+      if (formData.teachingType === 'workshop' && !formData.workshopId) {
+        setError('انتخاب کارگاه برای معلم کارگاه الزامی است');
+        setIsLoading(false);
+        return;
+      }
+    }
+
     try {
       const token = localStorage?.getItem?.('token');
       const response = await fetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          nationalCode: formData.nationalCode,
+          phone: formData.phone || null,
+          email: formData.email || null,
+          role: formData.role,
+          password: formData.password,
+          // برای دانش‌آموز
+          classId: formData.role === 'student' ? Number(formData.classId) : undefined,
+          // برای معلم
+          teachingType: formData.role === 'teacher' ? formData.teachingType : undefined,
+          gradeId: formData.role === 'teacher' && formData.teachingType === 'grade' ? Number(formData.gradeId) : undefined,
+          workshopId: formData.role === 'teacher' && formData.teachingType === 'workshop' ? Number(formData.workshopId) : undefined,
+          subject: formData.role === 'teacher' ? formData.subject : undefined
+        })
       });
       const data = await response.json();
-      if (data?.success) {
+      if (response.ok && data?.success) {
         onSuccess();
       } else {
         setError(data?.message || 'خطا در ایجاد کاربر');
@@ -601,73 +919,224 @@ function CreateUserModal({ onClose, onSuccess }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-green-100 p-0 overflow-hidden">
-        {/* Header */}
+      <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-green-100 p-0 overflow-hidden max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center px-6 py-5 bg-gradient-to-r from-green-100 to-green-50 border-b border-green-100">
           <div className="flex items-center gap-2">
             <UserPlus className="w-6 h-6 text-green-600" />
             <h2 className="text-lg font-bold text-green-700">افزودن کاربر جدید</h2>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-full bg-green-50 hover:bg-green-200 transition"
-            title="بستن"
-          >
+          <button onClick={onClose} className="p-2 rounded-full bg-green-50 hover:bg-green-200 transition" title="بستن">
             <X className="w-5 h-5 text-gray-500" />
           </button>
         </div>
-        {/* Form */}
+
         <form onSubmit={handleSubmit} className="space-y-4 px-6 py-6">
+          {/* اطلاعات پایه */}
           <div className="grid grid-cols-2 gap-3">
-            <input type="text" value={formData.firstName} onChange={e => setFormData(prev => ({ ...prev, firstName: e.target.value }))} className="px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition" placeholder="نام" required />
-            <input type="text" value={formData.lastName} onChange={e => setFormData(prev => ({ ...prev, lastName: e.target.value }))} className="px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition" placeholder="نام خانوادگی" required />
+            <input 
+              type="text" 
+              value={formData.firstName} 
+              onChange={e => setFormData(prev => ({ ...prev, firstName: e.target.value }))} 
+              className="px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition" 
+              placeholder="نام" 
+              required 
+            />
+            <input 
+              type="text" 
+              value={formData.lastName} 
+              onChange={e => setFormData(prev => ({ ...prev, lastName: e.target.value }))} 
+              className="px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition" 
+              placeholder="نام خانوادگی" 
+              required 
+            />
           </div>
-          <input type="text" value={formData.nationalCode} onChange={e => setFormData(prev => ({ ...prev, nationalCode: e.target.value }))} className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition" placeholder="کد ملی" required />
-          <input type="tel" value={formData.phone} onChange={e => setFormData(prev => ({ ...prev, phone: e.target.value }))} className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition" placeholder="شماره موبایل" />
-          <select value={formData.role} onChange={e => setFormData(prev => ({ ...prev, role: e.target.value }))} className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition">
+
+          <input 
+            type="text" 
+            value={formData.nationalCode} 
+            onChange={e => setFormData(prev => ({ ...prev, nationalCode: e.target.value }))} 
+            className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition" 
+            placeholder="کد ملی" 
+            required 
+          />
+
+          <input 
+            type="tel" 
+            value={formData.phone} 
+            onChange={e => setFormData(prev => ({ ...prev, phone: e.target.value }))} 
+            className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition" 
+            placeholder="شماره موبایل" 
+          />
+
+          <input 
+            type="email" 
+            value={formData.email} 
+            onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))} 
+            className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition" 
+            placeholder="ایمیل (اختیاری)" 
+          />
+
+          {/* انتخاب نقش */}
+          <select 
+            value={formData.role} 
+            onChange={e => handleRoleChange(e.target.value)} 
+            className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition"
+          >
             <option value="student">دانش‌آموز</option>
             <option value="teacher">معلم</option>
             <option value="admin">مدیر</option>
           </select>
+
+          {/* فیلدهای مخصوص دانش‌آموز */}
           {formData.role === 'student' && (
-            <>
-              {!formData.classId && (
+            <div>
+              {classesLoading ? (
+                <div className="text-sm text-gray-500">در حال بارگذاری کلاس‌ها...</div>
+              ) : (
                 <select
-                  value={formData.grade || ''}
-                  onChange={e => setFormData(prev => ({ ...prev, grade: e.target.value, classId: '' }))}
+                  value={formData.classId}
+                  onChange={e => setFormData(prev => ({ ...prev, classId: e.target.value }))}
                   className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition"
+                  required
                 >
-                  <option value="">انتخاب پایه</option>
-                  <option value="اول ابتدایی">اول ابتدایی</option>
-                  <option value="دوم ابتدایی">دوم ابتدایی</option>
-                  <option value="سوم ابتدایی">سوم ابتدایی</option>
-                  <option value="چهارم ابتدایی">چهارم ابتدایی</option>
+                  <option value="">انتخاب کلاس</option>
+                  {classes.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.class_name} {c.class_number ? `- شماره ${c.class_number}` : ''} {c.academic_year ? `(${c.academic_year})` : ''}
+                    </option>
+                  ))}
                 </select>
               )}
-            </>
-          )}
-          <div className="relative">
-            <input type={showPassword ? 'text' : 'password'} value={formData.password} onChange={e => setFormData(prev => ({ ...prev, password: e.target.value }))} className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition" placeholder="رمز عبور" required />
-            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute left-2 top-2 text-gray-400">{showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
-            <button type="button" onClick={generatePassword} className="absolute left-10 top-2 text-xs bg-green-100 px-2 py-1 rounded-xl shadow hover:bg-green-200 transition">تولید</button>
-          </div>
-                    {error && (
-            <div className="bg-red-50 text-red-700 p-3 rounded-lg border border-red-200">
-              {error}
             </div>
           )}
-          
+
+          {/* فیلدهای مخصوص معلم */}
+          {formData.role === 'teacher' && (
+            <div className="space-y-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
+              <h3 className="font-semibold text-blue-800">اطلاعات معلم</h3>
+              
+              {/* نوع تدریس */}
+              <div>
+                <label className="block text-sm font-bold mb-2 text-gray-700">نوع تدریس *</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleTeachingTypeChange('grade')}
+                    className={`p-3 border-2 rounded-lg text-center transition ${
+                      formData.teachingType === 'grade'
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="text-lg mb-1">📚</div>
+                    <div className="font-semibold text-sm">معلم پایه</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleTeachingTypeChange('workshop')}
+                    className={`p-3 border-2 rounded-lg text-center transition ${
+                      formData.teachingType === 'workshop'
+                        ? 'border-green-500 bg-green-50 text-green-700'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="text-lg mb-1">🎪</div>
+                    <div className="font-semibold text-sm">معلم کارگاه</div>
+                  </button>
+                </div>
+              </div>
+
+              {/* انتخاب پایه برای معلم پایه‌ای */}
+              {formData.teachingType === 'grade' && (
+                <div>
+                  <label className="block text-sm font-bold mb-2 text-gray-700">انتخاب پایه تحصیلی *</label>
+                  <select
+                    value={formData.gradeId}
+                    onChange={e => setFormData(prev => ({ ...prev, gradeId: e.target.value }))}
+                    className="w-full px-3 py-2 border border-blue-100 rounded-xl bg-blue-50 focus:ring-2 focus:ring-blue-400 outline-none transition"
+                    required
+                  >
+                    <option value="">انتخاب پایه...</option>
+                    {grades.map(grade => (
+                      <option key={grade.id} value={grade.id}>
+                        📚 {grade.grade_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* انتخاب کارگاه برای معلم کارگاه */}
+              {formData.teachingType === 'workshop' && (
+                <div>
+                  <label className="block text-sm font-bold mb-2 text-gray-700">انتخاب کارگاه *</label>
+                  <select
+                    value={formData.workshopId}
+                    onChange={e => setFormData(prev => ({ ...prev, workshopId: e.target.value }))}
+                    className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition"
+                    required
+                  >
+                    <option value="">انتخاب کارگاه...</option>
+                    {workshops.map(workshop => (
+                      <option key={workshop.id} value={workshop.id}>
+                        {workshop.icon || '🎪'} {workshop.workshop_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* موضوع تدریس */}
+              <input 
+                type="text" 
+                value={formData.subject} 
+                onChange={e => setFormData(prev => ({ ...prev, subject: e.target.value }))} 
+                className="w-full px-3 py-2 border border-blue-100 rounded-xl bg-blue-50 focus:ring-2 focus:ring-blue-400 outline-none transition" 
+                placeholder="موضوع تدریس (اختیاری)" 
+              />
+            </div>
+          )}
+
+          {/* رمز عبور */}
+          <div className="relative">
+            <input 
+              type={showPassword ? 'text' : 'password'} 
+              value={formData.password} 
+              onChange={e => setFormData(prev => ({ ...prev, password: e.target.value }))} 
+              className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition" 
+              placeholder="رمز عبور" 
+              required 
+            />
+            <button 
+              type="button" 
+              onClick={() => setShowPassword(!showPassword)} 
+              className="absolute left-2 top-2 text-gray-400"
+            >
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+            <button 
+              type="button" 
+              onClick={generatePassword} 
+              className="absolute left-10 top-2 text-xs bg-green-100 px-2 py-1 rounded-xl shadow hover:bg-green-200 transition"
+            >
+              تولید
+            </button>
+          </div>
+
+          {error && <div className="bg-red-50 text-red-700 p-3 rounded-lg border border-red-200">{error}</div>}
+
           <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
+            <button 
+              type="button" 
+              onClick={onClose} 
               className="px-4 py-2 bg-gray-100 rounded-xl text-gray-700 shadow hover:bg-gray-200 transition"
             >
               انصراف
             </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 rounded-xl text-white shadow hover:scale-105 transition"
+            <button 
+              type="submit" 
+              className="px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 rounded-xl text-white shadow hover:scale-105 transition" 
               disabled={isLoading}
             >
               {isLoading ? 'در حال ایجاد...' : 'ایجاد'}
@@ -679,22 +1148,16 @@ function CreateUserModal({ onClose, onSuccess }) {
   );
 }
 
-// Delete Confirmation Modal
 function DeleteConfirmModal({ user, onConfirm, onCancel }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-red-100 p-0 overflow-hidden">
-        {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 bg-gradient-to-r from-red-100 to-red-50 border-b border-red-100">
           <div className="flex items-center gap-2">
             <AlertCircle className="w-6 h-6 text-red-600" />
             <h2 className="text-lg font-bold text-red-700">حذف کاربر</h2>
           </div>
-          <button
-            onClick={onCancel}
-            className="p-2 rounded-full bg-red-50 hover:bg-red-200 transition"
-            title="بستن"
-          >
+          <button onClick={onCancel} className="p-2 rounded-full bg-red-50 hover:bg-red-200 transition" title="بستن">
             <X className="w-5 h-5 text-gray-500" />
           </button>
         </div>
@@ -706,7 +1169,7 @@ function DeleteConfirmModal({ user, onConfirm, onCancel }) {
           </div>
           <div className="flex items-center gap-2 text-sm text-green-700 mb-1">
             <PhoneIcon className="w-4 h-4" />
-            <span>موبایل: {user.phone}</span>
+            <span>موبایل: {user.phone || '-'}</span>
           </div>
           <div className="flex justify-end gap-2 pt-6">
             <button onClick={onCancel} className="px-4 py-2 bg-gray-100 rounded-xl text-gray-700 shadow hover:bg-gray-200 transition">انصراف</button>
@@ -717,3 +1180,4 @@ function DeleteConfirmModal({ user, onConfirm, onCancel }) {
     </div>
   );
 }
+export { EditUserModal, DeleteConfirmModal, CreateUserModal };

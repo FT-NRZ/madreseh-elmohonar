@@ -1,7 +1,8 @@
 'use client'
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Menu, X, User, LogOut, UserCircle, Settings } from 'lucide-react';
+import { Search, Menu, X, User, LogOut, UserCircle, Settings, BookOpen, Users } from 'lucide-react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 export default function Header({ onLoginClick }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -11,6 +12,7 @@ export default function Header({ onLoginClick }) {
   const [user, setUser] = useState(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const userMenuRef = useRef();
+  const pathname = usePathname();
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -39,7 +41,7 @@ export default function Header({ onLoginClick }) {
 
   const menuItems = [
     { name: 'خانه', href: '/', active: true },
-    { name: 'خبرنامه', href: '#' },
+    { name: 'خبرنامه', href: '/News' },
     { name: 'پیش ثبت نام', href: '/pre-registration' },
     { name: 'گالری', href: '/gallery' },
     { name: 'کارگاه', href: '#' },
@@ -66,22 +68,33 @@ export default function Header({ onLoginClick }) {
     window.location.href = '/Login';
   };
 
-  // فقط پروفایل من، پنل مدیریت (برای مدیر)، خروج
+  // منوی کاربر با پنل‌های مختلف برای هر نقش
   const userMenuItems = [
     {
       name: 'پروفایل من',
       icon: <UserCircle className="w-5 h-5 ml-2 text-green-600" />,
-      href: user?.role === 'admin'
-        ? '/profile'
-        : user?.role === 'teacher'
-        ? '/profile'
-        : '/profile'
+      href: '/profile'
     },
+    // پنل مدیریت برای ادمین
     {
       name: 'پنل مدیریت',
       icon: <Settings className="w-5 h-5 ml-2 text-blue-600" />,
       action: () => window.location.href = '/admin/dashboard',
       show: user?.role === 'admin'
+    },
+    // پنل معلم برای معلمان
+    {
+      name: 'پنل معلم',
+      icon: <Users className="w-5 h-5 ml-2 text-purple-600" />,
+      action: () => window.location.href = '/teacher/dashboard',
+      show: user?.role === 'teacher'
+    },
+    // پنل دانش‌آموز برای دانش‌آموزان
+    {
+      name: 'پنل دانش‌آموز',
+      icon: <BookOpen className="w-5 h-5 ml-2 text-orange-600" />,
+      action: () => window.location.href = '/student/dashboard',
+      show: user?.role === 'student'
     },
     {
       name: 'خروج',
@@ -114,28 +127,31 @@ export default function Header({ onLoginClick }) {
               </Link>
               <nav className="flex items-center justify-center">
                 <div className="flex items-center space-x-2 space-x-reverse bg-white/60 backdrop-blur-md rounded-full px-4 py-3 border border-gray-200/80 shadow-xl hover:shadow-2xl transition-all duration-300">
-                  {menuItems.map((item) => (
-                    <Link
-                      key={item.name}
-                      href={item.href}
-                      className={`relative px-5 py-2.5 text-sm font-bold transition-all duration-300 rounded-full group overflow-hidden ${
-                        item.active 
-                          ? 'text-white bg-gradient-to-r from-[#399918] to-green-600 shadow-lg' 
-                          : 'text-gray-700 hover:text-[#399918] hover:bg-white/80'
-                      }`}
-                    >
-                      <span className="relative z-10">{item.name}</span>
-                      {!item.active && (
-                        <>
-                          <div className="absolute inset-0 bg-gradient-to-r from-[#399918]/10 to-green-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full"></div>
-                          <span className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-0 h-0.5 bg-[#399918] group-hover:w-3/4 transition-all duration-300 rounded-full"></span>
-                        </>
-                      )}
-                      {item.active && (
-                        <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 rounded-full"></div>
-                      )}
-                    </Link>
-                  ))}
+                  {menuItems.map((item) => {
+                    const isActive = pathname === item.href;
+                    return (
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        className={`relative px-5 py-2.5 text-sm font-bold transition-all duration-300 rounded-full group overflow-hidden ${
+                          isActive
+                            ? 'text-white bg-gradient-to-r from-[#399918] to-green-600 shadow-lg ring-2 ring-[#399918]'
+                            : 'text-gray-700 hover:text-[#399918] hover:bg-white/80'
+                        }`}
+                      >
+                        <span className="relative z-10">{item.name}</span>
+                        {!isActive && (
+                          <>
+                            <div className="absolute inset-0 bg-gradient-to-r from-[#399918]/10 to-green-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full"></div>
+                            <span className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-0 h-0.5 bg-[#399918] group-hover:w-3/4 transition-all duration-300 rounded-full"></span>
+                          </>
+                        )}
+                        {isActive && (
+                          <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 rounded-full"></div>
+                        )}
+                      </Link>
+                    );
+                  })}
                 </div>
               </nav>
               <div className="flex items-center space-x-4">
@@ -227,7 +243,12 @@ export default function Header({ onLoginClick }) {
                                   setShowUserMenu(false);
                                   item.action();
                                 }}
-                                className="flex items-center w-full px-4 py-3 text-gray-700 hover:bg-blue-50 transition-all duration-200 font-medium"
+                                className={`flex items-center w-full px-4 py-3 text-gray-700 transition-all duration-200 font-medium ${
+                                  item.name === 'خروج' ? 'hover:bg-red-50' : 
+                                  item.name === 'پنل مدیریت' ? 'hover:bg-blue-50' :
+                                  item.name === 'پنل معلم' ? 'hover:bg-purple-50' :
+                                  item.name === 'پنل دانش‌آموز' ? 'hover:bg-orange-50' : 'hover:bg-gray-50'
+                                }`}
                               >
                                 {item.icon}
                                 {item.name}
@@ -333,5 +354,5 @@ export default function Header({ onLoginClick }) {
         }
       `}</style>
     </>
-      );
+  );
 }

@@ -1,89 +1,101 @@
-export async function POST(req) {
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/database';
+import { verifyJWT } from '@/lib/jwt';
+
+export async function GET(request, context) {
   try {
-    const data = await req.json();
-    const { type, title, pdf_url, image_url, questions, class_id } = data;
-
-    if (!title || !type) {
-      return NextResponse.json({ error: 'عنوان و نوع آزمون الزامی است' }, { status: 400 });
-    }
-    if (!class_id || isNaN(Number(class_id))) {
-      return NextResponse.json({ error: 'کلاس آزمون الزامی است' }, { status: 400 });
+    const { examId } = await context.params;
+    const id = Number(examId);
+    if (!id || Number.isNaN(id)) {
+      return NextResponse.json({ error: 'شناسه آزمون نامعتبر است' }, { status: 400 });
     }
 
-    let exam;
-    if (type === 'pdf') {
-      if (!pdf_url) return NextResponse.json({ error: 'فایل PDF الزامی است' }, { status: 400 });
-      exam = await prisma.exams.create({
-        data: { 
-          title, 
-          type, 
-          pdf_url,
-          class_id: Number(class_id),
-          duration_minutes: 60,
-          total_marks: 100
-        }
-      });
-    } else if (type === 'image') {
-      if (!image_url) return NextResponse.json({ error: 'تصویر آزمون الزامی است' }, { status: 400 });
-      exam = await prisma.exams.create({
-        data: { 
-          title, 
-          type, 
-          image_url,
-          class_id: Number(class_id),
-          duration_minutes: 60,
-          total_marks: 100
-        }
-      });
-    } else if (type === 'quiz') {
-      exam = await prisma.exams.create({
-        data: { 
-          title, 
-          type,
-          questions: questions ? JSON.stringify(questions) : undefined,
-          class_id: Number(class_id),
-          duration_minutes: 60,
-          total_marks: 100
-        }
-      });
+    // احراز هویت معلم
+    const token = request.headers.get('Authorization')?.replace('Bearer ', '');
+    if (!token) {
+      return NextResponse.json({ error: 'احراز هویت لازم است' }, { status: 401 });
+    }
 
-      // ثبت سوالات و گزینه‌ها در جداول استاندارد
-      if (questions && Array.isArray(questions)) {
-        for (let qIdx = 0; qIdx < questions.length; qIdx++) {
-          const q = questions[qIdx];
-          // ثبت سوال در exam_questions
-          const examQuestion = await prisma.exam_questions.create({
-            data: {
-              exam_id: exam.id,
-              question_text: q.question,
-              question_type: "multiple_choice",
-              marks: 1,
-              sort_order: qIdx
-            }
-          });
-          // ثبت گزینه‌ها در question_options
-          for (let oIdx = 0; oIdx < q.options.length; oIdx++) {
-            await prisma.question_options.create({
-              data: {
-                question_id: examQuestion.id,
-                option_text: q.options[oIdx],
-                is_correct: oIdx === q.answer,
-                sort_order: oIdx
+    const decoded = verifyJWT(token);
+    if (!decoded || decoded.role !== 'teacher') {
+      return NextResponse.json({ error: 'دسترسی معلم لازم است' }, { status: 403 });
+    }
+
+    // بررسی وجود آزمون
+    const exam = await prisma.exams.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        title: true,
+        class_id: true,
+        teacher_id: true
+      }
+    });
+
+    if (!exam) {
+      return NextResponse.json({ error: 'آزمون پیدا نشد' }, { status: 404 });
+    }
+
+    // ✅ دریافت همه پاسخ‌های تستی برای این آزمون
+    const quizAnswers = await prisma.exam_results.findMany({
+      where: { 
+        exam_id: id
+      },
+      include: {
+        students: {
+          include: { 
+            users: {
+              select: {
+                id: true,
+                first_name: true,
+                last_name: true
               }
-            });
+            }
           }
         }
-      }
-    } else {
-      return NextResponse.json({ error: 'نوع آزمون نامعتبر است' }, { status: 400 });
-    }
+      },
+      orderBy: { id: 'desc' }
+    });
 
-    return NextResponse.json(exam);
-  } catch (error) {
-    console.error('ثبت آزمون error:', error?.message, error?.stack);
+    // ✅ دریافت همه پاسخ‌های فایلی برای این آزمون  
+    const fileAnswers = await prisma.exam_file_answers.findMany({
+      where: { 
+        exam_id: id
+      },
+      include: {
+        students: {
+          include: { 
+            users: {
+              select: {
+                id: true,
+                first_name: true,
+                last_name: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: { id: 'desc' }
+    });
+
+    console.log(`📊 Found ${quizAnswers.length} quiz answers and ${fileAnswers.length} file answers for exam ${id}`);
+
     return NextResponse.json({ 
-      error: 'خطا در ثبت آزمون', 
-      detail: error.message 
+      success: true,
+      quizAnswers, 
+      fileAnswers,
+      exam: {
+        id: exam.id,
+        title: exam.title,
+        class_id: exam.class_id
+      }
+    });
+
+  } catch (error) {
+    console.error('GET /teacher/exams/[id]/answers error:', error);
+    return NextResponse.json({ 
+      success: false,
+      error: 'خطا در دریافت پاسخ‌ها' 
     }, { status: 500 });
   }
 }

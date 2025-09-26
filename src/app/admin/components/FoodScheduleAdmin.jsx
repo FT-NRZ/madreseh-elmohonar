@@ -184,14 +184,6 @@ function FoodScheduleAdmin() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100 p-2 sm:p-6 relative">
       {/* دکمه بازگشت فقط موبایل */}
-      <button
-        onClick={() => router.push('/admin/dashboard')}
-        className="fixed bottom-4 right-4 z-30 sm:hidden bg-green-600 hover:bg-green-700 text-white w-12 h-12 flex items-center justify-center rounded-full shadow-lg transition-all"
-        aria-label="بازگشت به مدیریت"
-        title="بازگشت به مدیریت"
-      >
-        <span className="text-2xl">🏠</span>
-      </button>
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="bg-white rounded-xl shadow-lg p-3 sm:p-5 mb-4 sm:mb-6 border-t-4 border-green-500 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -199,14 +191,6 @@ function FoodScheduleAdmin() {
             <h1 className="text-lg sm:text-xl font-bold text-green-700 mb-1 sm:mb-0">مدیریت برنامه غذایی هفتگی</h1>
             <p className="text-xs sm:text-sm text-gray-600">انتخاب تاریخ (شمسی)، صبحانه و ناهار برای هر روز هفته</p>
           </div>
-          {/* دکمه بازگشت دسکتاپ */}
-          <button
-            onClick={() => router.push('/admin/dashboard')}
-            className="hidden sm:inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm shadow transition-all"
-          >
-            <span className="text-base">🏠</span>
-            بازگشت به مدیریت
-          </button>
         </div>
 
         {/* فرم برنامه غذایی هفته */}

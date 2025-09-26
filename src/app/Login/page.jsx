@@ -19,24 +19,13 @@ export default function SchoolLoginPage({ onClose }) {
   const [countdown, setCountdown] = useState(0);
 
   // ریدایرکت اگر قبلاً لاگین شده بود
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    const userData = localStorage.getItem('user');
-    if (token && userData) {
-      try {
-        const user = JSON.parse(userData);
-        if (user.role === 'admin') {
-          window.location.href = '/admin/dashboard';
-        } else if (user.role === 'teacher') {
-          window.location.href = '/teacher/dashboard';
-        } else {
-          window.location.href = '/student/dashboard';
-        }
-      } catch {
-        // اگر اطلاعات خراب بود، هیچ کاری نکن
-      }
-    }
-  }, []);
+useEffect(() => {
+  const token = localStorage.getItem('token');
+  const userData = localStorage.getItem('user');
+  if (token && userData && onClose) {
+    onClose();
+  }
+}, [onClose]);
 
   // تایمر شمارش معکوس
   useEffect(() => {
@@ -76,11 +65,11 @@ export default function SchoolLoginPage({ onClose }) {
         localStorage.setItem('user', JSON.stringify(data.user));
         if (onClose) onClose();
         if (data.user.role === 'admin') {
-          window.location.href = '/admin/dashboard';
+          window.location.href = '/';
         } else if (data.user.role === 'teacher') {
-          window.location.href = '/teacher/dashboard';
+          window.location.href = '/';
         } else {
-          window.location.href = '/student/dashboard';
+          window.location.href = '/';
         }
       } else {
         setError(data.message || 'خطا در ورود به سامانه');

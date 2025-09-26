@@ -5,22 +5,54 @@ const prisma = new PrismaClient();
 // دریافت تمام اخبار
 export async function GET(request) {
   try {
-    console.log('Fetching news...');
+    const { searchParams } = new URL(request.url);
+    const userRole = searchParams.get('role');
+    const userId = searchParams.get('userId');
     
-    // ابتدا بدون include امتحان کنیم
+    let whereClause = {};
+    
+    if (!userRole || userRole === 'admin') {
+      whereClause = {};
+    } else if (userRole === 'teacher') {
+      whereClause = {
+        OR: [
+          { target_type: 'public' },
+          { target_type: 'teachers' },
+          { target_type: 'specific_teacher', target_user_id: parseInt(userId) }
+        ]
+      };
+    } else if (userRole === 'student') {
+      whereClause = {
+        OR: [
+          { target_type: 'public' },
+          { target_type: 'students' },
+          { target_type: 'specific_student', target_user_id: parseInt(userId) }
+        ]
+      };
+    } else {
+      whereClause = { target_type: 'public' };
+    }
+    
     const news = await prisma.news_announcements.findMany({
+      where: {
+        ...(userRole && userRole !== 'admin' ? { is_published: true } : {}),
+        ...whereClause
+      },
+      include: {
+        // users relation حذف شد
+        target_user: {
+          select: { first_name: true, last_name: true }
+        }
+      },
       orderBy: { created_at: 'desc' }
     });
     
-    console.log('News fetched successfully:', news.length);
     return Response.json({ success: true, news }, { status: 200 });
   } catch (error) {
     console.error('Error fetching news:', error);
-    console.error('Error details:', error.message);
     return Response.json({ 
       success: false, 
-      error: 'خطا در دریافت اخبار',
-      details: error.message 
+      error: 'خطا در دریافت اخبار' 
     }, { status: 500 });
   } finally {
     await prisma.$disconnect();
@@ -30,9 +62,7 @@ export async function GET(request) {
 // ایجاد خبر جدید
 export async function POST(request) {
   try {
-    console.log('Creating news...');
     const body = await request.json();
-    console.log('Request body:', body);
     
     const news = await prisma.news_announcements.create({
       data: {
@@ -40,31 +70,30 @@ export async function POST(request) {
         content: body.content,
         is_published: body.is_published || false,
         publish_date: body.publish_date ? new Date(body.publish_date) : null,
-        author_id: body.author_id || null,
+        //author_id: body.author_id || null,
+        image_url: body.image_url || null,
+        target_type: body.target_type || 'public',
+        target_user_id: body.target_user_id ? Number(body.target_user_id) : null,
       },
     });
     
-    console.log('News created successfully:', news);
     return Response.json({ success: true, news }, { status: 201 });
   } catch (error) {
     console.error('Error creating news:', error);
-    console.error('Error details:', error.message);
     return Response.json({ 
       success: false, 
-      error: 'خطا در ثبت خبر',
-      details: error.message 
+      error: 'خطا در ثبت خبر' 
     }, { status: 500 });
   } finally {
     await prisma.$disconnect();
   }
 }
 
+
 // ویرایش خبر
 export async function PUT(request) {
   try {
-    console.log('Updating news...');
     const body = await request.json();
-    console.log('Request body:', body);
     
     const news = await prisma.news_announcements.update({
       where: { id: body.id },
@@ -74,18 +103,18 @@ export async function PUT(request) {
         is_published: body.is_published,
         publish_date: body.publish_date ? new Date(body.publish_date) : null,
         updated_at: new Date(),
+        image_url: body.image_url || null,
+        target_type: body.target_type || 'public',
+        target_user_id: body.target_user_id || null,
       },
     });
     
-    console.log('News updated successfully:', news);
     return Response.json({ success: true, news }, { status: 200 });
   } catch (error) {
     console.error('Error updating news:', error);
-    console.error('Error details:', error.message);
     return Response.json({ 
       success: false, 
-      error: 'خطا در ویرایش خبر',
-      details: error.message 
+      error: 'خطا در ویرایش خبر' 
     }, { status: 500 });
   } finally {
     await prisma.$disconnect();

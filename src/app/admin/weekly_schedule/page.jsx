@@ -9,7 +9,9 @@ import {
   NewspaperIcon,
   GalleryHorizontal,
   CalendarCheck,
-  GalleryHorizontalEnd
+  GalleryHorizontalEnd,
+  FileText,
+  Shield
 } from 'lucide-react';
 
 const sidebarMenu = [
@@ -20,9 +22,11 @@ const sidebarMenu = [
   { label: 'برنامه غذایی', icon: GalleryHorizontalEnd, href: '/admin/food-schedule' },
   { label: 'حضور و غیاب', icon: CalendarCheck, href: '/admin/attendances' },
   { label: 'مدیریت گالری', icon: Image, href: '/admin/gallery' },
-  { label: 'گزارش‌ها', icon: BarChart3, href: '/admin/reports' },
+  { label: 'مدیریت اخبار', icon: NewspaperIcon, href: '/admin/news' },
+  { label: 'مدیریت بخشنامه ها', icon: FileText, href: '/admin/circular' },
+  { label: 'توبیخی و تشویقی', icon: Shield, href: '/admin/disciplinary' },
+  { label: 'گزارش ها', icon: BarChart3, href: '/admin/reports' },
   { label: 'تنظیمات', icon: Settings, href: '/admin/settings' },
-  { label: 'مدیریت اخبار', icon: NewspaperIcon, href: '/admin/news' }
 ];
 
 export default function AdminSchedule() {
@@ -246,7 +250,7 @@ export default function AdminSchedule() {
     window.location.href = '/';
   };
 
-  if (!user) {
+ if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-white">
         <div className="text-center p-8 bg-white/90 backdrop-blur-lg rounded-3xl shadow-2xl border border-green-200">
@@ -257,13 +261,94 @@ export default function AdminSchedule() {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-white">
+ return (
+    <div className="min-h-screen bg-gradient-to-br mb-10 from-green-50 to-white">
       <Toaster position="bottom-center" />
+      {/* موبایل: هدر و دکمه منو */}
+      <div className="md:hidden sticky top-0 z-40 bg-white/90 border-b border-green-100 shadow">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-2">
+            <Target className="w-7 h-7 text-green-700" />
+            <span className="font-bold text-green-700">پنل مدیریت</span>
+          </div>
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition"
+          >
+            <Menu className="w-6 h-6" />
+          </button>
+        </div>
+      </div>
 
-      <div className="flex">
-        {/* Sidebar - Fixed on right */}
-        <aside className="right-0 top-0 w-72 bg-white shadow-lg border-l border-green-100">
+      {/* موبایل: سایدبار drawer */}
+      {sidebarOpen && (
+        <div className="md:hidden fixed inset-0 z-50">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setSidebarOpen(false)}
+          ></div>
+          <aside className="absolute right-0 top-0 h-full w-72 bg-white shadow-2xl flex flex-col">
+            <div className="p-4 bg-gradient-to-r from-green-200 via-green-100 to-green-50 text-green-800 border-b border-green-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-green-100 rounded-2xl flex items-center justify-center">
+                  <Target className="w-5 h-5 text-green-700" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold">پنل مدیریت</h2>
+                  <p className="text-green-700 text-sm">مدرسه علم و هنر</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="p-2 rounded-full bg-green-50 hover:bg-green-200 transition"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <nav className="p-3 space-y-1 flex-1 overflow-y-auto">
+              {sidebarMenu.map((item) => {
+                const IconComponent = item.icon;
+                const isActive = item.active;
+                return (
+                  <button
+                    key={item.label}
+                    onClick={() => {
+                      setSidebarOpen(false);
+                      window.location.href = item.href;
+                    }}
+                    className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-semibold transition-all duration-300 ${
+                      isActive
+                        ? 'bg-gradient-to-r from-green-200 to-green-100 text-green-900 shadow scale-[1.02]'
+                        : 'text-green-700 hover:bg-green-50 hover:shadow'
+                    }`}
+                  >
+                    <div className={`p-2 rounded-xl ${isActive ? 'bg-green-100' : 'bg-green-50'}`}>
+                      <IconComponent size={16} />
+                    </div>
+                    <span className="text-sm">{item.label}</span>
+                  </button>
+                );
+              })}
+              <button
+                onClick={() => {
+                  setSidebarOpen(false);
+                  logout();
+                }}
+                className="w-full flex items-center gap-3 px-3 py-3 rounded-xl font-semibold text-red-600 hover:bg-red-50 mt-4 transition"
+              >
+                <div className="p-2 rounded-xl bg-red-100">
+                  <LogOut size={16} />
+                </div>
+                <span className="text-sm">خروج از سیستم</span>
+              </button>
+            </nav>
+          </aside>
+        </div>
+      )}
+
+      <div className="flex flex-col md:flex-row">
+        {/* Sidebar - Desktop */}
+        <aside className="hidden md:block right-0 top-0 w-72 bg-white shadow-lg border-l border-green-100">
           <div className="p-6 bg-green-50 text-green-900 border-b border-green-100">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
@@ -285,7 +370,6 @@ export default function AdminSchedule() {
               </div>
             </div>
           </div>
-          
           <nav className="p-4 space-y-2">
             {sidebarMenu.map((item) => {
               const IconComponent = item.icon;
@@ -307,8 +391,6 @@ export default function AdminSchedule() {
                 </button>
               );
             })}
-            
-            {/* Logout Button */}
             <button
               onClick={logout}
               className="w-full text-right p-4 rounded-2xl font-semibold transition-all duration-300 flex items-center gap-4 text-red-600 hover:bg-red-50 hover:shadow-lg hover:scale-[1.01] mt-6"
@@ -322,7 +404,7 @@ export default function AdminSchedule() {
         </aside>
 
         {/* Main Content - with margin for sidebar */}
-        <main className="flex-1 p-6 space-y-8">
+        <main className="flex-1 p-3 md:p-6 space-y-6 md:space-y-8">
           {/* Welcome Card */}
           <div className="relative bg-gradient-to-r from-green-600 via-green-500 to-green-600 rounded-3xl p-8 text-white shadow-2xl overflow-hidden">
             <div className="absolute inset-0 bg-black/10"></div>
@@ -330,11 +412,11 @@ export default function AdminSchedule() {
             <div className="relative z-10">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-4xl font-bold mb-3 bg-gradient-to-r from-white to-green-100 bg-clip-text text-transparent">
+                  <h2 className="text-2xl font-bold mb-3 bg-gradient-to-r from-white to-green-100 bg-clip-text text-transparent">
                     مدیریت برنامه هفتگی
                   </h2>
                   <p className="text-white/90 mb-6 text-lg">ایجاد، ویرایش و حذف جلسات درسی</p>
-                  <div className="flex items-center space-x-6 text-white/80">
+                  <div className="flex items-center space-x-3 text-white/80">
                     <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-lg rounded-xl px-4 py-2">
                       <Calendar className="w-4 h-4" />
                       <span className="text-sm font-medium">{new Date().toLocaleDateString('fa-IR')}</span>
@@ -345,7 +427,7 @@ export default function AdminSchedule() {
                     </div>
                   </div>
                 </div>
-                <div className="w-32 h-32 bg-white/20 backdrop-blur-lg rounded-3xl flex items-center justify-center shadow-2xl">
+                <div className="w-32 h-32 bg-white/20 backdrop-blur-lg rounded-3xl md:flex hidden items-center justify-center shadow-2xl">
                   <Calendar className="w-16 h-16 text-white" />
                 </div>
               </div>
@@ -477,12 +559,12 @@ export default function AdminSchedule() {
           </div>
 
           {/* نمایش جلسات ثبت‌شده */}
-          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-xl border border-green-200 p-8">
-            <h1 className="text-2xl font-bold text-gray-800 mb-6">برنامه‌های ثبت‌شده</h1>
-            <div className="mb-6">
+          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-xl border border-green-200 p-4 md:p-8">
+            <h1 className="text-lg md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">برنامه‌های ثبت‌شده</h1>
+            <div className="mb-4 flex flex-wrap gap-2">
               <button
                 onClick={() => setSelectedGradeLevel('')}
-                className={`px-4 py-2 rounded-lg mx-2 ${selectedGradeLevel === '' ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-700'}`}
+                className={`px-3 py-1 rounded-lg ${selectedGradeLevel === '' ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-700'} text-xs`}
               >
                 همه مقاطع
               </button>
@@ -490,24 +572,24 @@ export default function AdminSchedule() {
                 <button
                   key={grade.id}
                   onClick={() => setSelectedGradeLevel(grade.id)}
-                  className={`px-4 py-2 rounded-lg mx-2 ${selectedGradeLevel === grade.id ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-700'}`}
+                  className={`px-3 py-1 rounded-lg ${selectedGradeLevel === grade.id ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-700'} text-xs`}
                 >
                   {grade.grade_name}
                 </button>
               ))}
             </div>
             {groupedSchedules.map(day => (
-              <div key={day.key} className="mb-8">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">{day.label}</h3>
+              <div key={day.key} className="mb-6">
+                <h3 className="text-base md:text-lg font-semibold text-gray-800 mb-2 md:mb-4">{day.label}</h3>
                 {day.items.length === 0 ? (
-                  <div className="text-gray-400 mb-4">هیچ جلسه‌ای ثبت نشده</div>
+                  <div className="text-gray-400 mb-2 md:mb-4 text-xs">هیچ جلسه‌ای ثبت نشده</div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4">
                     {day.items.map(schedule => (
-                      <div key={schedule.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="font-semibold text-gray-800">{schedule.subject}</span>
-                          <div className="flex gap-2">
+                      <div key={schedule.id} className="bg-gray-50 rounded-xl p-2 md:p-4 border border-gray-200 flex flex-col gap-1">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-semibold text-gray-800 text-xs md:text-base">{schedule.subject}</span>
+                          <div className="flex gap-1">
                             <button
                               className="p-1 text-gray-500 hover:text-green-700"
                               onClick={() => handleEdit(schedule)}
@@ -522,10 +604,10 @@ export default function AdminSchedule() {
                             </button>
                           </div>
                         </div>
-                        <div className="text-gray-600 mb-1">
+                        <div className="text-gray-600 text-xs md:text-sm">
                           <span className="font-medium">کلاس:</span> {classes.find(c => c.id === schedule.class_id)?.class_name || 'نامشخص'}
                         </div>
-                        <div className="text-gray-600">
+                        <div className="text-gray-600 text-xs md:text-sm">
                           <span className="font-medium">زمان:</span> {formatTime(schedule.start_time)} - {formatTime(schedule.end_time)}
                         </div>
                       </div>
@@ -534,20 +616,6 @@ export default function AdminSchedule() {
                 )}
               </div>
             ))}
-          </div>
-
-          {/* Recent Activity */}
-          <div className="bg-white/95 backdrop-blur-xl rounded-3xl p-8 shadow-xl border border-green-200">
-            <h3 className="text-2xl font-bold text-gray-800 mb-8 flex items-center">
-              <div className="w-10 h-10 bg-gradient-to-r from-green-600 to-green-500 rounded-2xl flex items-center justify-center ml-3">
-                <Activity className="w-5 h-5 text-white" />
-              </div>
-              فعالیت‌های اخیر
-            </h3>
-            <div className="space-y-4">
-              <ActivityItem text="سیستم مدیریت راه‌اندازی شد" time="امروز" />
-              <ActivityItem text="پنل ادمین آماده استفاده است" time="5 دقیقه پیش" />
-            </div>
           </div>
         </main>
       </div>

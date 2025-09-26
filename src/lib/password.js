@@ -6,6 +6,10 @@ export async function hashPassword(password) {
   return await bcrypt.hash(password, saltRounds);
 }
 
+export async function hashToken(token) {
+  return await bcrypt.hash(token, 10);
+}
+
 // بررسی رمز عبور
 export async function verifyPassword(password, hashedPassword) {
   return await bcrypt.compare(password, hashedPassword);

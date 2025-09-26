@@ -2,8 +2,21 @@ import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/database';
 import { hashPassword } from '../../../../lib/password';
 
-export async function POST() {
+const ADMIN_SEED_SECRET = process.env.ADMIN_SEED_SECRET || 'dev-secret';
+
+export async function POST(request) {
   try {
+    // فقط در محیط توسعه یا با secret خاص اجازه اجرا بده
+    if (process.env.NODE_ENV !== 'development') {
+      const authHeader = request.headers.get('authorization');
+      if (!authHeader || authHeader !== `Bearer ${ADMIN_SEED_SECRET}`) {
+        return NextResponse.json({
+          success: false,
+          message: 'دسترسی غیرمجاز'
+        }, { status: 403 });
+      }
+    }
+
     // بررسی وجود مدیر قبلی
     const existingAdmin = await prisma.entrances.findFirst({
       where: { role: 'admin' }
@@ -43,29 +56,37 @@ export async function POST() {
       return { adminUser, adminEntrance };
     });
 
-    return NextResponse.json({
+    // فقط در محیط توسعه credential را نمایش بده
+    const responseData = {
       success: true,
       message: 'مدیر سیستم با موفقیت ایجاد شد',
-      credentials: {
-        username: '1234567890',
-        password: 'admin123',
-        role: 'admin'
-      },
       user: {
         id: result.adminUser.id,
         firstName: result.adminUser.first_name,
         lastName: result.adminUser.last_name
       }
-    });
+    };
+
+    if (process.env.NODE_ENV === 'development') {
+      responseData.credentials = {
+        username: '1234567890',
+        password: 'admin123',
+        role: 'admin'
+      };
+    }
+
+    return NextResponse.json(responseData);
 
   } catch (error) {
-    console.error('Seed admin error:', error);
+    // اطلاعات حساس را لاگ نکن
+    console.error('Seed admin error');
     return NextResponse.json({
       success: false,
       message: 'خطا در ایجاد مدیر سیستم'
     }, { status: 500 });
   }
 }
-export async function GET() {
-  return POST();
+
+export async function GET(request) {
+  return POST(request);
 }

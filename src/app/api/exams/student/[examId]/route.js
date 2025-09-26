@@ -1,180 +1,340 @@
-import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/database'
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/database';
+import { verifyJWT } from '@/lib/jwt';
 
-// GET: جزئیات آزمون برای دانش‌آموز
 export async function GET(request, context) {
-  const params = await context.params;
   try {
-    const examId = Number(params.examId);
-    if (!examId || isNaN(examId)) {
-      return NextResponse.json({ error: 'شناسه آزمون نامعتبر است' }, { status: 400 });
+    const { examId } = await context.params;
+    const id = Number(examId);
+
+    if (!id || Number.isNaN(id) || id <= 0) {
+      return NextResponse.json({
+        success: false,
+        error: 'شناسه آزمون نامعتبر است'
+      }, { status: 400 });
     }
-    const exam = await prisma.exams.findUnique({ 
-      where: { id: examId }
+
+    const exam = await prisma.exams.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        type: true,
+        questions: true,
+        duration_minutes: true,
+        total_marks: true,
+        created_at: true,
+        is_active: true,
+        pdf_url: true,
+        image_url: true,
+        subject: true,
+        class_id: true
+      }
     });
+
     if (!exam) {
-      return NextResponse.json({ error: 'آزمون پیدا نشد' }, { status: 404 });
+      return NextResponse.json({
+        success: false,
+        error: 'آزمون پیدا نشد'
+      }, { status: 404 });
     }
+
+    if (!exam.is_active) {
+      return NextResponse.json({
+        success: false,
+        error: 'آزمون غیرفعال است'
+      }, { status: 403 });
+    }
+
     let parsedQuestions = null;
     if (exam.questions) {
       try {
         parsedQuestions = JSON.parse(exam.questions);
-      } catch (error) {
-        console.error('Error parsing questions:', error);
+        if (Array.isArray(parsedQuestions)) {
+          parsedQuestions = parsedQuestions.map(q => {
+            const { answer, ...questionWithoutAnswer } = q;
+            return questionWithoutAnswer;
+          });
+        }
+      } catch {
+        parsedQuestions = null;
       }
     }
-    const examData = {
-      ...exam,
-      questions: parsedQuestions
-    };
-    return NextResponse.json({ exam: examData });
+
+    return NextResponse.json({
+      success: true,
+      exam: {
+        ...exam,
+        questions: parsedQuestions,
+        max_marks: exam.total_marks
+      }
+    });
+
   } catch (error) {
-    console.error('خطا در دریافت جزئیات آزمون:', error);
-    return NextResponse.json({ error: 'خطا در دریافت جزئیات آزمون' }, { status: 500 });
+    console.error('GET /api/exams/student/[examId] error:', error);
+    return NextResponse.json({
+      success: false,
+      error: 'خطا در دریافت جزئیات آزمون'
+    }, { status: 500 });
   }
 }
 
-// POST: ثبت پاسخ دانش‌آموز
 export async function POST(request, context) {
-  const params = await context.params;
   try {
-    const examId = Number(params.examId);
-    const data = await request.json();
-    const { student_id, answers, file_url } = data;
+    const { examId } = await context.params;
+    const id = Number(examId);
 
-    if (!student_id) {
-      return NextResponse.json({ error: 'شناسه دانش‌آموز الزامی است' }, { status: 400 });
-    }
-    if (!examId || isNaN(examId)) {
-      return NextResponse.json({ error: 'شناسه آزمون نامعتبر است' }, { status: 400 });
+    if (!id || Number.isNaN(id) || id <= 0) {
+      return NextResponse.json({
+        success: false,
+        error: 'شناسه آزمون نامعتبر است'
+      }, { status: 400 });
     }
 
-    const exam = await prisma.exams.findUnique({ where: { id: examId } });
-    if (!exam) {
-      return NextResponse.json({ error: 'آزمون پیدا نشد' }, { status: 404 });
+    const token = request.headers.get('authorization')?.replace('Bearer ', '');
+    if (!token) {
+      return NextResponse.json({
+        success: false,
+        error: 'توکن احراز هویت الزامی است'
+      }, { status: 401 });
     }
-    const student = await prisma.students.findUnique({
-      where: { id: Number(student_id) }
+
+    let payload;
+    try {
+      payload = verifyJWT(token);
+      if (!payload) throw new Error('Invalid token');
+    } catch {
+      return NextResponse.json({
+        success: false,
+        error: 'توکن نامعتبر است'
+      }, { status: 401 });
+    }
+
+    const requestBody = await request.json().catch(() => null);
+    if (!requestBody) {
+      return NextResponse.json({
+        success: false,
+        error: 'داده‌های ارسالی نامعتبر است'
+      }, { status: 400 });
+    }
+
+    const { student_id, answers, file_url } = requestBody;
+
+    if (!student_id || Number.isNaN(Number(student_id))) {
+      return NextResponse.json({
+        success: false,
+        error: 'شناسه دانش‌آموز الزامی و معتبر است'
+      }, { status: 400 });
+    }
+
+    const exam = await prisma.exams.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        questions: true,
+        total_marks: true,
+        is_active: true
+      }
     });
+
+    if (!exam) {
+      return NextResponse.json({
+        success: false,
+        error: 'آزمون پیدا نشد'
+      }, { status: 404 });
+    }
+
+    if (!exam.is_active) {
+      return NextResponse.json({
+        success: false,
+        error: 'آزمون غیرفعال است'
+      }, { status: 403 });
+    }
+
+    let student = await prisma.students.findUnique({
+      where: { user_id: Number(student_id) },
+      select: { id: true, user_id: true }
+    });
+
     if (!student) {
-      return NextResponse.json({ error: 'دانش‌آموز پیدا نشد' }, { status: 404 });
-    }
-
-    // اگر فایل ارسال شده (PDF یا عکس)
-    if (file_url) {
-      const existingFileAnswer = await prisma.exam_file_answers.findFirst({
-        where: {
-          exam_id: examId,
-          student_id: Number(student_id)
-        }
-      });
-      if (existingFileAnswer) {
-        return NextResponse.json({ 
-          success: false, 
-          error: 'شما قبلاً پاسخ این آزمون را ارسال کرده‌اید.' 
-        }, { status: 400 });
-      }
-      const answer = await prisma.exam_file_answers.create({
-        data: {
-          exam_id: examId,
-          student_id: Number(student_id),
-          file_url: file_url
-        }
-      });
-      return NextResponse.json({ 
-        success: true, 
-        answer,
-        message: 'پاسخ شما با موفقیت ارسال شد'
+      student = await prisma.students.findUnique({
+        where: { id: Number(student_id) },
+        select: { id: true, user_id: true }
       });
     }
 
-    // اگر آزمون تستی است (answers)
-    if (answers && typeof answers === 'object') {
-      const existing = await prisma.exam_results.findFirst({
-        where: {
-          exam_id: examId,
-          student_id: Number(student_id)
-        }
-      });
-      if (existing) {
-        return NextResponse.json({ 
-          success: false, 
-          error: 'شما قبلاً پاسخ این آزمون را ثبت کرده‌اید.' 
-        }, { status: 400 });
-      }
+    if (!student) {
+      return NextResponse.json({
+        success: false,
+        error: 'دانش‌آموز پیدا نشد'
+      }, { status: 404 });
+    }
 
-      // ثبت رکورد در exam_results
-      const examResult = await prisma.exam_results.create({
-        data: {
-          exam_id: examId,
-          student_id: Number(student_id),
-          marks_obtained: 0,
-          status: 'pending',
-          attempt_number: 1,
-          completed_at: new Date()
-        }
-      });
-
-      // دریافت سوالات و گزینه‌های واقعی از جداول استاندارد
-      const examQuestions = await prisma.exam_questions.findMany({
-        where: { exam_id: examId },
-        orderBy: { sort_order: 'asc' },
-        include: { question_options: { orderBy: { sort_order: 'asc' } } }
-      });
-
-      // ثبت پاسخ هر سوال با id واقعی
-      const studentAnswersData = Object.entries(answers).map(([qIdx, optIdx]) => {
-        const question = examQuestions[Number(qIdx)];
-        const option = question?.question_options[Number(optIdx)];
-        return {
-          result_id: examResult.id,
-          question_id: question?.id,
-          selected_option_id: option?.id,
-          answer_text: null,
-          is_correct: option?.is_correct || false,
-          marks_awarded: option?.is_correct ? (question?.marks || 1) : 0
-        };
-      });
-
-      if (studentAnswersData.length > 0) {
-        await prisma.student_answers.createMany({
-          data: studentAnswersData
-        });
-        // محاسبه نمره کل
-        const totalMarks = studentAnswersData.reduce((sum, answer) => {
-          return sum + (answer.marks_awarded || 0);
-        }, 0);
-        // به‌روزرسانی نمره در exam_results
-        await prisma.exam_results.update({
-          where: { id: examResult.id },
-          data: { 
-            marks_obtained: totalMarks,
-            status: 'completed'
+    const result = await prisma.$transaction(async (tx) => {
+      if (file_url && typeof file_url === 'string' && file_url.trim()) {
+        const existingFileAnswer = await tx.exam_file_answers.findFirst({
+          where: {
+            exam_id: id,
+            student_id: student.id
           }
         });
+
+        if (existingFileAnswer) {
+          throw new Error('قبلاً پاسخ فایلی برای این آزمون ارسال شده است');
+        }
+
+        const fileUrl = String(file_url).trim();
+        if (fileUrl.length < 10) {
+          throw new Error('آدرس فایل نامعتبر است');
+        }
+
+        // ✅ حذف submitted_at که در schema وجود ندارد
+        const fileAnswer = await tx.exam_file_answers.create({
+          data: {
+            exam_id: id,
+            student_id: student.id,
+            file_url: fileUrl
+          },
+          select: {
+            id: true,
+            exam_id: true,
+            student_id: true,
+            file_url: true,
+            created_at: true
+          }
+        });
+
+        return {
+          success: true,
+          type: 'file',
+          answer: fileAnswer,
+          message: 'پاسخ فایلی با موفقیت ثبت شد'
+        };
       }
 
-      return NextResponse.json({ 
-        success: true, 
-        examResult: {
-          ...examResult,
-          marks_obtained: studentAnswersData.reduce((sum, answer) => sum + (answer.marks_awarded || 0), 0)
-        },
-        answersCount: studentAnswersData.length,
-        message: 'پاسخ‌های شما با موفقیت ثبت شد'
-      });
-    }
+      if (exam.type === 'quiz' && answers && typeof answers === 'object') {
+        const existingResult = await tx.exam_results.findFirst({
+          where: {
+            exam_id: id,
+            student_id: student.id
+          }
+        });
 
-    return NextResponse.json({ 
-      success: false, 
-      error: 'پاسخ معتبری ارسال نشده است. لطفاً answers یا file_url ارسال کنید.' 
-    }, { status: 400 });
+        if (existingResult) {
+          throw new Error('قبلاً پاسخ این آزمون ثبت شده است');
+        }
+
+        let examQuestions = [];
+        try {
+          examQuestions = exam.questions ? JSON.parse(exam.questions) : [];
+        } catch {
+          throw new Error('ساختار سوالات آزمون نامعتبر است');
+        }
+
+        if (!Array.isArray(examQuestions) || examQuestions.length === 0) {
+          throw new Error('آزمون فاقد سوال است');
+        }
+
+        if (!answers || Object.keys(answers).length === 0) {
+          throw new Error('هیچ پاسخی ارسال نشده است');
+        }
+
+        let correctAnswers = 0;
+        let totalQuestions = examQuestions.length;
+
+        Object.entries(answers).forEach(([questionIndex, selectedOption]) => {
+          const qIdx = Number(questionIndex);
+          const optIdx = Number(selectedOption);
+
+          if (qIdx >= 0 && qIdx < examQuestions.length && !Number.isNaN(optIdx)) {
+            const question = examQuestions[qIdx];
+            const isCorrect = question && Number(question.answer) === optIdx;
+
+            if (isCorrect) {
+              correctAnswers++;
+            }
+          }
+        });
+
+        const scorePercentage = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
+        const maxMarks = Number(exam.total_marks) || 100;
+        const obtainedMarks = Math.round((scorePercentage / 100) * maxMarks);
+
+        const examResult = await tx.exam_results.create({
+          data: {
+            exam_id: id,
+            student_id: student.id,
+            marks_obtained: obtainedMarks, // ✅ حذف String() - مطابق schema Decimal است
+            status: 'completed',
+            completed_at: new Date()
+          },
+          select: {
+            id: true,
+            exam_id: true,
+            student_id: true,
+            marks_obtained: true,
+            status: true,
+            completed_at: true
+          }
+        });
+
+        return {
+          success: true,
+          type: 'quiz',
+          examResult: examResult,
+          summary: {
+            score: obtainedMarks,
+            maxScore: maxMarks,
+            percentage: scorePercentage,
+            correctAnswers: correctAnswers,
+            totalQuestions: totalQuestions
+          },
+          message: 'نتیجه آزمون با موفقیت ثبت شد'
+        };
+      }
+
+      throw new Error('نوع پاسخ یا داده‌های ارسالی معتبر نیست');
+    });
+
+    return NextResponse.json(result);
 
   } catch (error) {
-    return NextResponse.json({ 
-      success: false, 
-      error: 'خطا در ثبت پاسخ آزمون',
-      detail: error.message 
+    console.error('POST /api/exams/student/[examId] error:', error);
+
+    if (error.message.includes('شناسه') || error.message.includes('نامعتبر')) {
+      return NextResponse.json({
+        success: false,
+        error: error.message
+      }, { status: 400 });
+    }
+
+    if (error.message.includes('پیدا نشد')) {
+      return NextResponse.json({
+        success: false,
+        error: error.message
+      }, { status: 404 });
+    }
+
+    if (error.message.includes('دسترسی') || error.message.includes('توکن') || error.message.includes('غیرفعال')) {
+      return NextResponse.json({
+        success: false,
+        error: error.message
+      }, { status: 403 });
+    }
+
+    if (error.message.includes('قبلاً') || error.message.includes('تکراری')) {
+      return NextResponse.json({
+        success: false,
+        error: error.message
+      }, { status: 409 });
+    }
+
+    return NextResponse.json({
+      success: false,
+      error: 'خطا در پردازش درخواست'
     }, { status: 500 });
   }
 }

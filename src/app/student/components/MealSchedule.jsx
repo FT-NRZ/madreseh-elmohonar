@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Utensils } from 'lucide-react';
+import { Utensils, AlertTriangle } from 'lucide-react';
 import jalaali from 'jalaali-js';
 
 function toJalali(dateStr) {
@@ -103,6 +103,21 @@ export default function MealSchedule({ studentId }) {
           <Utensils className="w-6 h-6" />
           برنامه غذایی مدرسه
         </h2>
+        {/* متن اخطار */}
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+            <div className="text-red-700 text-sm leading-relaxed">
+              <p className="font-bold mb-2">🔴 توجه:</p>
+              <p className="mb-2">
+                ۱. در صورتی که دانش‌آموز غذایی از لیست برنامه غذایی را نپسندید، خانواده می‌توانند همراه او غذا ارسال کنند.
+              </p>
+              <p>
+                ۲. در صورت داشتن هرگونه حساسیت غذایی، لطفاً موضوع را به مدرسه اطلاع دهید.
+              </p>
+            </div>
+          </div>
+        </div>
         <div className="text-center py-8 text-gray-500">
           <div className="text-6xl mb-4">🍽️</div>
           <p>هیچ برنامه غذایی ثبت نشده است</p>
@@ -117,6 +132,23 @@ export default function MealSchedule({ studentId }) {
         <Utensils className="w-6 h-6" />
         برنامه غذایی مدرسه
       </h2>
+      
+      {/* متن اخطار */}
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+          <div className="text-red-700 text-sm leading-relaxed">
+            <p className="font-bold mb-2">🔴 توجه:</p>
+            <p className="mb-2">
+              ۱. در صورتی که دانش‌آموز غذایی از لیست برنامه غذایی را نپسندید، خانواده می‌توانند همراه او غذا ارسال کنند.
+            </p>
+            <p>
+              ۲. در صورت داشتن هرگونه حساسیت غذایی، لطفاً موضوع را به مدرسه اطلاع دهید.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="overflow-x-auto">
         <table className="w-full text-sm border border-green-200 rounded-lg">
           <thead>

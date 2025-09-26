@@ -11,9 +11,11 @@ const HomePage = () => {
   const [isMounted, setIsMounted] = useState(false);
   const [gallery, setGallery] = useState([]);
   const [classes, setClasses] = useState([]);
+  const [news, setNews] = useState([]);
   const [selectedClass, setSelectedClass] = useState('');
   const [weeklySchedule, setWeeklySchedule] = useState([]);
   const [foodSchedule, setFoodSchedule] = useState([]);
+  const newsScrollRef = useRef(null);
   const galleryRef = useRef(null);
   const router = useRouter();
 
@@ -87,7 +89,6 @@ const HomePage = () => {
           setClasses([]);
         }
       } catch (error) {
-        console.error("خطا در دریافت کلاس‌ها:", error);
         setClasses([]);
       }
     }
@@ -103,7 +104,6 @@ const HomePage = () => {
         const res = await fetch(`/api/schedule?class_id=${selectedClass}`);
         if (res.ok) {
           const data = await res.json();
-          console.log('Schedule data:', data);
           
           // گروه‌بندی براساس روز هفته
           const groupedByDay = {};
@@ -147,6 +147,39 @@ const HomePage = () => {
     fetchWeeklySchedule();
   }, [selectedClass]);
 
+
+  useEffect(() => {
+  const fetchNews = async () => {
+    try {
+      const userData = localStorage.getItem('user');
+      let url = '/api/news';
+      
+      if (userData) {
+        const user = JSON.parse(userData);
+        url += `?role=${user.role}&userId=${user.id}`;
+      }
+      
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data.success) {
+        setNews(data.news);
+      }
+    } catch (error) {
+      console.error('Error fetching news:', error);
+    }
+  };
+
+    fetchNews();
+  }, []);
+
+  useEffect(() => {
+    const newsTimer = setInterval(() => {
+      setCurrentNewsIndex((prev) => (prev + 1) % news.length);
+    }, 4000);
+
+    return () => clearInterval(newsTimer);
+  }, [news]);
+
   // واکشی برنامه غذایی
   useEffect(() => {
     async function fetchFoodSchedule() {
@@ -189,6 +222,20 @@ const HomePage = () => {
     }
     fetchFoodSchedule();
   }, []);
+
+    // اسکرول به راست
+  const scrollRight = () => {
+    if (newsScrollRef.current) {
+      newsScrollRef.current.scrollBy({ left: 320, behavior: 'smooth' });
+    }
+  };
+
+  // اسکرول به چپ
+  const scrollLeft = () => {
+    if (newsScrollRef.current) {
+      newsScrollRef.current.scrollBy({ left: -320, behavior: 'smooth' });
+    }
+  };
   
   // Auto-scroll effect for gallery
   useEffect(() => {
@@ -267,33 +314,6 @@ const HomePage = () => {
       title: "کادر مجرب و متخصص",
       subtitle: "همراه با فعالیت‌های فوق برنامه",
       gradient: "from-[#15803d] via-[#399918] to-[#22c55e]"
-    }
-  ];
-
-  const news = [
-    {
-      id: 1,
-      title: "برگزاری مسابقه نقاشی بین کلاس‌ها",
-      date: "۱۴۰۳/۰۵/۱۵",
-      excerpt: "مسابقه نقاشی با موضوع طبیعت برای تمام پایه‌های تحصیلی برگزار می‌شود",
-      image: "/api/placeholder/300/200",
-      color: "from-[#399918] to-[#22c55e]"
-    },
-    {
-      id: 2,
-      title: "کارگاه آموزشی والدین",
-      date: "۱۴۰۳/۰۵/۲۰",
-      excerpt: "کارگاه روش‌های نوین تربیت کودک برای والدین عزیز برگزار خواهد شد",
-      image: "/api/placeholder/300/200",
-      color: "from-[#16a34a] to-[#399918]"
-    },
-    {
-      id: 3,
-      title: "جشنواره علوم و فناوری",
-      date: "۱۴۰۳/۰۵/۲۵",
-      excerpt: "نمایشگاه پروژه‌های علمی دانش‌آموزان در سالن اصلی مدرسه",
-      image: "/api/placeholder/300/200",
-      color: "from-[#22c55e] to-[#399918]"
     }
   ];
 
@@ -493,51 +513,80 @@ const HomePage = () => {
       <section className="py-16 bg-gradient-to-br from-gray-50 to-green-50 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-64 h-64 bg-gradient-to-br from-[#399918]/10 to-[#22c55e]/10 rounded-full -translate-x-32 -translate-y-32 opacity-50 animate-pulse-slow"></div>
         <div className="absolute bottom-0 right-0 w-48 h-48 bg-gradient-to-br from-[#16a34a]/10 to-[#399918]/10 rounded-full translate-x-24 translate-y-24 opacity-50 animate-pulse-slow delay-2s"></div>
-        
+
         <div className="container mx-auto px-4 relative z-10">
           <div className="text-center mb-12">
             <div className="flex items-center justify-center mb-4 animate-fade-in">
               <Sparkles className="w-8 h-8 text-[#399918] ml-2 animate-pulse" />
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-800">اخبار و اطلاعیه‌ها</h2>
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-800">
+                اخبار و اطلاعیه‌ها
+              </h2>
               <Sparkles className="w-8 h-8 text-[#399918] mr-2 animate-pulse" />
             </div>
             <div className="w-24 h-1 bg-gradient-to-r from-[#399918] to-[#22c55e] mx-auto rounded-full animate-scale-x"></div>
           </div>
-          
-          <div className="grid md:grid-cols-3 gap-8">
-            {news.map((item, index) => (
-              <div 
-                key={item.id} 
-                className={`bg-white rounded-2xl shadow-lg overflow-hidden transform transition-all duration-500 hover:shadow-2xl ${
-                  index === currentNewsIndex 
-                    ? 'scale-[1.02] ring-2 ring-[#399918]/30' 
-                    : 'hover:scale-[1.02]'
-                } animate-fade-in-up delay-${index * 100}`}
-              >
-                <div className="relative">
-                  <div className="w-full h-48 bg-gray-200 animate-pulse"></div>
-                  <div className={`absolute top-0 left-0 w-full h-full bg-gradient-to-br ${item.color} opacity-20`}></div>
-                  <div className="absolute top-4 right-4">
-                    <div className="bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full shadow-sm">
-                      <div className="flex items-center text-gray-600 text-sm">
-                        <Calendar className="w-4 h-4 ml-1" />
-                        {item.date}
+
+          {/* اسکرول افقی اخبار */}
+          <div className="overflow-x-auto pb-6">
+            <div className="flex gap-8 min-w-max">
+              {news.map((item, index) => (
+                <div
+                  key={item.id}
+                  className="flex-shrink-0 w-96 bg-white rounded-2xl shadow-lg overflow-hidden transform transition-all duration-500 hover:shadow-2xl hover:scale-[1.02]"
+                >
+                  <div className="relative w-full h-56">
+                    {item.image_url ? (
+                      <img
+                        src={item.image_url}
+                        alt={item.title}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-[#399918] to-[#22c55e] flex items-center justify-center">
+                        <Camera className="w-12 h-12 text-white opacity-80" />
+                      </div>
+                    )}
+                    <div className="absolute top-4 right-4">
+                      <div className="bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full shadow-sm">
+                        <div className="flex items-center text-gray-600 text-sm">
+                          <Calendar className="w-4 h-4 ml-1" />
+                          {new Date(item.created_at).toLocaleDateString("fa-IR")}
+                        </div>
                       </div>
                     </div>
                   </div>
+
+                  <div className="p-6">
+                    <h3 className="text-xl font-bold text-gray-800 mb-3 leading-tight">
+                      {item.title}
+                    </h3>
+                    <p className="text-gray-600 text-sm leading-relaxed mb-4 line-clamp-3">
+                      {item.content.length > 100
+                        ? `${item.content.substring(0, 100)}...`
+                        : item.content}
+                    </p>
+                    <button className="group flex items-center text-[#399918] hover:text-[#16a34a] font-medium transition-colors">
+                      ادامه مطلب
+                      <ChevronLeft className="w-4 h-4 mr-1 group-hover:translate-x-1 transition-transform" />
+                    </button>
+                  </div>
                 </div>
-                
-                <div className="p-6">
-                  <h3 className="text-xl font-bold text-gray-800 mb-3 leading-tight">{item.title}</h3>
-                  <p className="text-gray-600 text-sm leading-relaxed mb-4">{item.excerpt}</p>
-                  <button className="group flex items-center text-[#399918] hover:text-[#16a34a] font-medium transition-colors">
-                    ادامه مطلب
-                    <ChevronLeft className="w-4 h-4 mr-1 group-hover:translate-x-1 transition-transform" />
-                  </button>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
+          
+
+          {/* نمایش دکمه مشاهده همه */}
+          {news.length > 3 && (
+            <div className="text-center mt-8">
+              <button
+                onClick={() => router.push('/News')}
+                className="bg-gradient-to-r from-[#399918] to-[#22c55e] text-white px-6 py-3 rounded-full hover:from-[#16a34a] hover:to-[#399918] transition-all duration-300 font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+              >
+                مشاهده همه اخبار
+              </button>
+            </div>
+          )}
         </div>
       </section>
 

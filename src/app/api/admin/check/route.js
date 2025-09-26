@@ -1,8 +1,21 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/database';
 
-export async function GET() {
+const ADMIN_CHECK_SECRET = process.env.ADMIN_CHECK_SECRET || 'dev-secret';
+
+export async function GET(request) {
   try {
+    // فقط در محیط توسعه یا با secret خاص اجازه بده
+    if (process.env.NODE_ENV !== 'development') {
+      const authHeader = request.headers.get('authorization');
+      if (!authHeader || authHeader !== `Bearer ${ADMIN_CHECK_SECRET}`) {
+        return NextResponse.json({
+          success: false,
+          message: 'دسترسی غیرمجاز'
+        }, { status: 403 });
+      }
+    }
+
     const adminExists = await prisma.entrances.findFirst({
       where: {
         role: 'admin',
@@ -12,16 +25,18 @@ export async function GET() {
 
     return NextResponse.json({
       success: true,
-      hasAdmin: !!adminExists,
-      message: adminExists ? 'مدیر سیستم موجود است' : 'مدیر سیستم یافت نشد'
+      hasAdmin: !!adminExists
     });
 
   } catch (error) {
-    console.error('Admin check error:', error);
+    // اطلاعات حساس را لاگ نکن
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Admin check error:', error);
+    }
     return NextResponse.json({
       success: false,
       hasAdmin: false,
-      message: 'خطا در بررسی وضعیت مدیر'
+      message: 'خطای سرور'
     }, { status: 500 });
   }
 }
