@@ -2,54 +2,121 @@
 
 export default function ContactPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-100 via-green-200 to-green-400 flex items-center justify-center py-12 px-4">
-      <div className="relative max-w-2xl w-full bg-white/90 rounded-3xl shadow-2xl p-8 md:p-12 border border-green-200 overflow-hidden">
-        {/* تزئینات سبز */}
-        <div className="absolute -top-16 -left-16 w-48 h-48 bg-gradient-to-br from-green-400 via-green-500 to-green-700 rounded-full opacity-20 blur-2xl"></div>
-        <div className="absolute -bottom-16 -right-16 w-48 h-48 bg-gradient-to-tr from-green-300 via-green-400 to-green-600 rounded-full opacity-20 blur-2xl"></div>
-        {/* محتوای اصلی */}
-        <div className="relative z-10 text-center">
-          <div className="mx-auto w-20 h-20 bg-gradient-to-br from-green-500 to-green-700 rounded-full flex items-center justify-center shadow-lg mb-6">
-            <span className="text-white text-4xl font-bold">ارتـ</span>
+    <div className="min-h-screen bg-gray-50 py-8 md:py-16 px-4">
+      <div className="max-w-4xl mx-auto">
+        
+        {/* هدر صفحه */}
+        <div className="text-center mb-8 md:mb-16">
+          <div className="inline-flex items-center justify-center w-14 h-14 md:w-16 md:h-16 bg-[#399918] rounded-full mb-4 md:mb-6">
+            <span className="text-white text-xl md:text-2xl">📞</span>
           </div>
-          <h1 className="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-green-600 via-green-500 to-green-700 bg-clip-text text-transparent mb-4">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">
             ارتباط با ما
           </h1>
-          <p className="text-green-800 text-lg font-medium mb-8">
-            برای ارتباط با ما فرم زیر را پر کنید یا اطلاعات تماس خود را وارد نمایید.
+          <div className="w-16 h-0.5 bg-[#399918] mx-auto"></div>
+          <p className="text-gray-600 mt-4 max-w-2xl mx-auto text-sm md:text-base px-4 md:px-0">
+            برای دریافت اطلاعات بیشتر، ثبت‌نام یا هماهنگی بازدید از مدرسه، می‌توانید از راه‌های زیر با ما در تماس باشید
           </p>
-          <form className="space-y-5 max-w-md mx-auto">
-            <input
-              type="text"
-              placeholder="نام شما"
-              className="w-full px-5 py-3 rounded-xl border border-green-200 bg-white/80 focus:ring-2 focus:ring-green-400 outline-none text-green-800 font-medium placeholder:text-green-400 transition-all duration-200"
-            />
-            <input
-              type="email"
-              placeholder="ایمیل شما"
-              className="w-full px-5 py-3 rounded-xl border border-green-200 bg-white/80 focus:ring-2 focus:ring-green-400 outline-none text-green-800 font-medium placeholder:text-green-400 transition-all duration-200"
-            />
-            <textarea
-              rows={4}
-              placeholder="متن پیام شما..."
-              className="w-full px-5 py-3 rounded-xl border border-green-200 bg-white/80 focus:ring-2 focus:ring-green-400 outline-none text-green-800 font-medium placeholder:text-green-400 transition-all duration-200 resize-none"
-            />
-            <button
-              type="submit"
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-green-500 to-green-700 text-white font-bold text-lg shadow-lg hover:from-green-600 hover:to-green-800 transition-all duration-200"
-              disabled
+        </div>
+
+        {/* اطلاعات تماس */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 mb-8 md:mb-12">
+          
+          {/* کارت آدرس */}
+          <div className="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                <span className="text-2xl">📍</span>
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-gray-900 text-base md:text-lg mb-3">آدرس مدرسه</h3>
+                <p className="text-gray-700 leading-relaxed text-sm md:text-base">
+                  خراسان شمالی، بجنورد
+                  <br />
+                  خیابان نواب صفوی، نواب ۱۸
+                  <br />
+                  <span className="font-semibold text-[#399918]">پلاک ۱۲</span>
+                </p>
+                <button 
+                  onClick={() => window.open('https://maps.google.com/?q=بجنورد+نواب+صفوی+نواب+18+پلاک+12', '_blank')}
+                  className="mt-4 inline-flex items-center gap-2 text-[#399918] hover:text-green-700 font-medium text-sm transition-colors"
+                >
+                  <span>مشاهده در نقشه</span>
+                  <span>🗺️</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* کارت تلفن */}
+          <div className="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                <span className="text-2xl">📞</span>
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-gray-900 text-base md:text-lg mb-3">شماره تماس</h3>
+                <p className="text-lg md:text-2xl font-bold text-[#399918] mb-3 tracking-wider" dir="ltr">
+                  ۰۹۰۳۵۲۵۹۳۹۷
+                </p>
+                <button 
+                  onClick={() => window.open('tel:09035259397')}
+                  className="inline-flex items-center gap-2 bg-[#399918] hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors"
+                >
+                  <span>تماس فوری</span>
+                  <span>📲</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        {/* کارت اینستاگرام */}
+        <div className="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-gray-100 hover:shadow-md transition-shadow mb-8 md:mb-12">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-4 flex-1">
+              <div className="w-12 h-12 bg-pink-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                <span className="text-2xl">📸</span>
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-900 text-base md:text-lg mb-2">اینستاگرام</h3>
+                <p className="text-base md:text-lg font-mono text-[#399918] mb-2">@elm.va.honar</p>
+                <p className="text-gray-600 text-sm">
+                  تصاویر روزانه فعالیت‌ها و اخبار مدرسه را در اینستاگرام ببینید
+                </p>
+              </div>
+            </div>
+            <button 
+              onClick={() => window.open('https://instagram.com/elm.va.honar', '_blank')}
+              className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white px-4 py-2 md:px-6 md:py-3 rounded-xl font-medium transition-all duration-300 flex items-center gap-2 text-sm md:text-base w-full sm:w-auto justify-center"
             >
-              ارسال پیام
+              <span>دنبال کنید</span>
+              <span>🚀</span>
             </button>
-          </form>
-          <div className="mt-8 flex flex-col items-center gap-2">
-            <span className="inline-block px-4 py-2 bg-gradient-to-r from-green-400 to-green-600 text-white rounded-xl shadow font-bold text-base">
-              مدرسه علم و هنر
-            </span>
-            <span className="text-green-600 text-sm">اطلاعات تماس و شبکه‌های اجتماعی را اینجا قرار دهید</span>
           </div>
         </div>
-         </div>
+
+        {/* پیام پایانی */}
+        <div className="bg-[#399918] rounded-2xl p-6 md:p-8 text-center">
+          <h2 className="text-xl md:text-2xl font-bold text-white mb-4">
+            منتظر شنیدن صدای شما هستیم
+          </h2>
+          <p className="text-green-100 leading-relaxed mb-6 text-sm md:text-base">
+            ما با خوشحالی پاسخگوی پرسش‌های شما هستیم و منتظریم تا خانواده‌ی بزرگ علم و هنر را به شما معرفی کنیم
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <div className="inline-flex items-center gap-2 bg-white text-[#399918] px-4 py-2 rounded-lg font-semibold text-sm">
+              <span>مدرسه علم و هنر</span>
+              <span className="text-lg">🏫</span>
+            </div>
+            <div className="text-green-100 text-sm">
+              آماده پذیرایی از شما هستیم
+            </div>
+          </div>
+        </div>
+
+      </div>
     </div>
   );
 }

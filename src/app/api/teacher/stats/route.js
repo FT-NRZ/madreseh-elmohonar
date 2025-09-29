@@ -82,15 +82,23 @@ export async function GET(request) {
 
       const studentCount = await prisma.students.count({
         where: {
-          class: {
+          classes: {  // ✅ اصلاح شد - از class به classes
             teacher_id: teacherId
-          }
+          },
+          status: 'active'  // ✅ فقط دانش‌آموزان فعال
         }
       });
 
-      const examsCount = await prisma.exams.count({
-        where: { teacher_id: teacherId }
-      });
+      // تلاش برای شمارش آزمون‌ها (اگر جدول وجود داشته باشد)
+      let examsCount = 0;
+      try {
+        examsCount = await prisma.exams.count({
+          where: { teacher_id: teacherId }
+        });
+      } catch (examError) {
+        console.log('ℹ️ Exams table not found, setting count to 0');
+        examsCount = 0;
+      }
 
       console.log('📊 Stats calculated:', { classes: classesCount, students: studentCount, exams: examsCount });
 

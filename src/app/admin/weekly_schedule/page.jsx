@@ -45,6 +45,7 @@ export default function AdminSchedule() {
   const [grades, setGrades] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedGradeLevel, setSelectedGradeLevel] = useState('');
+  const [specialClasses, setSpecialClasses] = useState([]);
 
   // روزهای هفته
   const days = [
@@ -82,6 +83,7 @@ export default function AdminSchedule() {
       fetchClasses();
       fetchGrades();
       fetchSchedules();
+      fetchSpecialClasses();
     }
   }, [user]);
 
@@ -119,6 +121,18 @@ export default function AdminSchedule() {
       else setGrades([]);
     } catch (error) {
       setGrades([]);
+    }
+  };
+
+  // دریافت لیست کلاس‌های فوق‌العاده
+  const fetchSpecialClasses = async () => {
+    try {
+      const res = await fetch('/api/special-classes');
+      const data = await res.json();
+      if (data.success) setSpecialClasses(data.items);
+      else setSpecialClasses([]);
+    } catch {
+      setSpecialClasses([]);
     }
   };
 
@@ -167,6 +181,32 @@ export default function AdminSchedule() {
     }
   };
 
+  // ثبت کلاس فوق‌العاده
+  const handleSpecialClassSubmit = async (e) => {
+    e.preventDefault();
+    const body = {
+      title: e.target.title.value,
+      description: e.target.description.value,
+      class_id: e.target.class_id.value,
+      day_of_week: e.target.day_of_week.value,
+      start_time: e.target.start_time.value,
+      end_time: e.target.end_time.value,
+    };
+    const res = await fetch('/api/special-classes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast.success('کلاس فوق‌العاده ثبت شد');
+      e.target.reset();
+      fetchSpecialClasses();
+    } else {
+      toast.error(data.message || 'خطا در ثبت کلاس فوق‌العاده');
+    }
+  };
+
   // حذف جلسه
   const handleDelete = async (id) => {
     if (!confirm('آیا از حذف این جلسه اطمینان دارید؟')) return;
@@ -176,6 +216,23 @@ export default function AdminSchedule() {
       if (data.success) {
         toast.success('جلسه با موفقیت حذف شد');
         fetchSchedules();
+      } else {
+        toast.error(data.message || 'خطا در حذف');
+      }
+    } catch {
+      toast.error('خطا در حذف');
+    }
+  };
+
+  // حذف کلاس فوق‌العاده
+  const handleDeleteSpecialClass = async (id) => {
+    if (!confirm('آیا از حذف این کلاس فوق‌العاده اطمینان دارید؟')) return;
+    try {
+      const response = await fetch(`/api/special-classes?id=${id}`, { method: 'DELETE' });
+      const data = await response.json();
+      if (data.success) {
+        toast.success('کلاس فوق‌العاده حذف شد');
+        fetchSpecialClasses();
       } else {
         toast.error(data.message || 'خطا در حذف');
       }
@@ -556,6 +613,92 @@ export default function AdminSchedule() {
                 </button>
               </div>
             </form>
+          </div>
+
+          {/* فرم ثبت کلاس فوق‌العاده */}
+          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-xl border border-green-200 p-8 mt-8">
+            <h2 className="text-xl font-bold text-gray-800 mb-6">ثبت کلاس فوق‌العاده</h2>
+            <form onSubmit={handleSpecialClassSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">عنوان کلاس</label>
+                  <input type="text" name="title" className="w-full px-4 py-2 border border-gray-300 rounded-lg" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">کلاس</label>
+                  <select name="class_id" className="w-full px-4 py-2 border border-gray-300 rounded-lg" required>
+                    <option value="">انتخاب کلاس</option>
+                    {classes.map(cls => (
+                      <option key={cls.id} value={cls.id}>{cls.class_name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">توضیحات</label>
+                <textarea name="description" className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">روز هفته</label>
+                  <select name="day_of_week" className="w-full px-4 py-2 border border-gray-300 rounded-lg" required>
+                    <option value="">انتخاب روز</option>
+                    {days.map(day => (
+                      <option key={day.key} value={day.key}>{day.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">زمان شروع</label>
+                  <input type="time" name="start_time" className="w-full px-4 py-2 border border-gray-300 rounded-lg" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">زمان پایان</label>
+                  <input type="time" name="end_time" className="w-full px-4 py-2 border border-gray-300 rounded-lg" required />
+                </div>
+              </div>
+              <div className="flex justify-end pt-4 border-t">
+                <button type="submit" className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                  ثبت کلاس فوق‌العاده
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* نمایش لیست کلاس‌های فوق‌العاده ثبت‌شده */}
+          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-xl border border-green-200 p-8 mt-8">
+            <h2 className="text-xl font-bold text-gray-800 mb-6">کلاس‌های فوق‌العاده ثبت‌شده</h2>
+            {specialClasses.length === 0 ? (
+              <div className="text-gray-400">هیچ کلاس فوق‌العاده‌ای ثبت نشده</div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {specialClasses.map(item => (
+                  <div key={item.id} className="bg-gray-50 rounded-xl p-4 border border-gray-200 flex flex-col gap-2">
+                    <div className="flex justify-between items-start">
+                      <div className="font-semibold text-gray-800">{item.title}</div>
+                      <button
+                        className="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-xs hover:bg-red-200"
+                        onClick={() => handleDeleteSpecialClass(item.id)}
+                      >
+                        حذف
+                      </button>
+                    </div>
+                    <div className="text-gray-600 text-sm">
+                      <span className="font-medium">کلاس:</span> {classes.find(c => c.id === item.class_id)?.class_name || 'نامشخص'}
+                    </div>
+                    <div className="text-gray-600 text-sm">
+                      <span className="font-medium">روز:</span> {days.find(d => d.key === item.day_of_week)?.label || item.day_of_week}
+                    </div>
+                    <div className="text-gray-600 text-sm">
+                      <span className="font-medium">زمان:</span> {item.start_time} - {item.end_time}
+                    </div>
+                    {item.description && (
+                      <div className="text-gray-500 text-xs mt-2">{item.description}</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* نمایش جلسات ثبت‌شده */}

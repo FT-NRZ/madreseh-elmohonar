@@ -23,7 +23,7 @@ export async function GET(request) {
       where.class_id = { in: classIds };
     }
 
-    // دریافت تمام برنامه‌های هفتگی
+    // دریافت تمام برنامه‌های هفتگی معمولی
     const schedules = await prisma.weekly_schedule.findMany({
       where,
       include: {
@@ -44,34 +44,75 @@ export async function GET(request) {
       ]
     });
 
+    // دریافت کلاس‌های فوق‌العاده مرتبط با همین کلاس‌ها
+    let specialWhere = {};
+    if (where.class_id) {
+      specialWhere.class_id = where.class_id;
+    }
+    const specialClasses = await prisma.special_classes.findMany({
+      where: specialWhere,
+      include: {
+        classes: {
+          include: {
+            grades: true
+          }
+        }
+      },
+      orderBy: [
+        { day_of_week: 'asc' },
+        { start_time: 'asc' }
+      ]
+    });
+
     // دریافت لیست پایه‌ها برای فیلتر
     const grades = await prisma.grades.findMany({
       orderBy: { grade_level: 'asc' }
     });
 
-    // فرمت کردن داده‌ها
+    // فرمت کردن داده‌های معمولی
     const formattedSchedules = schedules.map(item => ({
       id: item.id,
       day: getDayName(item.day_of_week),
       dayKey: item.day_of_week,
       subject: item.subject,
       time: `${formatTime(item.start_time)} - ${formatTime(item.end_time)}`,
-      teacher: item.teachers?.users ? 
-        `${item.teachers.users.first_name} ${item.teachers.users.last_name}` : 
+      teacher: item.teachers?.users ?
+        `${item.teachers.users.first_name} ${item.teachers.users.last_name}` :
         'نامشخص',
       className: item.classes?.class_name || 'نامشخص',
       gradeName: item.classes?.grades?.grade_name || 'نامشخص',
       gradeLevel: item.classes?.grades?.grade_level || 0,
       classId: item.class_id,
       gradeId: item.classes?.grade_id,
-      roomNumber: item.room_number || 'نامشخص'
+      roomNumber: item.room_number || 'نامشخص',
+      type: 'normal'
     }));
+
+    // فرمت کردن داده‌های فوق‌العاده
+    const formattedSpecial = specialClasses.map(item => ({
+      id: item.id,
+      day: getDayName(item.day_of_week),
+      dayKey: item.day_of_week,
+      subject: item.title,
+      time: `${formatTime(item.start_time)} - ${formatTime(item.end_time)}`,
+      teacher: 'فوق‌العاده',
+      className: item.classes?.class_name || 'نامشخص',
+      gradeName: item.classes?.grades?.grade_name || 'نامشخص',
+      gradeLevel: item.classes?.grades?.grade_level || 0,
+      classId: item.class_id,
+      gradeId: item.classes?.grade_id,
+      roomNumber: item.room_number || 'نامشخص',
+      type: 'special'
+    }));
+
+    // ادغام برنامه معمولی و فوق‌العاده
+    const allSchedules = [...formattedSchedules, ...formattedSpecial];
 
     return NextResponse.json({
       success: true,
-      schedules: formattedSchedules,
+      schedules: allSchedules,
       grades: grades,
-      totalCount: schedules.length
+      totalCount: allSchedules.length
     });
 
   } catch (error) {

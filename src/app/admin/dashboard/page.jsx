@@ -1,6 +1,5 @@
 'use client'
 import React, { useState, useEffect } from 'react';
-import { EditUserModal, DeleteConfirmModal } from '../users/page.jsx';
 import { 
   Users, UserPlus, GraduationCap, BookOpen, BarChart3, Settings, LogOut, 
   Activity, Calendar, Clock, Crown, Target, RefreshCw, Sparkles,
@@ -9,6 +8,7 @@ import {
   FileText, Shield, Menu, X
 } from 'lucide-react';
 import { Image, Calendar as CalendarIcon, LayoutGrid, GalleryHorizontalEnd } from 'lucide-react';
+
 
 const sidebarMenu = [
   { label: 'داشبورد', icon: LayoutGrid, href: '/admin/dashboard' },
@@ -20,6 +20,7 @@ const sidebarMenu = [
   { label: 'مدیریت گالری', icon: Image, href: '/admin/gallery' },
   { label: 'مدیریت اخبار', icon: NewspaperIcon, href: '/admin/news' },
   { label: 'مدیریت بخشنامه ها', icon: FileText, href: '/admin/circular' },
+  { label: 'پیش‌ثبت‌نام', icon: UserPlus, href: '/admin/pre-registrations' }, // ← این خط را اضافه کن
   { label: 'توبیخی و تشویقی', icon: Shield, href: '/admin/disciplinary' },
   { label: 'گزارش ها', icon: BarChart3, href: '/admin/reports' },
   { label: 'تنظیمات', icon: Settings, href: '/admin/settings' },
@@ -40,8 +41,16 @@ export default function AdminDashboard() {
   });
   const [showEditUser, setShowEditUser] = useState(false);
   const [userToEdit, setUserToEdit] = useState(null);
-  // اضافه کنید:
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // آمار و لیست پیش‌ثبت‌نام‌ها
+  const [preStats, setPreStats] = useState({
+    total: 0,
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+    last: []
+  });
 
   const openEditModal = (user) => {
     setUserToEdit(user);
@@ -64,6 +73,7 @@ export default function AdminDashboard() {
       setUser(parsedUser);
       fetchUserStats();
       fetchUsers();
+      fetchPreStats();
     } catch (error) {
       window.location.href = '/login';
     }
@@ -86,6 +96,7 @@ export default function AdminDashboard() {
     }
   };
 
+  // فقط داده‌های واقعی از API نمایش داده می‌شوند
   const fetchUsers = async () => {
     setLoading(true);
     try {
@@ -98,20 +109,35 @@ export default function AdminDashboard() {
         const data = await response.json();
         setUsers(data.users || []);
       } else {
-        setUsers([
-          { id: 1, firstName: 'احمد', lastName: 'کریمی', nationalCode: '1234567890', role: 'student', phone: '09123456789' },
-          { id: 2, firstName: 'فاطمه', lastName: 'محمدی', nationalCode: '0987654321', role: 'teacher', phone: '09234567890' },
-          { id: 3, firstName: 'علی', lastName: 'احمدی', nationalCode: '1122334455', role: 'admin', phone: '09345678901' },
-        ]);
+        setUsers([]);
       }
     } catch {
-      setUsers([
-        { id: 1, firstName: 'احمد', lastName: 'کریمی', nationalCode: '1234567890', role: 'student', phone: '09123456789' },
-        { id: 2, firstName: 'فاطمه', lastName: 'محمدی', nationalCode: '0987654321', role: 'teacher', phone: '09234567890' },
-        { id: 3, firstName: 'علی', lastName: 'احمدی', nationalCode: '1122334455', role: 'admin', phone: '09345678901' },
-      ]);
+      setUsers([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // دریافت آمار پیش‌ثبت‌نام‌ها
+  const fetchPreStats = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/pre-registration', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        const regs = data.preRegistrations || [];
+        setPreStats({
+          total: regs.length,
+          pending: regs.filter(r => r.status === 'pending').length,
+          approved: regs.filter(r => r.status === 'approved').length,
+          rejected: regs.filter(r => r.status === 'rejected').length,
+          last: regs.slice(0, 5)
+        });
+      }
+    } catch {
+      setPreStats({ total: 0, pending: 0, approved: 0, rejected: 0, last: [] });
     }
   };
 
@@ -167,7 +193,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br mb-10 from-green-50 to-white">
-      {/* موبایل: هدر و دکمه منو - اضافه شده */}
+      {/* موبایل: هدر و دکمه منو */}
       <div className="sm:hidden sticky top-0 z-40 bg-white/90 border-b border-green-100 shadow">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2">
@@ -183,15 +209,13 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* موبایل: سایدبار drawer - اضافه شده */}
+      {/* موبایل: سایدبار drawer */}
       {sidebarOpen && (
         <div className="sm:hidden fixed inset-0 z-50">
-          {/* پس‌زمینه تار */}
           <div
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={() => setSidebarOpen(false)}
           ></div>
-          {/* سایدبار */}
           <aside className="absolute right-0 top-0 h-full w-72 bg-white shadow-2xl flex flex-col">
             <div className="p-4 bg-gradient-to-r from-green-200 via-green-100 to-green-50 text-green-800 border-b border-green-100 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -252,7 +276,7 @@ export default function AdminDashboard() {
       )}
 
       <div className="flex flex-col sm:flex-row">
-        {/* Sidebar - Desktop - اصلاح شده */}
+        {/* Sidebar - Desktop */}
         <aside className="hidden sm:block right-0 top-0 w-72 bg-white/95 backdrop-blur-xl shadow-2xl z-0 border-l border-green-100">
           <div className="p-6 bg-gradient-to-r from-green-200 via-green-100 to-green-50 text-green-800 border-b border-green-100">
             <div className="flex items-center gap-3 mb-6">
@@ -335,7 +359,7 @@ export default function AdminDashboard() {
 
         {/* Main Content */}
         <main className="flex-1 pb-16 sm:pb-0 p-2 sm:p-6 space-y-3 sm:space-y-8 mt-2 sm:mt-0">
-          {/* Welcome Card - اصلاح شده */}
+          {/* Welcome Card */}
           <div className="relative bg-gradient-to-r from-green-600 via-green-500 to-green-600 rounded-2xl sm:rounded-3xl p-3 sm:p-8 text-white shadow-2xl overflow-hidden">
             <div className="absolute inset-0 bg-black/10"></div>
             <div className="absolute top-0 right-0 w-24 h-24 sm:w-64 sm:h-64 bg-white/10 rounded-full -translate-y-10 translate-x-10 sm:-translate-y-32 sm:translate-x-32"></div>
@@ -394,9 +418,78 @@ export default function AdminDashboard() {
               gradient="from-green-100 to-green-50"
               iconGradient="from-green-600 to-green-500"
             />
+            {/* کارت پیش‌ثبت‌نام */}
+            <StatsCard
+              title="پیش‌ثبت‌نام‌ها"
+              value={preStats.total}
+              icon={UserPlus}
+              gradient="from-yellow-50 to-white"
+              iconGradient="from-yellow-400 to-yellow-300"
+            />
           </div>
 
-          {/* حضور و غیاب - کارت جدید - اصلاح شده */}
+          {/* آمار وضعیت پیش‌ثبت‌نام‌ها */}
+          <div className="grid grid-cols-3 gap-2 sm:gap-6 mb-4">
+            <StatsCard
+              title="در انتظار"
+              value={preStats.pending}
+              icon={Clock}
+              gradient="from-yellow-100 to-yellow-50"
+              iconGradient="from-yellow-500 to-yellow-400"
+            />
+            <StatsCard
+              title="تأیید شده"
+              value={preStats.approved}
+              icon={Crown}
+              gradient="from-blue-100 to-blue-50"
+              iconGradient="from-blue-500 to-blue-400"
+            />
+            <StatsCard
+              title="رد شده"
+              value={preStats.rejected}
+              icon={Trash2}
+              gradient="from-pink-100 to-pink-50"
+              iconGradient="from-pink-500 to-pink-400"
+            />
+          </div>
+
+          {/* لیست آخرین پیش‌ثبت‌نام‌ها */}
+          <div className="bg-white/95 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-3 sm:p-8 shadow-xl border border-green-200 mb-4">
+            <h3 className="text-base sm:text-xl font-bold text-gray-800 mb-3 flex items-center">
+              <UserPlus className="w-5 h-5 text-yellow-500 ml-2" />
+              آخرین پیش‌ثبت‌نام‌ها
+              <a
+                href="/admin/pre-registrations"
+                className="ml-auto px-3 py-1 text-xs bg-green-100 text-green-700 rounded-lg hover:bg-green-200"
+              >
+                مشاهده همه
+              </a>
+            </h3>
+            {preStats.last.length === 0 ? (
+              <div className="text-gray-400 text-xs">هیچ پیش‌ثبت‌نامی ثبت نشده</div>
+            ) : (
+              <div className="space-y-2">
+                {preStats.last.map((reg, idx) => (
+                  <div key={reg.id} className="flex items-center justify-between bg-green-50 rounded-xl px-3 py-2 border border-green-100">
+                    <div>
+                      <span className="font-bold text-gray-800">{reg.first_name} {reg.last_name}</span>
+                      <span className="mx-2 text-gray-500 text-xs">{reg.grade}</span>
+                      <span className="mx-2 text-green-700 text-xs">{reg.phone}</span>
+                    </div>
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                      reg.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                      reg.status === 'approved' ? 'bg-blue-100 text-blue-700' :
+                      'bg-pink-100 text-pink-700'
+                    }`}>
+                      {reg.status === 'pending' ? 'در انتظار' : reg.status === 'approved' ? 'تأیید' : 'رد شده'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* حضور و غیاب - کارت جدید */}
           <div className="bg-gradient-to-r from-green-400 to-green-300 rounded-2xl p-4 flex flex-col sm:flex-row justify-between shadow mb-4 gap-2">
             <div>
               <div className="flex items-center gap-2 mb-2">
@@ -462,7 +555,7 @@ export default function AdminDashboard() {
           </div>
         </main>
       </div>
-      {/* Modals (بدون تغییر) */}
+      {/* Modals */}
       {showCreateUser && (
         <CreateUserModal 
           onClose={() => setShowCreateUser(false)}
@@ -714,7 +807,7 @@ function UsersTable({ users, loading, onRefresh, onDeleteUser, onEditUser }) {
             )}
           </tbody>
         </table>
-        {/* Paging - اضافه شده */}
+        {/* Paging */}
         {totalPages > 1 && (
           <div className="flex justify-center items-center gap-2 py-4">
             <button
@@ -743,7 +836,7 @@ function UsersTable({ users, loading, onRefresh, onDeleteUser, onEditUser }) {
           </div>
         )}
       </div>
-      {/* Mobile Cards - اصلاح شده */}
+      {/* Mobile Cards */}
       <div className="sm:hidden p-2 space-y-2">
         {loading ? (
           <div className="flex flex-col items-center py-8">
@@ -799,7 +892,7 @@ function UsersTable({ users, loading, onRefresh, onDeleteUser, onEditUser }) {
             </div>
           ))
         )}
-        {/* Paging for mobile - اضافه شده */}
+        {/* Paging for mobile */}
         {totalPages > 1 && (
           <div className="flex justify-center items-center gap-2 py-4">
             <button

@@ -20,11 +20,13 @@ import News from '../components/News';
 import Reminders from '../components/Reminders';
 import moment from 'jalali-moment';
 import Disciplinary from '../components/Disciplinary';
+import StudentsList from '../components/StudentList';
 
 const sidebarMenu = [
   { label: 'داشبورد', icon: LayoutGrid, key: 'dashboard' },
   { label: 'کلاس‌های من', icon: GraduationCap, key: 'classes' },
   { label: 'برنامه هفتگی', icon: Calendar, key: 'schedule' },
+  { label: 'دانش‌آموزان من', icon: Users, key: 'students' }, // ← این خط را اضافه کن
   { label: 'آزمون‌ها', icon: FileText, key: 'exams' },
   { label: 'کارنامه‌ها', icon: BookOpen, key: 'reportCards' },
   { label: 'اخبار معلمین', icon: NewspaperIcon, key: 'news' },
@@ -87,6 +89,8 @@ export default function TeacherDashboardPage() {
         return <WeeklySchedule />;
       case 'exams':
         return <ExamsList teacherId={teacherId} />;
+      case 'students':
+        return <StudentsList teacherId={teacherId} />; // ← این خط را اضافه کن
       case 'reportCards':
         return <ReportCards />;
       case 'news':

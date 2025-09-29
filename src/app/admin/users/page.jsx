@@ -1,4 +1,4 @@
-'use client'
+'use client';
 import React, { useState, useEffect } from 'react';
 import {
   Users, UserPlus, Search, Edit, Trash2, Eye, EyeOff, X, AlertCircle,
@@ -61,33 +61,32 @@ export default function AdminUsersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-const fetchUsers = async () => {
-  setLoading(true);
-  try {
-    const token = localStorage?.getItem?.('token');
-    // تغییر مسیر API به نسخه صحیح
-    const response = await fetch('/api/admin/users', {
-      method: 'GET',
-      headers: { 'Authorization': `Bearer ${token}` },
-      cache: 'no-store'
-    });
-    if (response.ok) {
-      const data = await response.json();
-      setUsers(Array.isArray(data.users) ? data.users : []);
-    } else if (response.status === 403) {
+  const fetchUsers = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage?.getItem?.('token');
+      const response = await fetch('/api/admin/users', {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` },
+        cache: 'no-store'
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(Array.isArray(data.users) ? data.users : []);
+      } else if (response.status === 403) {
+        setUsers([]);
+        setMessage('دسترسی مجاز نیست (403). دوباره وارد شوید.');
+        setMessageType('error');
+      } else {
+        setUsers([]);
+      }
+    } catch {
       setUsers([]);
-      setMessage('دسترسی مجاز نیست (403). دوباره وارد شوید.');
-      setMessageType('error');
-    } else {
-      setUsers([]);
+    } finally {
+      setLoading(false);
+      setTimeout(() => setMessage(''), 3000);
     }
-  } catch {
-    setUsers([]);
-  } finally {
-    setLoading(false);
-    setTimeout(() => setMessage(''), 3000);
-  }
-};
+  };
 
   const filteredUsers = users.filter(u => {
     const s = searchTerm.trim();
@@ -1180,4 +1179,3 @@ function DeleteConfirmModal({ user, onConfirm, onCancel }) {
     </div>
   );
 }
-export { EditUserModal, DeleteConfirmModal, CreateUserModal };

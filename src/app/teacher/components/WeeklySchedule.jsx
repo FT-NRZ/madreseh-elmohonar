@@ -3,75 +3,69 @@
 import React, { useEffect, useState } from 'react';
 import { CalendarDays, Clock, BookOpen, Users, GraduationCap } from 'lucide-react';
 
-export default function WeeklySchedule() {
+export default function WeeklySchedule({ teacherId }) {
   const [schedule, setSchedule] = useState([]);
   const [grades, setGrades] = useState([]);
   const [selectedGrade, setSelectedGrade] = useState('all');
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
+  const [specialClasses, setSpecialClasses] = useState([]);
 
   useEffect(() => {
-    // دریافت پایه‌ها
     fetchGrades();
-    // دریافت برنامه هفتگی (بدون وابستگی به معلم)
     fetchSchedule();
+    // واکشی کلاس‌های فوق‌العاده معلم
+    if (teacherId) {
+      fetch(`/api/special-classes?teacher_id=${teacherId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) setSpecialClasses(data.items || []);
+        });
+    }
   }, []);
 
   useEffect(() => {
-    // وقتی پایه تغییر کرد، برنامه جدید بگیر
     fetchSchedule();
   }, [selectedGrade]);
 
   // دریافت پایه‌ها
   const fetchGrades = async () => {
     try {
-      console.log('📋 Fetching grades...');
       const res = await fetch('/api/grades');
       const data = await res.json();
-      
       if (data.success && data.grades) {
-        console.log('✅ Grades loaded:', data.grades.length);
         setGrades(data.grades);
       } else {
         setGrades([]);
       }
     } catch (error) {
-      console.error('💥 Error fetching grades:', error);
       setGrades([]);
     }
   };
 
   // دریافت برنامه هفتگی بر اساس پایه
   const fetchSchedule = async () => {
-  setLoading(true);
-  try {
-    console.log('📅 Fetching schedule for grade:', selectedGrade);
-    
-    // استفاده از API schedule/all که gradeId می‌پذیرد
-    const url = selectedGrade === 'all' 
-      ? '/api/schedule/all' 
-      : `/api/schedule/all?gradeId=${selectedGrade}`;
-    
-    const res = await fetch(url);
-    const data = await res.json();
-    
-    console.log('📅 Schedule response:', data);
-    
-    if (data.success) {
-      setSchedule(data.schedules || []);
-      setMessage(data.message || '');
-    } else {
+    setLoading(true);
+    try {
+      const url = selectedGrade === 'all'
+        ? '/api/schedule/all'
+        : `/api/schedule/all?gradeId=${selectedGrade}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        setSchedule(data.schedules || []);
+        setMessage(data.message || '');
+      } else {
+        setSchedule([]);
+        setMessage(data.message || 'برنامه هفتگی یافت نشد');
+      }
+    } catch (error) {
       setSchedule([]);
-      setMessage(data.message || 'برنامه هفتگی یافت نشد');
+      setMessage('خطا در ارتباط با سرور');
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error('💥 Error fetching schedule:', error);
-    setSchedule([]);
-    setMessage('خطا در ارتباط با سرور');
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   function formatTime(timeString) {
     if (!timeString) return '--:--';
@@ -95,15 +89,14 @@ export default function WeeklySchedule() {
     );
   }
 
-const groupedSchedule = schedule.reduce((acc, item) => {
-  // برای API schedule/all از dayKey استفاده کن
-  const dayKey = item.dayKey || item.day_of_week;
-  if (!acc[dayKey]) {
-    acc[dayKey] = [];
-  }
-  acc[dayKey].push(item);
-  return acc;
-}, {});
+  const groupedSchedule = schedule.reduce((acc, item) => {
+    const dayKey = item.dayKey || item.day_of_week;
+    if (!acc[dayKey]) {
+      acc[dayKey] = [];
+    }
+    acc[dayKey].push(item);
+    return acc;
+  }, {});
 
   const daysOrder = ['saturday', 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
   const dayNames = {
@@ -132,10 +125,7 @@ const groupedSchedule = schedule.reduce((acc, item) => {
           </label>
           <select
             value={selectedGrade}
-            onChange={(e) => {
-              console.log('🎯 Grade changed to:', e.target.value);
-              setSelectedGrade(e.target.value);
-            }}
+            onChange={(e) => setSelectedGrade(e.target.value)}
             className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
           >
             <option value="all">همه پایه‌ها</option>
@@ -147,7 +137,7 @@ const groupedSchedule = schedule.reduce((acc, item) => {
           </select>
         </div>
 
-        {schedule.length === 0 ? (
+        {schedule.length === 0 && specialClasses.length === 0 ? (
           <div className="text-center py-8">
             <CalendarDays className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500">{message || 'برنامه هفتگی یافت نشد'}</p>
@@ -158,8 +148,10 @@ const groupedSchedule = schedule.reduce((acc, item) => {
         ) : (
           <div className="space-y-4">
             {daysOrder.map((dayKey) => {
-              const daySchedule = groupedSchedule[dayKey];
-              if (!daySchedule || daySchedule.length === 0) return null;
+              const daySchedule = groupedSchedule[dayKey] || [];
+              const specialDay = specialClasses.filter(cls => cls.day_of_week === dayKey);
+
+              if (daySchedule.length === 0 && specialDay.length === 0) return null;
 
               return (
                 <div key={dayKey} className="border border-gray-200 rounded-xl overflow-hidden">
@@ -168,11 +160,12 @@ const groupedSchedule = schedule.reduce((acc, item) => {
                       <CalendarDays className="w-4 h-4" />
                       {dayNames[dayKey]}
                       <span className="bg-green-200 px-2 py-1 rounded text-xs">
-                        {daySchedule.length} جلسه
+                        {daySchedule.length + specialDay.length} جلسه
                       </span>
                     </h4>
                   </div>
                   <div className="p-4 space-y-3">
+                    {/* کلاس‌های معمولی */}
                     {daySchedule.map((item) => (
                       <div key={item.id} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
                         <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
@@ -188,6 +181,27 @@ const groupedSchedule = schedule.reduce((acc, item) => {
                             <div className="flex items-center gap-1">
                               <Users className="w-3 h-3" />
                               <span>{item.className || item.classes?.class_name || 'کلاس'}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {/* کلاس‌های فوق‌العاده */}
+                    {specialDay.map(cls => (
+                      <div key={cls.id} className="flex items-center gap-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                        <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+                          <BookOpen className="w-5 h-5 text-yellow-700" />
+                        </div>
+                        <div className="flex-1">
+                          <h5 className="font-medium text-yellow-800">{cls.title}</h5>
+                          <div className="flex items-center gap-4 text-sm text-yellow-700 mt-1">
+                            <div className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              <span>{formatTime(cls.start_time)} - {formatTime(cls.end_time)}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Users className="w-3 h-3" />
+                              <span>{cls.class_name || 'کلاس فوق‌العاده'}</span>
                             </div>
                           </div>
                         </div>

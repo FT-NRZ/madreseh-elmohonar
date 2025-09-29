@@ -18,14 +18,7 @@ export default function SchoolLoginPage({ onClose }) {
   const [showVerificationStep, setShowVerificationStep] = useState(false);
   const [countdown, setCountdown] = useState(0);
 
-  // ریدایرکت اگر قبلاً لاگین شده بود
-useEffect(() => {
-  const token = localStorage.getItem('token');
-  const userData = localStorage.getItem('user');
-  if (token && userData && onClose) {
-    onClose();
-  }
-}, [onClose]);
+ 
 
   // تایمر شمارش معکوس
   useEffect(() => {
@@ -225,7 +218,12 @@ useEffect(() => {
     <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-md flex justify-center items-start overflow-y-auto p-4 py-10 animate-fade-in">
       {/* Close Button */}
       <button
-        onClick={onClose}
+        type="button"
+        onClick={() => {
+          if (typeof onClose === 'function') {
+            onClose();
+          }
+        }}
         className="absolute top-5 left-5 z-20 w-11 h-11 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-all duration-300"
       >
         <X className="w-6 h-6" />
@@ -577,7 +575,6 @@ useEffect(() => {
           )}
         </div>
       </div>
-      
       
       <style jsx>{`
         @keyframes fade-in {

@@ -1,4 +1,4 @@
-'use client'
+'use client';
 import React, { useState } from 'react';
 import { ArrowRight, GraduationCap, User, Phone, Send, CheckCircle, Home } from 'lucide-react';
 import Link from 'next/link';
@@ -15,10 +15,9 @@ export default function PreRegistrationPage() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [errors, setErrors] = useState({});
 
-  // پایه‌های تحصیلی مدرسه
   const grades = [
     'اول ابتدایی',
-    'دوم ابتدایی', 
+    'دوم ابتدایی',
     'سوم ابتدایی',
     'چهارم ابتدایی'
   ];
@@ -38,38 +37,43 @@ export default function PreRegistrationPage() {
 
   const validateForm = () => {
     const newErrors = {};
-
-    if (!formData.firstName.trim()) {
-      newErrors.firstName = 'نام الزامی است';
-    }
-
-    if (!formData.lastName.trim()) {
-      newErrors.lastName = 'نام خانوادگی الزامی است';
-    }
-
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'شماره تماس الزامی است';
-    } else if (!/^09\d{9}$/.test(formData.phone)) {
-      newErrors.phone = 'شماره تماس نامعتبر است';
-    }
-
-    if (!formData.grade) {
-      newErrors.grade = 'انتخاب پایه تحصیلی الزامی است';
-    }
-
+    if (!formData.firstName.trim()) newErrors.firstName = 'نام الزامی است';
+    if (!formData.lastName.trim()) newErrors.lastName = 'نام خانوادگی الزامی است';
+    if (!formData.phone.trim()) newErrors.phone = 'شماره تماس الزامی است';
+    else if (!/^09\d{9}$/.test(formData.phone)) newErrors.phone = 'شماره تماس نامعتبر است';
+    if (!formData.grade) newErrors.grade = 'انتخاب پایه تحصیلی الزامی است';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
+  // این تابع را اصلاح کردم تا اطلاعات به سرور ارسال شود
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
     setIsSubmitting(true);
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setIsSubmitting(false);
-    setIsSuccess(true);
+    setErrors({});
+    try {
+      const response = await fetch('/api/pre-registration', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          grade: formData.grade,
+          phone: formData.phone
+        })
+      });
+      const result = await response.json();
+      if (response.ok && result.success) {
+        setIsSuccess(true);
+      } else {
+        setErrors({ form: result.error || 'خطا در ثبت اطلاعات' });
+      }
+    } catch (error) {
+      setErrors({ form: 'خطا در ارتباط با سرور' });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const resetForm = () => {
@@ -85,28 +89,26 @@ export default function PreRegistrationPage() {
 
   if (isSuccess) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-100 via-green-200 to-green-400 flex items-center justify-center p-4">
-        <div className="relative bg-white/90 rounded-3xl shadow-2xl w-full max-w-md p-8 text-center border border-green-200 overflow-hidden">
-          <div className="absolute -top-16 -left-16 w-48 h-48 bg-gradient-to-br from-green-400 via-green-500 to-green-700 rounded-full opacity-20 blur-2xl"></div>
-          <div className="absolute -bottom-16 -right-16 w-48 h-48 bg-gradient-to-tr from-green-300 via-green-400 to-green-600 rounded-full opacity-20 blur-2xl"></div>
-          <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-green-700 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
-            <CheckCircle className="w-10 h-10 text-white" />
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 text-center border border-green-100">
+          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <CheckCircle className="w-8 h-8 text-green-600" />
           </div>
-          <h3 className="text-2xl font-extrabold bg-gradient-to-r from-green-600 via-green-500 to-green-700 bg-clip-text text-transparent mb-4">ثبت نام موفق!</h3>
-          <p className="text-green-800 mb-8 leading-relaxed font-medium">
-            پیش ثبت نام شما با موفقیت انجام شد.<br />به زودی با شما تماس خواهیم گرفت.
+          <h3 className="text-xl font-bold text-green-700 mb-3">ثبت نام موفق!</h3>
+          <p className="text-gray-600 mb-6 text-sm">
+            درخواست شما ثبت شد.<br />به زودی تماس می‌گیریم.
           </p>
-          <div className="flex flex-col gap-3">
-            <Link 
+          <div className="space-y-3">
+            <Link
               href="/"
-              className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-[#399918] to-green-600 text-white px-6 py-3 rounded-xl font-bold hover:from-green-600 hover:to-[#399918] transition-all duration-300 shadow"
+              className="inline-flex items-center justify-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition w-full"
             >
-              <Home className="w-5 h-5" />
+              <Home className="w-4 h-4" />
               بازگشت به خانه
             </Link>
             <button
               onClick={resetForm}
-              className="text-green-700 hover:text-[#399918] font-bold transition-colors"
+              className="text-green-600 hover:text-green-700 font-medium text-sm"
             >
               ثبت نام جدید
             </button>
@@ -117,195 +119,173 @@ export default function PreRegistrationPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-100 via-green-200 to-green-400 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100">
       {/* Header */}
-      <div className="bg-white/90 shadow-lg border-b border-green-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <Link 
+      <div className="bg-white shadow-sm border-b border-green-100">
+        <div className="max-w-4xl mx-auto px-4 py-3">
+          <div className="flex items-center justify-between">
+            <Link
               href="/"
-              className="flex items-center gap-2 text-green-700 hover:text-[#399918] transition-colors font-bold"
+              className="flex items-center gap-2 text-green-600 hover:text-green-700 transition font-medium"
             >
-              <ArrowRight className="w-5 h-5" />
-              بازگشت به خانه
+              <ArrowRight className="w-4 h-4" />
+              بازگشت
             </Link>
-            <div className="flex items-center gap-3">
-              <GraduationCap className="w-8 h-8 text-[#399918]" />
-              <h1 className="text-xl font-extrabold text-[#399918]">علم و هنر</h1>
+            <div className="flex items-center gap-2">
+              <GraduationCap className="w-6 h-6 text-green-600" />
+              <span className="font-bold text-green-700">علم و هنر</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex items-center justify-center py-12 px-4">
-        <div className="relative max-w-2xl w-full bg-white/90 rounded-3xl shadow-2xl p-8 md:p-12 border border-green-200 overflow-hidden">
-          {/* تزئینات سبز */}
-          <div className="absolute -top-16 -left-16 w-48 h-48 bg-gradient-to-br from-green-400 via-green-500 to-green-700 rounded-full opacity-20 blur-2xl"></div>
-          <div className="absolute -bottom-16 -right-16 w-48 h-48 bg-gradient-to-tr from-green-300 via-green-400 to-green-600 rounded-full opacity-20 blur-2xl"></div>
+      <div className="flex items-center justify-center py-8 px-4">
+        <div className="bg-white rounded-2xl shadow-lg w-full max-w-md p-6 border border-green-100">
           {/* Page Header */}
-          <div className="text-center mb-10 relative z-10">
-            <div className="w-20 h-20 bg-[#399918]/20 rounded-full flex items-center justify-center mx-auto mb-6 shadow">
-              <GraduationCap className="w-10 h-10 text-[#399918]" />
+          <div className="text-center mb-6">
+            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <GraduationCap className="w-6 h-6 text-green-600" />
             </div>
-            <h1 className="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-green-600 via-green-500 to-green-700 bg-clip-text text-transparent mb-4">
-              پیش ثبت نام مدرسه علم و هنر
+            <h1 className="text-xl font-bold text-green-700 mb-2">
+              پیش ثبت نام
             </h1>
-            <p className="text-green-800 text-lg font-medium">
-              برای ثبت نام فرزندتان در پایه‌های اول تا چهارم ابتدایی،<br />
-              لطفاً اطلاعات زیر را تکمیل کنید
+            <p className="text-gray-600 text-sm">
+              اطلاعات فرزندتان را وارد کنید
             </p>
           </div>
-          {/* Form Card */}
-          <form onSubmit={handleSubmit} className="space-y-7 relative z-10">
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-4">
             {/* نام */}
             <div>
-              <label className="flex items-center gap-2 text-sm font-bold text-green-700 mb-2">
-                <User className="w-4 h-4" />
-                نام دانش‌آموز *
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1">
+                <User className="w-4 h-4 text-green-600" />
+                نام *
               </label>
               <input
                 type="text"
                 value={formData.firstName}
                 onChange={(e) => handleInputChange('firstName', e.target.value)}
-                className={`w-full px-6 py-4 border-2 rounded-2xl focus:ring-4 focus:ring-green-300/30 outline-none transition-all text-lg bg-white/80 font-medium placeholder:text-green-400 ${
-                  errors.firstName 
-                    ? 'border-red-300 focus:border-red-500' 
-                    : 'border-green-200 focus:border-[#399918]'
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-200 focus:border-green-400 outline-none transition ${
+                  errors.firstName
+                    ? 'border-red-300'
+                    : 'border-gray-200'
                 }`}
-                placeholder="نام فرزندتان را وارد کنید"
+                placeholder="نام فرزندتان"
                 style={{ direction: 'rtl' }}
               />
               {errors.firstName && (
-                <p className="text-red-500 text-sm mt-2 flex items-center gap-1">
-                  <span className="w-4 h-4 text-red-500">⚠</span>
-                  {errors.firstName}
-                </p>
+                <p className="text-red-500 text-xs mt-1">{errors.firstName}</p>
               )}
             </div>
+
             {/* نام خانوادگی */}
             <div>
-              <label className="flex items-center gap-2 text-sm font-bold text-green-700 mb-2">
-                <User className="w-4 h-4" />
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1">
+                <User className="w-4 h-4 text-green-600" />
                 نام خانوادگی *
               </label>
               <input
                 type="text"
                 value={formData.lastName}
                 onChange={(e) => handleInputChange('lastName', e.target.value)}
-                className={`w-full px-6 py-4 border-2 rounded-2xl focus:ring-4 focus:ring-green-300/30 outline-none transition-all text-lg bg-white/80 font-medium placeholder:text-green-400 ${
-                  errors.lastName 
-                    ? 'border-red-300 focus:border-red-500' 
-                    : 'border-green-200 focus:border-[#399918]'
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-200 focus:border-green-400 outline-none transition ${
+                  errors.lastName
+                    ? 'border-red-300'
+                    : 'border-gray-200'
                 }`}
-                placeholder="نام خانوادگی فرزندتان را وارد کنید"
+                placeholder="نام خانوادگی"
                 style={{ direction: 'rtl' }}
               />
               {errors.lastName && (
-                <p className="text-red-500 text-sm mt-2 flex items-center gap-1">
-                  <span className="w-4 h-4 text-red-500">⚠</span>
-                  {errors.lastName}
-                </p>
+                <p className="text-red-500 text-xs mt-1">{errors.lastName}</p>
               )}
             </div>
+
             {/* شماره تماس */}
             <div>
-              <label className="flex items-center gap-2 text-sm font-bold text-green-700 mb-2">
-                <Phone className="w-4 h-4" />
-                شماره تماس والدین *
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1">
+                <Phone className="w-4 h-4 text-green-600" />
+                شماره تماس *
               </label>
               <input
                 type="tel"
                 value={formData.phone}
                 onChange={(e) => handleInputChange('phone', e.target.value)}
-                className={`w-full px-6 py-4 border-2 rounded-2xl focus:ring-4 focus:ring-green-300/30 outline-none transition-all text-lg bg-white/80 font-medium placeholder:text-green-400 ${
-                  errors.phone 
-                    ? 'border-red-300 focus:border-red-500' 
-                    : 'border-green-200 focus:border-[#399918]'
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-200 focus:border-green-400 outline-none transition ${
+                  errors.phone
+                    ? 'border-red-300'
+                    : 'border-gray-200'
                 }`}
-                placeholder="مثال: 09123456789"
+                placeholder="09123456789"
                 style={{ direction: 'ltr', textAlign: 'right' }}
                 maxLength="11"
               />
               {errors.phone && (
-                <p className="text-red-500 text-sm mt-2 flex items-center gap-1">
-                  <span className="w-4 h-4 text-red-500">⚠</span>
-                  {errors.phone}
-                </p>
+                <p className="text-red-500 text-xs mt-1">{errors.phone}</p>
               )}
             </div>
+
             {/* پایه تحصیلی */}
             <div>
-              <label className="flex items-center gap-2 text-sm font-bold text-green-700 mb-2">
-                <GraduationCap className="w-4 h-4" />
-                پایه تحصیلی مورد نظر *
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1">
+                <GraduationCap className="w-4 h-4 text-green-600" />
+                پایه تحصیلی *
               </label>
-              <div className="relative">
-                <select
-                  value={formData.grade}
-                  onChange={(e) => handleInputChange('grade', e.target.value)}
-                  className={`w-full px-6 py-4 border-2 rounded-2xl focus:ring-4 focus:ring-green-300/30 outline-none transition-all text-lg appearance-none bg-white/80 font-medium text-green-800 placeholder:text-green-400 ${
-                    errors.grade 
-                      ? 'border-red-300 focus:border-red-500' 
-                      : 'border-green-200 focus:border-[#399918]'
-                  }`}
-                  style={{ direction: 'rtl' }}
-                >
-                  <option value="">پایه تحصیلی را انتخاب کنید</option>
-                  {grades.map(grade => (
-                    <option key={grade} value={grade}>{grade}</option>
-                  ))}
-                </select>
-                {/* آیکون فلش */}
-                <div className="absolute left-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                  <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </div>
-              </div>
+              <select
+                value={formData.grade}
+                onChange={(e) => handleInputChange('grade', e.target.value)}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-200 focus:border-green-400 outline-none transition ${
+                  errors.grade
+                    ? 'border-red-300'
+                    : 'border-gray-200'
+                }`}
+                style={{ direction: 'rtl' }}
+              >
+                <option value="">انتخاب پایه</option>
+                {grades.map(grade => (
+                  <option key={grade} value={grade}>{grade}</option>
+                ))}
+              </select>
               {errors.grade && (
-                <p className="text-red-500 text-sm mt-2 flex items-center gap-1">
-                  <span className="w-4 h-4 text-red-500">⚠</span>
-                  {errors.grade}
-                </p>
+                <p className="text-red-500 text-xs mt-1">{errors.grade}</p>
               )}
             </div>
+
+            {/* نمایش خطاهای کلی */}
+            {errors.form && (
+              <div className="text-center text-red-600 text-sm mb-2">{errors.form}</div>
+            )}
+
             {/* دکمه ثبت */}
-            <div className="pt-4">
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full bg-gradient-to-r from-[#399918] to-green-600 text-white py-4 px-8 rounded-2xl font-extrabold text-lg hover:from-green-600 hover:to-[#399918] transition-all duration-300 flex items-center justify-center gap-3 shadow-xl hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98]"
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                    در حال ثبت اطلاعات...
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-6 h-6" />
-                    ثبت درخواست پیش ثبت نام
-                  </>
-                )}
-              </button>
-            </div>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed mt-6"
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  در حال ثبت...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4" />
+                  ثبت درخواست
+                </>
+              )}
+            </button>
+
             {/* راهنما */}
-            <div className="bg-green-50 border border-green-200 rounded-2xl p-6 mt-8 shadow-sm">
-              <h4 className="font-bold text-green-700 mb-3 flex items-center gap-2">
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                </svg>
-                نکات مهم:
-              </h4>
-              <ul className="text-green-700 text-sm space-y-2 leading-relaxed">
-                <li>• پس از ثبت درخواست، کارشناسان ما در اسرع وقت با شما تماس خواهند گرفت</li>
-                <li>• مدرسه علم و هنر پذیرای دانش‌آموزان پایه‌های اول تا چهارم ابتدایی است</li>
-              </ul>
+            <div className="bg-green-50 border border-green-100 rounded-lg p-3 mt-4">
+              <p className="text-green-700 text-xs text-center">
+                پس از ثبت درخواست، کارشناسان ما با شما تماس خواهند گرفت
+              </p>
             </div>
           </form>
         </div>
       </div>
     </div>
-     );
+  );
 }
