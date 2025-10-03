@@ -11,22 +11,24 @@ import {
   CalendarCheck,
   GalleryHorizontalEnd,
   FileText,
-  Shield
+  Shield,
+  Calendar1Icon,
+  UserPlus
 } from 'lucide-react';
 
 const sidebarMenu = [
   { label: 'داشبورد', icon: LayoutGrid, href: '/admin/dashboard' },
   { label: 'مدیریت کاربران', icon: Users, href: '/admin/users' },
   { label: 'مدیریت کلاس‌ها', icon: GraduationCap, href: '/admin/classes' },
-  { label: 'برنامه هفتگی', icon: Calendar, href: '/admin/weekly_schedule', active: true },
+  { label: 'برنامه هفتگی', icon: Calendar1Icon, href: '/admin/weekly_schedule' },
   { label: 'برنامه غذایی', icon: GalleryHorizontalEnd, href: '/admin/food-schedule' },
   { label: 'حضور و غیاب', icon: CalendarCheck, href: '/admin/attendances' },
-  { label: 'مدیریت گالری', icon: Image, href: '/admin/gallery' },
+  { label: 'مدیریت گالری', icon: GalleryHorizontal, href: '/admin/gallery' },
+  { label: 'مدیریت کارنامه ها', icon: BookOpen, href: '/admin/report_cards' },
   { label: 'مدیریت اخبار', icon: NewspaperIcon, href: '/admin/news' },
   { label: 'مدیریت بخشنامه ها', icon: FileText, href: '/admin/circular' },
+  { label: 'پیش‌ثبت‌نام', icon: UserPlus, href: '/admin/pre-registrations' },
   { label: 'توبیخی و تشویقی', icon: Shield, href: '/admin/disciplinary' },
-  { label: 'گزارش ها', icon: BarChart3, href: '/admin/reports' },
-  { label: 'تنظیمات', icon: Settings, href: '/admin/settings' },
 ];
 
 export default function AdminSchedule() {
@@ -182,31 +184,53 @@ export default function AdminSchedule() {
   };
 
   // ثبت کلاس فوق‌العاده
-  const handleSpecialClassSubmit = async (e) => {
-    e.preventDefault();
+const handleSpecialClassSubmit = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  
+  try {
+    const formData = new FormData(e.target);
     const body = {
-      title: e.target.title.value,
-      description: e.target.description.value,
-      class_id: e.target.class_id.value,
-      day_of_week: e.target.day_of_week.value,
-      start_time: e.target.start_time.value,
-      end_time: e.target.end_time.value,
+      title: formData.get('title')?.trim(),
+      description: formData.get('description')?.trim(),
+      class_id: formData.get('class_id') || null,
+      day_of_week: formData.get('day_of_week'),
+      start_time: formData.get('start_time'),
+      end_time: formData.get('end_time')
+      // room_number حذف شد
     };
+
+    // اعتبارسنجی سمت کلاینت
+    if (!body.title || !body.day_of_week || !body.start_time || !body.end_time) {
+      toast.error('لطفاً همه فیلدهای الزامی را پر کنید');
+      return;
+    }
+
+    console.log('Sending special class data:', body);
+
     const res = await fetch('/api/special-classes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
+    
     const data = await res.json();
+    console.log('Response:', data);
+    
     if (data.success) {
-      toast.success('کلاس فوق‌العاده ثبت شد');
+      toast.success(data.message || 'کلاس فوق‌العاده ثبت شد');
       e.target.reset();
-      fetchSpecialClasses();
+      await fetchSpecialClasses();
     } else {
       toast.error(data.message || 'خطا در ثبت کلاس فوق‌العاده');
     }
-  };
-
+  } catch (error) {
+    console.error('Error submitting special class:', error);
+    toast.error('خطا در ارتباط با سرور');
+  } finally {
+    setLoading(false);
+  }
+};
   // حذف جلسه
   const handleDelete = async (id) => {
     if (!confirm('آیا از حذف این جلسه اطمینان دارید؟')) return;
@@ -626,8 +650,8 @@ export default function AdminSchedule() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">کلاس</label>
-                  <select name="class_id" className="w-full px-4 py-2 border border-gray-300 rounded-lg" required>
-                    <option value="">انتخاب کلاس</option>
+                  <select name="class_id" className="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                    <option value="">انتخاب کلاس (اختیاری)</option>
                     {classes.map(cls => (
                       <option key={cls.id} value={cls.id}>{cls.class_name}</option>
                     ))}
@@ -658,8 +682,8 @@ export default function AdminSchedule() {
                 </div>
               </div>
               <div className="flex justify-end pt-4 border-t">
-                <button type="submit" className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
-                  ثبت کلاس فوق‌العاده
+                <button type="submit" className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700" disabled={loading}>
+                  {loading ? 'در حال ثبت...' : 'ثبت کلاس فوق‌العاده'}
                 </button>
               </div>
             </form>

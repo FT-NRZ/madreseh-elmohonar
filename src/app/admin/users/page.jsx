@@ -4,8 +4,17 @@ import {
   Users, UserPlus, Search, Edit, Trash2, Eye, EyeOff, X, AlertCircle,
   RefreshCw, GraduationCap, Calendar, Image, LayoutGrid, Target,
   GalleryHorizontalEnd, CalendarCheck, Settings, LogOut,
-  Newspaper as NewspaperIcon
+  Newspaper as NewspaperIcon,
+  CalculatorIcon,
+  BookOpen,
+  FileText,
+  Shield,
+  BarChart,
+  GalleryHorizontal,
+  Menu,
+  Sparkles
 } from 'lucide-react';
+import EditUserModal from './EditUserModal';
 
 export default function AdminUsersPage() {
   const [user, setUser] = useState(null);
@@ -19,6 +28,9 @@ export default function AdminUsersPage() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const usersPerPage = 6;
 
   const sidebarMenu = [
     { label: 'داشبورد', icon: LayoutGrid, href: '/admin/dashboard' },
@@ -27,10 +39,12 @@ export default function AdminUsersPage() {
     { label: 'برنامه هفتگی', icon: Calendar, href: '/admin/weekly_schedule' },
     { label: 'برنامه غذایی', icon: GalleryHorizontalEnd, href: '/admin/food-schedule' },
     { label: 'حضور و غیاب', icon: CalendarCheck, href: '/admin/attendances' },
-    { label: 'مدیریت گالری', icon: Image, href: '/admin/gallery' },
-    { label: 'گزارش‌ها', icon: Users, href: '/admin/reports' },
-    { label: 'تنظیمات', icon: Settings, href: '/admin/settings' },
-    { label: 'مدیریت اخبار', icon: NewspaperIcon, href: '/admin/news' }
+    { label: 'مدیریت گالری', icon: GalleryHorizontal, href: '/admin/gallery' },
+    { label: 'مدیریت کارنامه ها', icon: BookOpen, href: '/admin/report_cards' },
+    { label: 'مدیریت اخبار', icon: NewspaperIcon, href: '/admin/news' },
+    { label: 'مدیریت بخشنامه ها', icon: FileText, href: '/admin/circular' },
+    { label: 'پیش‌ثبت‌نام', icon: UserPlus, href: '/admin/pre-registrations' },
+    { label: 'توبیخی و تشویقی', icon: Shield, href: '/admin/disciplinary' },
   ];
 
   useEffect(() => {
@@ -47,13 +61,6 @@ export default function AdminUsersPage() {
         return;
       }
       setUser(parsedUser);
-
-      fetch('/api/admin/stats', {
-        method: 'GET',
-        headers: { Authorization: `Bearer ${token}` },
-        cache: 'no-store'
-      }).catch(() => {});
-
       fetchUsers();
     } catch {
       window.location.href = '/login';
@@ -98,6 +105,18 @@ export default function AdminUsersPage() {
     const matchesRole = filterRole === 'all' || u.role === filterRole;
     return matchesSearch && matchesRole;
   });
+
+  // صفحه‌بندی
+  const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
+  const currentUsers = filteredUsers.slice(
+    (currentPage - 1) * usersPerPage,
+    currentPage * usersPerPage
+  );
+
+  // ریست صفحه هنگام تغییر فیلتر
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterRole]);
 
   const handleDeleteUser = async (userId) => {
     try {
@@ -151,36 +170,125 @@ export default function AdminUsersPage() {
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-white">
-        <div className="text-center p-8 bg-white/90 rounded-2xl shadow-xl border border-green-200">
-          <div className="w-12 h-12 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <div className="text-center p-8 bg-white/90 backdrop-blur-lg rounded-3xl shadow-2xl border border-green-200">
+          <div className="w-16 h-16 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-700">در حال بارگذاری...</p>
         </div>
       </div>
     );
   }
 
+  const userStats = {
+    students: users.filter(u => u.role === 'student').length,
+    teachers: users.filter(u => u.role === 'teacher').length,
+    admins: users.filter(u => u.role === 'admin').length,
+    total: users.length
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-white">
-      <div className="flex">
-        {/* Sidebar */}
-        <aside className="right-0 top-0 w-72 bg-white shadow-lg border-l border-green-100">
+      {/* موبایل: هدر و دکمه منو */}
+      <div className="sm:hidden sticky top-0 z-40 bg-white/90 backdrop-blur-lg border-b border-green-100 shadow-lg">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-2">
+            <Users className="w-7 h-7 text-green-700" />
+            <span className="font-bold text-green-700">مدیریت کاربران</span>
+          </div>
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition"
+          >
+            <Menu className="w-6 h-6" />
+          </button>
+        </div>
+      </div>
+
+      {/* موبایل: سایدبار drawer */}
+      {sidebarOpen && (
+        <div className="sm:hidden fixed inset-0 z-50">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setSidebarOpen(false)}
+          ></div>
+          <aside className="absolute right-0 top-0 h-full w-72 bg-white shadow-2xl flex flex-col">
+            <div className="p-4 bg-gradient-to-r from-green-200 via-green-100 to-green-50 text-green-800 border-b border-green-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-green-100 rounded-2xl flex items-center justify-center">
+                  <Target className="w-5 h-5 text-green-700" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold">پنل مدیریت</h2>
+                  <p className="text-green-700 text-sm">مدرسه علم و هنر</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="p-2 rounded-full bg-green-50 hover:bg-green-200 transition"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <nav className="p-3 space-y-1 flex-1 overflow-y-auto">
+              {sidebarMenu.map((item) => {
+                const IconComponent = item.icon;
+                const isActive = item.active || (typeof window !== 'undefined' && window.location.pathname === item.href);
+                return (
+                  <button
+                    key={item.label}
+                    onClick={() => {
+                      setSidebarOpen(false);
+                      window.location.href = item.href;
+                    }}
+                    className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-semibold transition-all duration-300 ${
+                      isActive
+                        ? 'bg-gradient-to-r from-green-200 to-green-100 text-green-900 shadow scale-[1.02]'
+                        : 'text-green-700 hover:bg-green-50 hover:shadow'
+                    }`}
+                  >
+                    <div className={`p-2 rounded-xl ${isActive ? 'bg-green-100' : 'bg-green-50'}`}>
+                      <IconComponent size={16} />
+                    </div>
+                    <span className="text-sm">{item.label}</span>
+                  </button>
+                );
+              })}
+              <button
+                onClick={() => {
+                  setSidebarOpen(false);
+                  logout();
+                }}
+                className="w-full flex items-center gap-3 px-3 py-3 rounded-xl font-semibold text-red-600 hover:bg-red-50 mt-4 transition"
+              >
+                <div className="p-2 rounded-xl bg-red-100">
+                  <LogOut size={16} />
+                </div>
+                <span className="text-sm">خروج از سیستم</span>
+              </button>
+            </nav>
+          </aside>
+        </div>
+      )}
+
+      <div className="flex flex-col sm:flex-row">
+        {/* Sidebar - Desktop */}
+        <aside className="hidden sm:block right-0 top-0 w-72 bg-white/95 backdrop-blur-xl shadow-2xl z-0 border-l border-green-100">
           <div className="p-6 bg-gradient-to-r from-green-200 via-green-100 to-green-50 text-green-800 border-b border-green-100">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                <Target className="w-6 h-6 text-green-600" />
+              <div className="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center">
+                <Target className="w-6 h-6 text-green-700" />
               </div>
               <div>
-                <h2 className="text-lg font-bold">پنل مدیریت</h2>
-                <p className="text-green-600 text-xs">مدرسه علم و هنر</p>
+                <h2 className="text-xl font-bold">پنل مدیریت</h2>
+                <p className="text-green-700 text-sm">مدرسه علم و هنر</p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="bg-green-50 rounded-xl p-3 text-center">
-                <p className="text-lg font-bold text-green-700">{users.filter(u => u.role === 'student').length}</p>
+              <div className="bg-green-50 rounded-xl p-3 text-center border border-green-100">
+                <p className="text-xl font-bold text-green-700">{userStats.students}</p>
                 <p className="text-xs text-green-600">دانش‌آموز</p>
               </div>
-              <div className="bg-green-50 rounded-xl p-3 text-center">
-                <p className="text-lg font-bold text-green-700">{users.filter(u => u.role === 'teacher').length}</p>
+              <div className="bg-green-50 rounded-xl p-3 text-center border border-green-100">
+                <p className="text-xl font-bold text-green-700">{userStats.teachers}</p>
                 <p className="text-xs text-green-600">معلم</p>
               </div>
             </div>
@@ -188,18 +296,18 @@ export default function AdminUsersPage() {
           <nav className="p-4 space-y-2">
             {sidebarMenu.map((item) => {
               const IconComponent = item.icon;
-              const isActive = typeof window !== 'undefined' && window.location.pathname === item.href;
+              const isActive = item.active || (typeof window !== 'undefined' && window.location.pathname === item.href);
               return (
                 <button
                   key={item.label}
                   onClick={() => (window.location.href = item.href)}
                   className={`group w-full text-right p-4 rounded-2xl font-semibold transition-all duration-300 flex items-center gap-4 relative overflow-hidden ${
                     isActive
-                      ? 'bg-gradient-to-r from-green-600 to-green-500 text-white shadow-xl scale-[1.02] transform'
+                      ? 'bg-gradient-to-r from-green-200 to-green-100 text-green-900 shadow-xl scale-[1.02] transform'
                       : 'text-green-700 hover:bg-gradient-to-r hover:from-green-50 hover:to-green-100 hover:shadow-lg hover:scale-[1.01]'
                   }`}
                 >
-                  <div className={`p-2 rounded-xl ${isActive ? 'bg-white/20' : 'bg-green-100'}`}>
+                  <div className={`p-2 rounded-xl ${isActive ? 'bg-green-100' : 'bg-green-50'}`}>
                     <IconComponent size={18} />
                   </div>
                   <span className="text-sm">{item.label}</span>
@@ -218,79 +326,246 @@ export default function AdminUsersPage() {
           </nav>
         </aside>
 
-        {/* Main */}
-        <main className="flex-1 p-6 space-y-8 bg-gradient-to-br from-green-50 to-white">
-          <div className="max-w-4xl mx-auto px-4">
-            {message && (
-              <div className={`mb-4 rounded-xl p-3 text-sm ${messageType === 'error' ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
-                {message}
+        {/* Main Content */}
+        <main className="flex-1 p-2 sm:p-6 space-y-3 sm:space-y-8">
+          {/* Header Card */}
+          <div className="relative bg-gradient-to-r from-green-600 via-green-500 to-green-600 rounded-2xl sm:rounded-3xl p-3 sm:p-8 text-white shadow-2xl overflow-hidden">
+            <div className="absolute inset-0 bg-black/10"></div>
+            <div className="absolute top-0 right-0 w-24 h-24 sm:w-64 sm:h-64 bg-white/10 rounded-full -translate-y-10 translate-x-10 sm:-translate-y-32 sm:translate-x-32"></div>
+            <div className="relative z-10">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-lg sm:text-4xl font-bold mb-1 sm:mb-3 bg-gradient-to-r from-white to-green-100 bg-clip-text text-transparent">
+                    👥 مدیریت کاربران
+                  </h1>
+                  <p className="text-white/90 mb-2 sm:mb-6 text-xs sm:text-lg">مدیریت دانش‌آموزان، معلمان و مدیران سیستم</p>
+                  <div className="flex items-center gap-1 sm:gap-6 text-white/80">
+                    <div className="flex items-center gap-1 bg-white/20 backdrop-blur-lg rounded-xl px-2 py-1 sm:px-4 sm:py-2">
+                      <Users className="w-4 h-4" />
+                      <span className="text-xs sm:text-sm font-medium">{userStats.total} کاربر</span>
+                    </div>
+                    <div className="flex items-center gap-1 bg-white/20 backdrop-blur-lg rounded-xl px-2 py-1 sm:px-4 sm:py-2">
+                      <Calendar className="w-4 h-4" />
+                      <span className="text-xs sm:text-sm font-medium">{new Date().toLocaleDateString('fa-IR')}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="hidden sm:flex w-32 h-32 bg-white/20 backdrop-blur-lg rounded-3xl items-center justify-center shadow-2xl">
+                  <Users className="w-16 h-16 text-white" />
+                </div>
               </div>
-            )}
+            </div>
           </div>
+
+          {/* Stats Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-6">
+            <StatsCard
+              title="دانش‌آموزان"
+              value={userStats.students}
+              icon={GraduationCap}
+              gradient="from-green-100 to-green-50"
+              iconGradient="from-green-600 to-green-500"
+              textColor="text-green-800"
+            />
+            <StatsCard
+              title="معلمان"
+              value={userStats.teachers}
+              icon={BookOpen}
+              gradient="from-blue-100 to-blue-50"
+              iconGradient="from-blue-600 to-blue-500"
+              textColor="text-blue-800"
+            />
+            <StatsCard
+              title="مدیران"
+              value={userStats.admins}
+              icon={Shield}
+              gradient="from-purple-100 to-purple-50"
+              iconGradient="from-purple-600 to-purple-500"
+              textColor="text-purple-800"
+            />
+            <StatsCard
+              title="کل کاربران"
+              value={userStats.total}
+              icon={Users}
+              gradient="from-gray-100 to-gray-50"
+              iconGradient="from-gray-600 to-gray-500"
+              textColor="text-gray-800"
+            />
+          </div>
+
+          {/* Message */}
+          {message && (
+            <div className={`rounded-xl p-3 text-sm ${messageType === 'error' ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
+              {message}
+            </div>
+          )}
 
           {/* Controls */}
-          <div className="max-w-4xl mx-auto px-4 py-6 flex flex-col md:flex-row gap-4 items-center">
-            <div className="relative w-full md:w-1/2">
-              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                placeholder="جستجو..."
-                className="w-full pr-10 pl-4 py-2 border border-green-200 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-600 outline-none"
-              />
+          <div className="bg-white/95 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-3 sm:p-6 shadow-xl border border-green-200">
+            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                <div className="relative flex-1 sm:flex-none sm:w-64">
+                  <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    placeholder="جستجو در کاربران..."
+                    className="w-full pr-10 pl-4 py-2 border border-green-200 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-600 outline-none transition text-sm"
+                  />
+                </div>
+                <select
+                  value={filterRole}
+                  onChange={e => setFilterRole(e.target.value)}
+                  className="w-full sm:w-auto px-4 py-2 border border-green-200 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-600 outline-none text-sm"
+                >
+                  <option value="all">همه نقش‌ها</option>
+                  <option value="student">دانش‌آموز</option>
+                  <option value="teacher">معلم</option>
+                  <option value="admin">مدیر</option>
+                </select>
+              </div>
+              <div className="flex gap-2 w-full sm:w-auto">
+                <button
+                  onClick={fetchUsers}
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-xl border border-green-200 hover:bg-green-200 transition text-sm font-medium"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span className="hidden sm:inline">بروزرسانی</span>
+                </button>
+                <button
+                  onClick={() => setShowCreateUser(true)}
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition text-sm font-medium"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span className="hidden sm:inline">افزودن کاربر</span>
+                  <span className="sm:hidden">افزودن</span>
+                </button>
+              </div>
             </div>
-            <select
-              value={filterRole}
-              onChange={e => setFilterRole(e.target.value)}
-              className="px-4 py-2 border border-green-200 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-600 outline-none"
-            >
-              <option value="all">همه نقش‌ها</option>
-              <option value="student">دانش‌آموز</option>
-              <option value="teacher">معلم</option>
-              <option value="admin">مدیر</option>
-            </select>
-            <button
-              onClick={fetchUsers}
-              className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-xl border border-green-200 hover:bg-green-200 transition"
-            >
-              <RefreshCw className="w-4 h-4" />
-              بروزرسانی
-            </button>
-            <button
-              onClick={() => setShowCreateUser(true)}
-              className="flex items-center w-35 h-12 gap-2 px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition"
-            >
-              <UserPlus className="w-4 h-4" />
-              افزودن کاربر
-            </button>
           </div>
 
-          {/* Users Grid */}
-          <div className="max-w-4xl mx-auto px-4 pb-10 grid grid-cols-1 md:grid-cols-2 gap-8">
-            {loading ? (
-              <div className="col-span-full flex justify-center py-12">
-                <div className="w-12 h-12 border-4 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+          {/* Users Grid/List */}
+          <div className="bg-white/95 backdrop-blur-xl rounded-2xl sm:rounded-3xl shadow-xl overflow-hidden border border-green-200">
+            <div className="p-3 sm:p-6 border-b border-green-200">
+              <h3 className="text-base sm:text-xl font-bold text-gray-800 flex items-center">
+                <Users className="w-5 h-5 sm:w-6 sm:h-6 text-green-600 ml-2" />
+                لیست کاربران ({filteredUsers.length})
+              </h3>
+            </div>
+
+            {/* Desktop Table */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gradient-to-r from-green-100 to-green-50 backdrop-blur-lg">
+                  <tr>
+                    <th className="px-6 py-4 text-right text-sm font-bold text-green-800">کاربر</th>
+                    <th className="px-6 py-4 text-right text-sm font-bold text-green-800">کد ملی</th>
+                    <th className="px-6 py-4 text-right text-sm font-bold text-green-800">نقش</th>
+                    <th className="px-6 py-4 text-center text-sm font-bold text-green-800">وضعیت</th>
+                    <th className="px-6 py-4 text-center text-sm font-bold text-green-800">عملیات</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-green-100">
+                  {loading ? (
+                    <tr>
+                      <td colSpan="5" className="px-6 py-12 text-center">
+                        <div className="flex flex-col items-center">
+                          <div className="w-10 h-10 border-4 border-green-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+                          <p className="text-gray-500">در حال بارگذاری...</p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : currentUsers.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" className="px-6 py-12 text-center">
+                        <div className="flex flex-col items-center">
+                          <Users className="w-16 h-16 text-gray-400 mb-4" />
+                          <p className="text-gray-500">کاربری یافت نشد</p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    currentUsers.map((u, index) => (
+                      <UserTableRow 
+                        key={u.id || index} 
+                        user={u} 
+                        onEdit={() => { setSelectedUser(u); setShowEditUser(true); }}
+                        onDelete={() => { setSelectedUser(u); setShowDeleteModal(true); }}
+                        onToggleStatus={() => toggleUserStatus(u.id)}
+                      />
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="sm:hidden p-2 space-y-2">
+              {loading ? (
+                <div className="flex flex-col items-center py-8">
+                  <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+                  <p className="text-gray-500 text-xs">در حال بارگذاری...</p>
+                </div>
+              ) : currentUsers.length === 0 ? (
+                <div className="flex flex-col items-center py-8">
+                  <Users className="w-12 h-12 text-gray-400 mb-2" />
+                  <p className="text-gray-500 text-sm">کاربری یافت نشد</p>
+                </div>
+              ) : (
+                currentUsers.map((u, index) => (
+                  <UserMobileCard 
+                    key={u.id || index} 
+                    user={u} 
+                    onEdit={() => { setSelectedUser(u); setShowEditUser(true); }}
+                    onDelete={() => { setSelectedUser(u); setShowDeleteModal(true); }}
+                    onToggleStatus={() => toggleUserStatus(u.id)}
+                  />
+                ))
+              )}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="p-4 border-t border-green-200 flex justify-center">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-2 rounded-lg bg-green-50 border border-green-200 text-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  >
+                    قبلی
+                  </button>
+                  
+                  <div className="flex gap-1">
+                    {[...Array(totalPages)].map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setCurrentPage(i + 1)}
+                        className={`px-3 py-2 rounded-lg text-sm ${
+                          currentPage === i + 1
+                            ? 'bg-green-600 text-white'
+                            : 'bg-green-50 text-green-700 border border-green-200 hover:bg-green-100'
+                        }`}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-2 rounded-lg bg-green-50 border border-green-200 text-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  >
+                    بعدی
+                  </button>
+                </div>
               </div>
-            ) : filteredUsers.length === 0 ? (
-              <div className="col-span-full text-center py-12">
-                <Users className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                <p className="text-gray-500">کاربری یافت نشد</p>
-              </div>
-            ) : (
-              filteredUsers.map(u => (
-                <UserCard
-                  key={u.id}
-                  user={u}
-                  onEdit={() => { setSelectedUser(u); setShowEditUser(true); }}
-                  onDelete={() => { setSelectedUser(u); setShowDeleteModal(true); }}
-                  onToggleStatus={() => toggleUserStatus(u.id)}
-                />
-              ))
             )}
           </div>
 
-          {/* Create User Modal */}
+          {/* Modals */}
           {showCreateUser && (
             <CreateUserModal
               onClose={() => setShowCreateUser(false)}
@@ -298,7 +573,6 @@ export default function AdminUsersPage() {
             />
           )}
 
-          {/* Edit User Modal */}
           {showEditUser && selectedUser && (
             <EditUserModal
               user={selectedUser}
@@ -307,7 +581,6 @@ export default function AdminUsersPage() {
             />
           )}
 
-          {/* Delete Confirmation Modal */}
           {showDeleteModal && selectedUser && (
             <DeleteConfirmModal
               user={selectedUser}
@@ -321,75 +594,155 @@ export default function AdminUsersPage() {
   );
 }
 
-function UserCard({ user, onEdit, onDelete, onToggleStatus }) {
+// Stats Card Component
+function StatsCard({ title, value, icon: Icon, gradient, iconGradient, textColor }) {
+  return (
+    <div className={`bg-gradient-to-br ${gradient} rounded-2xl sm:rounded-3xl p-3 sm:p-6 border border-green-200 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 backdrop-blur-lg`}>
+      <div className="flex items-center justify-between mb-2 sm:mb-4">
+        <div className={`w-10 h-10 sm:w-14 sm:h-14 bg-gradient-to-r ${iconGradient} rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg`}>
+          <Icon className="w-5 h-5 sm:w-7 sm:h-7 text-white" />
+        </div>
+        <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
+      </div>
+      <div>
+        <p className={`text-2xl sm:text-4xl font-bold ${textColor} mb-1 sm:mb-2`}>{value.toLocaleString('fa-IR')}</p>
+        <p className={`text-xs sm:text-base ${textColor} font-medium opacity-80`}>{title}</p>
+      </div>
+    </div>
+  );
+}
+
+// Desktop Table Row Component
+function UserTableRow({ user, onEdit, onDelete, onToggleStatus }) {
   const roleLabel = user.role === 'admin' ? 'مدیر' : user.role === 'teacher' ? 'معلم' : 'دانش‌آموز';
-  const roleColor = user.role === 'admin' ? 'bg-gradient-to-br from-purple-400 to-purple-600' : user.role === 'teacher' ? 'bg-gradient-to-br from-blue-400 to-blue-600' : 'bg-gradient-to-br from-green-400 to-green-600';
+  const roleColor = 
+    user.role === 'admin' ? 'bg-gradient-to-r from-purple-600 to-purple-500' :
+    user.role === 'teacher' ? 'bg-gradient-to-r from-blue-600 to-blue-500' :
+    'bg-gradient-to-r from-green-600 to-green-500';
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg border border-green-100 p-8 w-full flex flex-col gap-4 hover:shadow-2xl hover:-translate-y-1 transition-all duration-200">
-      <div className="flex items-center gap-6">
-        <div className={`w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-2xl shadow ${roleColor}`}>
-          {(user.firstName || '')[0] || '?'}{(user.lastName || '')[0] || ''}
-        </div>
-        <div className="flex-1">
-          <div className="font-bold text-green-800 text-xl mb-2">{user.firstName} {user.lastName}</div>
-          <div className="flex items-center gap-2 text-sm text-green-700 mb-1">
-            <Calendar className="w-4 h-4" />
-            <span>کد ملی: {user.nationalCode}</span>
+    <tr className="hover:bg-green-50/50 transition-all duration-300">
+      <td className="px-6 py-4">
+        <div className="flex items-center gap-4">
+          <div className={`w-12 h-12 ${roleColor} rounded-2xl flex items-center justify-center shadow-lg`}>
+            <span className="text-white font-bold text-sm">
+              {user.firstName?.[0]}{user.lastName?.[0]}
+            </span>
           </div>
-          <div className="flex items-center gap-2 text-sm text-green-700 mb-1">
-            <PhoneIcon className="w-4 h-4" />
-            <span>موبایل: {user.phone || '-'}</span>
+          <div>
+            <p className="font-bold text-gray-800 text-base">
+              {user.firstName} {user.lastName}
+            </p>
+            {user.phone && (
+              <p className="text-sm text-gray-500">{user.phone}</p>
+            )}
           </div>
-          {/* اطلاعات تکمیلی برای معلم */}
-          {user.role === 'teacher' && (
-            <div className="mt-2 space-y-1">
-              <div className="text-xs text-gray-600">کد معلم: {user.teacherCode}</div>
-              <div className="text-xs text-gray-600">
-                نوع: {user.teachingType === 'grade' ? 'معلم پایه' : 'معلم کارگاه'}
-              </div>
-              {user.workshopName && (
-                <div className="text-xs text-gray-600">کارگاه: {user.workshopName}</div>
-              )}
-              {user.subject && (
-                <div className="text-xs text-gray-600">درس: {user.subject}</div>
-              )}
-            </div>
-          )}
-          {/* اطلاعات تکمیلی برای دانش‌آموز */}
-          {user.role === 'student' && (
-            <div className="mt-2 space-y-1">
-              <div className="text-xs text-gray-600">شماره دانش‌آموزی: {user.studentNumber}</div>
-              <div className="text-xs text-gray-600">کلاس: {user.className}</div>
-              <div className="text-xs text-gray-600">پایه: {user.gradeName}</div>
-            </div>
-          )}
         </div>
-      </div>
-      <div className="flex items-center gap-2 mt-2">
-        <span className={`px-3 py-1 text-xs rounded-full shadow ${roleColor} text-white`}>{roleLabel}</span>
+      </td>
+      <td className="px-6 py-4">
+        <span className="font-mono bg-green-100 px-3 py-2 rounded-xl text-sm shadow-sm text-green-600">
+          {user.nationalCode}
+        </span>
+      </td>
+      <td className="px-6 py-4">
+        <span className={`px-4 py-2 text-sm font-bold rounded-full shadow-lg ${roleColor} text-white`}>
+          {roleLabel}
+        </span>
+      </td>
+      <td className="px-6 py-4 text-center">
         <button
           onClick={onToggleStatus}
-          className={`px-3 py-1 text-xs rounded-full border shadow ${user.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}
+          className={`px-4 py-2 text-sm font-bold rounded-full shadow-lg transition ${
+            user.isActive 
+              ? 'bg-gradient-to-r from-green-600 to-green-500 text-white' 
+              : 'bg-gradient-to-r from-gray-400 to-gray-300 text-white'
+          }`}
         >
           {user.isActive ? 'فعال' : 'غیرفعال'}
         </button>
+      </td>
+      <td className="px-6 py-4">
+        <div className="flex items-center justify-center gap-2">
+          <button 
+            onClick={onEdit}
+            className="p-3 text-blue-600 hover:bg-blue-100 rounded-xl transition-all duration-300 hover:scale-110 group"
+          >
+            <Edit className="w-4 h-4 group-hover:rotate-12 transition-transform duration-300" />
+          </button>
+          <button 
+            onClick={onDelete}
+            className="p-3 text-red-600 hover:bg-red-100 rounded-xl transition-all duration-300 hover:scale-110 group"
+          >
+            <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+// Mobile Card Component
+function UserMobileCard({ user, onEdit, onDelete, onToggleStatus }) {
+  const roleLabel = user.role === 'admin' ? 'مدیر' : user.role === 'teacher' ? 'معلم' : 'دانش‌آموز';
+  const roleColor = 
+    user.role === 'admin' ? 'bg-gradient-to-r from-purple-600 to-purple-500' :
+    user.role === 'teacher' ? 'bg-gradient-to-r from-blue-600 to-blue-500' :
+    'bg-gradient-to-r from-green-600 to-green-500';
+
+  return (
+    <div className="bg-white rounded-xl border border-green-100 p-3 shadow-sm hover:shadow-md transition-all">
+      <div className="flex items-center gap-3 mb-3">
+        <div className={`w-12 h-12 ${roleColor} rounded-xl flex items-center justify-center shadow-lg`}>
+          <span className="text-white font-bold text-sm">
+            {user.firstName?.[0]}{user.lastName?.[0]}
+          </span>
+        </div>
+        <div className="flex-1">
+          <p className="font-bold text-gray-800 text-sm">
+            {user.firstName} {user.lastName}
+          </p>
+          <div className="flex flex-wrap items-center gap-2 mt-1">
+            <span className="font-mono bg-green-100 px-2 py-1 rounded text-xs text-green-600">
+              {user.nationalCode}
+            </span>
+            <span className={`px-2 py-1 text-xs font-bold rounded-full text-white ${roleColor}`}>
+              {roleLabel}
+            </span>
+          </div>
+          {user.phone && (
+            <p className="text-xs text-gray-500 mt-1">{user.phone}</p>
+          )}
+        </div>
       </div>
-      <div className="flex gap-2 justify-end pt-2 border-top border-green-100">
+      
+      <div className="flex items-center justify-between">
         <button
-          onClick={onEdit}
-          className="p-2 bg-blue-50 text-blue-600 rounded-full shadow hover:bg-blue-100 transition"
-          title="ویرایش"
+          onClick={onToggleStatus}
+          className={`px-3 py-1 text-xs font-bold rounded-full shadow transition ${
+            user.isActive 
+              ? 'bg-gradient-to-r from-green-600 to-green-500 text-white' 
+              : 'bg-gradient-to-r from-gray-400 to-gray-300 text-white'
+          }`}
         >
-          <Edit className="w-4 h-4" />
+          {user.isActive ? 'فعال' : 'غیرفعال'}
         </button>
-        <button
-          onClick={onDelete}
-          className="p-2 bg-red-50 text-red-600 rounded-full shadow hover:bg-red-100 transition"
-          title="حذف"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
+        
+        <div className="flex gap-2">
+          <button 
+            onClick={onEdit}
+            className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition"
+            title="ویرایش"
+          >
+            <Edit className="w-4 h-4" />
+          </button>
+          <button 
+            onClick={onDelete}
+            className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition"
+            title="حذف"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -401,367 +754,6 @@ function PhoneIcon(props) {
       <rect x="7" y="2" width="10" height="20" rx="2" />
       <circle cx="12" cy="18" r="1" />
     </svg>
-  );
-}
-
-function EditUserModal({ user, onClose, onSuccess }) {
-  const [formData, setFormData] = useState({
-    firstName: user.firstName || '',
-    lastName: user.lastName || '',
-    nationalCode: user.nationalCode || '',
-    phone: user.phone || '',
-    email: user.email || '',
-    role: user.role || 'student',
-    password: '',
-    // فیلدهای جدید معلم
-    teachingType: user.teachingType || '',
-    gradeId: user.gradeId || '',
-    workshopId: user.workshopId || '',
-    subject: user.subject || '',
-    // فیلدهای دانش‌آموز
-    classId: user.classId || ''
-  });
-  
-  const [classes, setClasses] = useState([]);
-  const [grades, setGrades] = useState([]);        
-  const [workshops, setWorkshops] = useState([]);  
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const token = localStorage?.getItem?.('token');
-        
-        // دریافت کلاس‌ها
-        const classesRes = await fetch('/api/admin/classes', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (classesRes.ok) {
-          const classesData = await classesRes.json();
-          setClasses(Array.isArray(classesData.classes) ? classesData.classes : []);
-        }
-
-        // دریافت پایه‌ها
-        const gradesRes = await fetch('/api/grades', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (gradesRes.ok) {
-          const gradesData = await gradesRes.json();
-          setGrades(Array.isArray(gradesData.grades) ? gradesData.grades : []);
-        }
-
-        // دریافت کارگاه‌ها  
-        const workshopsRes = await fetch('/api/workshops', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (workshopsRes.ok) {
-          const workshopsData = await workshopsRes.json();
-          setWorkshops(Array.isArray(workshopsData.workshops) ? workshopsData.workshops : []);
-        }
-
-      } catch (error) {
-        console.error('خطا در دریافت داده‌ها:', error);
-      }
-    }
-    fetchData();
-  }, []);
-
-  const generatePassword = () => {
-    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let password = '';
-    for (let i = 0; i < 8; i++) password += chars.charAt(Math.floor(Math.random() * chars.length));
-    setFormData(prev => ({ ...prev, password }));
-  };
-
-  const handleRoleChange = (newRole) => {
-    setFormData(prev => ({
-      ...prev,
-      role: newRole,
-      // ریست کردن فیلدهای مربوط به هر نقش
-      classId: '',
-      teachingType: '',
-      gradeId: '',
-      workshopId: '',
-      subject: ''
-    }));
-  };
-
-  const handleTeachingTypeChange = (type) => {
-    setFormData(prev => ({
-      ...prev,
-      teachingType: type,
-      gradeId: '',
-      workshopId: ''
-    }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError('');
-
-    // اعتبارسنجی برای معلم
-    if (formData.role === 'teacher') {
-      if (!formData.teachingType) {
-        setError('انتخاب نوع تدریس برای معلم الزامی است');
-        setIsLoading(false);
-        return;
-      }
-      if (formData.teachingType === 'grade' && !formData.gradeId) {
-        setError('انتخاب پایه برای معلم پایه‌ای الزامی است');
-        setIsLoading(false);
-        return;
-      }
-      if (formData.teachingType === 'workshop' && !formData.workshopId) {
-        setError('انتخاب کارگاه برای معلم کارگاه الزامی است');
-        setIsLoading(false);
-        return;
-      }
-    }
-
-    try {
-      const token = localStorage?.getItem?.('token');
-      const response = await fetch(`/api/admin/users/${user.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          nationalCode: formData.nationalCode,
-          phone: formData.phone || null,
-          email: formData.email || null,
-          role: formData.role,
-          password: formData.password || undefined,
-          // برای دانش‌آموز
-          classId: formData.role === 'student' && formData.classId ? Number(formData.classId) : undefined,
-          // برای معلم
-          teachingType: formData.role === 'teacher' ? formData.teachingType : undefined,
-          gradeId: formData.role === 'teacher' && formData.teachingType === 'grade' ? Number(formData.gradeId) : undefined,
-          workshopId: formData.role === 'teacher' && formData.teachingType === 'workshop' ? Number(formData.workshopId) : undefined,
-          subject: formData.role === 'teacher' ? formData.subject : undefined
-        })
-      });
-      const data = await response.json();
-      if (response.ok && (data?.success ?? true)) {
-        onSuccess();
-      } else {
-        setError(data?.message || 'خطا در ویرایش کاربر');
-      }
-    } catch {
-      setError('خطا در ارتباط با سرور');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-green-100 p-0 overflow-hidden max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center px-6 py-5 bg-gradient-to-r from-green-100 to-green-50 border-b border-green-100">
-          <div className="flex items-center gap-2">
-            <Edit className="w-6 h-6 text-green-600" />
-            <h2 className="text-lg font-bold text-green-700">ویرایش کاربر</h2>
-          </div>
-          <button onClick={onClose} className="p-2 rounded-full bg-green-50 hover:bg-green-200 transition" title="بستن">
-            <X className="w-5 h-5 text-gray-500" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4 px-6 py-6">
-          {/* اطلاعات پایه */}
-          <div className="grid grid-cols-2 gap-3">
-            <input
-              type="text"
-              value={formData.firstName}
-              onChange={e => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
-              className="px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition"
-              placeholder="نام"
-              required
-            />
-            <input
-              type="text"
-              value={formData.lastName}
-              onChange={e => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
-              className="px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition"
-              placeholder="نام خانوادگی"
-              required
-            />
-          </div>
-
-          <input
-            type="text"
-            value={formData.nationalCode}
-            onChange={e => setFormData(prev => ({ ...prev, nationalCode: e.target.value }))}
-            className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition"
-            placeholder="کد ملی"
-            required
-          />
-
-          <input
-            type="tel"
-            value={formData.phone}
-            onChange={e => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-            className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition"
-            placeholder="شماره موبایل"
-          />
-
-          <input
-            type="email"
-            value={formData.email}
-            onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))}
-            className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition"
-            placeholder="ایمیل (اختیاری)"
-          />
-
-          {/* انتخاب نقش */}
-          <select
-            value={formData.role}
-            onChange={e => handleRoleChange(e.target.value)}
-            className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition"
-          >
-            <option value="student">دانش‌آموز</option>
-            <option value="teacher">معلم</option>
-            <option value="admin">مدیر</option>
-          </select>
-
-          {/* فیلدهای مخصوص دانش‌آموز */}
-          {formData.role === 'student' && (
-            <div>
-              <select
-                value={formData.classId}
-                onChange={e => setFormData(prev => ({ ...prev, classId: e.target.value }))}
-                className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition"
-              >
-                <option value="">انتخاب کلاس (اختیاری)</option>
-                {classes.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.class_name} {c.class_number ? `- شماره ${c.class_number}` : ''} {c.academic_year ? `(${c.academic_year})` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* فیلدهای مخصوص معلم */}
-          {formData.role === 'teacher' && (
-            <div className="space-y-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
-              <h3 className="font-semibold text-blue-800">اطلاعات معلم</h3>
-              
-              {/* نوع تدریس */}
-              <div>
-                <label className="block text-sm font-bold mb-2 text-gray-700">نوع تدریس *</label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => handleTeachingTypeChange('grade')}
-                    className={`p-3 border-2 rounded-lg text-center transition ${
-                      formData.teachingType === 'grade'
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="text-lg mb-1">📚</div>
-                    <div className="font-semibold text-sm">معلم پایه</div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleTeachingTypeChange('workshop')}
-                    className={`p-3 border-2 rounded-lg text-center transition ${
-                      formData.teachingType === 'workshop'
-                        ? 'border-green-500 bg-green-50 text-green-700'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="text-lg mb-1">🎪</div>
-                    <div className="font-semibold text-sm">معلم کارگاه</div>
-                  </button>
-                </div>
-              </div>
-
-              {/* انتخاب پایه برای معلم پایه‌ای */}
-              {formData.teachingType === 'grade' && (
-                <div>
-                  <label className="block text-sm font-bold mb-2 text-gray-700">انتخاب پایه تحصیلی *</label>
-                  <select
-                    value={formData.gradeId}
-                    onChange={e => setFormData(prev => ({ ...prev, gradeId: e.target.value }))}
-                    className="w-full px-3 py-2 border border-blue-100 rounded-xl bg-blue-50 focus:ring-2 focus:ring-blue-400 outline-none transition"
-                    required
-                  >
-                    <option value="">انتخاب پایه...</option>
-                    {grades.map(grade => (
-                      <option key={grade.id} value={grade.id}>
-                        📚 {grade.grade_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* انتخاب کارگاه برای معلم کارگاه */}
-              {formData.teachingType === 'workshop' && (
-                <div>
-                  <label className="block text-sm font-bold mb-2 text-gray-700">انتخاب کارگاه *</label>
-                  <select
-                    value={formData.workshopId}
-                    onChange={e => setFormData(prev => ({ ...prev, workshopId: e.target.value }))}
-                    className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition"
-                    required
-                  >
-                    <option value="">انتخاب کارگاه...</option>
-                    {workshops.map(workshop => (
-                      <option key={workshop.id} value={workshop.id}>
-                        {workshop.icon || '🎪'} {workshop.workshop_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* موضوع تدریس */}
-              <input 
-                type="text" 
-                value={formData.subject} 
-                onChange={e => setFormData(prev => ({ ...prev, subject: e.target.value }))} 
-                className="w-full px-3 py-2 border border-blue-100 rounded-xl bg-blue-50 focus:ring-2 focus:ring-blue-400 outline-none transition" 
-                placeholder="موضوع تدریس (اختیاری)" 
-              />
-            </div>
-          )}
-
-          {/* رمز عبور */}
-          <div className="relative">
-            <input
-              type={showPassword ? 'text' : 'password'}
-              value={formData.password}
-              onChange={e => setFormData(prev => ({ ...prev, password: e.target.value }))}
-              className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition"
-              placeholder="رمز جدید (اختیاری)"
-            />
-            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute left-2 top-2 text-gray-400" title={showPassword ? 'مخفی کردن' : 'نمایش رمز'}>
-              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-            <button type="button" onClick={generatePassword} className="absolute left-10 top-2 text-xs bg-green-100 px-2 py-1 rounded-xl shadow hover:bg-green-200 transition">
-              تولید
-            </button>
-          </div>
-
-          {error && <div className="bg-red-50 text-red-700 p-3 rounded-lg border border-red-200">{error}</div>}
-
-          <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-100 rounded-xl text-gray-700 shadow hover:bg-gray-200 transition">
-              انصراف
-            </button>
-            <button type="submit" className="px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 rounded-xl text-white shadow hover:scale-105 transition" disabled={isLoading}>
-              {isLoading ? 'در حال ذخیره...' : 'ذخیره'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
   );
 }
 

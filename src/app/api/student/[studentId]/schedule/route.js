@@ -1,108 +1,116 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/database';
+import { verifyJWT } from '@/lib/jwt';
 
-export async function GET(request) {
+export async function GET(request, { params }) {
   try {
-    const { searchParams } = new URL(request.url);
-    const gradeId = searchParams.get('gradeId');
-    const classId = searchParams.get('classId');
-
-    // ساختن شرایط فیلتر
-    let where = {};
-    if (classId && classId !== 'all') {
-      where.class_id = parseInt(classId);
-    } else if (gradeId && gradeId !== 'all') {
-      where.classes = {
-        grade_id: parseInt(gradeId)
-      };
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'توکن نامعتبر است' 
+      }, { status: 401 });
     }
 
-    // دریافت تمام برنامه‌های هفتگی
+    const token = authHeader.replace('Bearer ', '').trim();
+    const payload = verifyJWT(token);
+    
+    if (!payload) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'توکن نامعتبر است' 
+      }, { status: 401 });
+    }
+
+    const { studentId } = params;
+    if (!studentId || isNaN(parseInt(studentId))) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'شناسه دانش‌آموز نامعتبر است' 
+      }, { status: 400 });
+    }
+
+    // دریافت اطلاعات دانش‌آموز
+    const student = await prisma.students.findFirst({
+      where: { user_id: parseInt(studentId) },
+      include: { classes: true }
+    });
+
+    if (!student || !student.class_id) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'دانش‌آموز یا کلاس یافت نشد' 
+      }, { status: 404 });
+    }
+
+    // تغییر مدل Prisma به weekly_schedule
     const schedules = await prisma.weekly_schedule.findMany({
-      where,
+      where: { class_id: student.class_id },
       include: {
         classes: {
-          include: {
-            grades: true
+          select: {
+            class_name: true
           }
         },
-        teachers: {
-          include: {
-            users: true
+        subject: {
+          select: {
+            subject_name: true
+          }
+        },
+        teacher: {
+          select: {
+            users: {
+              select: {
+                first_name: true,
+                last_name: true
+              }
+            }
           }
         }
       },
       orderBy: [
-        { classes: { grades: { grade_level: 'asc' } } },
-        { classes: { class_name: 'asc' } },
         { day_of_week: 'asc' },
         { start_time: 'asc' }
       ]
     });
 
-    // دریافت لیست پایه‌ها و کلاس‌ها برای فیلتر
-    const grades = await prisma.grades.findMany({
-      orderBy: { grade_level: 'asc' },
-      include: {
-        classes: {
-          orderBy: { class_name: 'asc' }
-        }
+    const formattedSchedules = schedules.map(schedule => ({
+      id: schedule.id,
+      dayKey: getDayKey(schedule.day_of_week),
+      subject: schedule.subject?.subject_name || 'نامشخص',
+      time: `${schedule.start_time?.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })} - ${schedule.end_time?.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })}`,
+      teacher: schedule.teacher?.users 
+        ? `${schedule.teacher.users.first_name} ${schedule.teacher.users.last_name}`
+        : 'نامشخص',
+      className: schedule.classes?.class_name || 'نامشخص'
+    }));
+
+    return NextResponse.json({ 
+      success: true, 
+      schedule: formattedSchedules,
+      studentInfo: {
+        className: student.classes?.class_name || 'نامشخص'
       }
     });
 
-    // فرمت کردن داده‌ها
-    const formattedSchedules = schedules.map(item => ({
-      id: item.id,
-      day: getDayName(item.day_of_week),
-      dayKey: item.day_of_week,
-      subject: item.subject,
-      time: `${formatTime(item.start_time)} - ${formatTime(item.end_time)}`,
-      teacher: item.teachers?.users ? 
-        `${item.teachers.users.first_name} ${item.teachers.users.last_name}` : 
-        'نامشخص',
-      className: item.classes?.class_name || 'نامشخص',
-      gradeName: item.classes?.grades?.grade_name || 'نامشخص',
-      gradeLevel: item.classes?.grades?.grade_level || 0,
-      classId: item.class_id,
-      gradeId: item.classes?.grade_id,
-      roomNumber: item.room_number || 'نامشخص'
-    }));
-
-    return NextResponse.json({
-      success: true,
-      schedules: formattedSchedules,
-      grades: grades,
-      totalCount: schedules.length
-    });
-
   } catch (error) {
-    console.error('GET /api/schedules/all error:', error);
-    return NextResponse.json(
-      { success: false, message: 'خطا در دریافت برنامه‌های هفتگی', error: error.message },
-      { status: 500 }
-    );
+    console.error('Error in /api/student/[studentId]/schedule:', error);
+    return NextResponse.json({ 
+      success: false, 
+      message: 'خطای سرور' 
+    }, { status: 500 });
   }
 }
 
-// تابع کمکی برای تبدیل کلید روز به نام فارسی
-function getDayName(dayKey) {
+function getDayKey(dayNumber) {
   const days = {
-    'saturday': 'شنبه',
-    'sunday': 'یکشنبه', 
-    'monday': 'دوشنبه',
-    'tuesday': 'سه‌شنبه',
-    'wednesday': 'چهارشنبه',
-    'thursday': 'پنج‌شنبه',
-    'friday': 'جمعه'
+    1: 'saturday',
+    2: 'sunday',
+    3: 'monday',
+    4: 'tuesday',
+    5: 'wednesday',
+    6: 'thursday',
+    7: 'friday'
   };
-  return days[dayKey] || dayKey;
-}
-
-// تابع کمکی برای فرمت کردن زمان
-function formatTime(dateString) {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  const hours = date.getUTCHours().toString().padStart(2, '0');
-  const minutes = date.getUTCMinutes().toString().padStart(2, '0');
-  return `${hours}:${minutes}`;
+  return days[dayNumber] || 'unknown';
 }

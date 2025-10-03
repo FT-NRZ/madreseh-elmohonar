@@ -12,7 +12,7 @@ export async function GET(request) {
     }
     const token = authHeader.replace('Bearer ', '').trim();
     const payload = verifyJWT(token);
-    if (!payload || payload.role !== 'admin') {
+    if (!payload || !['admin', 'teacher'].includes(payload.role)) {
       return Response.json({ success: false, error: 'دسترسی غیرمجاز' }, { status: 403 });
     }
 

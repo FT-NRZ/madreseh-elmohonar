@@ -10,7 +10,10 @@ import {
   Users, GraduationCap, BarChart3, Settings, LogOut,
   CalendarCheck, NewspaperIcon, Image, Calendar as CalendarIcon, LayoutGrid, GalleryHorizontalEnd, Target,
   FileText, Clock, Edit, Trash2, X,
-  Shield, Menu
+  Shield, Menu,
+  UserPlus,
+  BookOpen,
+  GalleryHorizontal
 } from 'lucide-react';
 
 // تبدیل اعداد فارسی به انگلیسی
@@ -65,11 +68,12 @@ const sidebarMenu = [
   { label: 'برنامه هفتگی', icon: CalendarIcon, href: '/admin/weekly_schedule' },
   { label: 'برنامه غذایی', icon: GalleryHorizontalEnd, href: '/admin/food-schedule' },
   { label: 'حضور و غیاب', icon: CalendarCheck, href: '/admin/attendances' },
-  { label: 'مدیریت گالری', icon: Image, href: '/admin/gallery' },
+  { label: 'مدیریت گالری', icon: GalleryHorizontal, href: '/admin/gallery' },
+  { label: 'مدیریت کارنامه ها', icon: BookOpen, href: '/admin/report_cards' },
+  { label: 'مدیریت اخبار', icon: NewspaperIcon, href: '/admin/news' },
   { label: 'مدیریت بخشنامه ها', icon: FileText, href: '/admin/circular' },
+  { label: 'پیش‌ثبت‌نام', icon: UserPlus, href: '/admin/pre-registrations' },
   { label: 'توبیخی و تشویقی', icon: Shield, href: '/admin/disciplinary' },
-  { label: 'گزارش ها', icon: BarChart3, href: '/admin/reports' },
-  { label: 'تنظیمات', icon: Settings, href: '/admin/settings' },
 ];
 
 export default function AdminAttendancesPage() {
@@ -82,6 +86,9 @@ export default function AdminAttendancesPage() {
   const [loading, setLoading] = useState(false);
   const [userStats, setUserStats] = useState({ students: 0, teachers: 0 });
   const [currentPath, setCurrentPath] = useState('');
+  const [tempStatuses, setTempStatuses] = useState({});
+  const [tempDelays, setTempDelays] = useState({});
+  const [isSaving, setIsSaving] = useState(false);
   const [showDelayModal, setShowDelayModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [delayForm, setDelayForm] = useState({
@@ -89,6 +96,12 @@ export default function AdminAttendancesPage() {
     minutes: '',
     reason: ''
   });
+
+    useEffect(() => {
+      if (date && selectedClass) {
+        fetchPreviousAttendances();
+      }
+    }, [date, selectedClass]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -138,58 +151,51 @@ useEffect(() => {
   setUserStats({ students: 1, teachers: 1 });
 }, []);
 
+  // دریافت وضعیت‌های قبلی
+  const fetchPreviousAttendances = async () => {
+    try {
+      const miladiDate = jalaliToGregorian(date);
+      const res = await fetch(`/api/attendances/byDate?date=${miladiDate}&classId=${selectedClass}`);
+      const data = await res.json();
+      
+      if (data.success) {
+        const newStatuses = {};
+        const newDelays = {};
+        
+        data.attendances.forEach(att => {
+          newStatuses[att.student_id] = att.status;
+          if (att.delay_minutes) {
+            newDelays[att.student_id] = {
+              minutes: att.delay_minutes,
+              reason: att.delay_reason
+            };
+          }
+        });
+        
+        setTempStatuses(newStatuses);
+        setTempDelays(newDelays);
+      }
+    } catch (error) {
+      console.error('Error fetching previous attendances:', error);
+      toast.error('خطا در دریافت اطلاعات قبلی');
+    }
+  };
+
   // فیلتر دانش‌آموزان بر اساس کلاس انتخاب شده
   const filteredStudents = selectedClass
     ? students.filter(s => String(s.class_id) === String(selectedClass))
     : students;
 
   // ثبت حضور/غیاب یک دانش‌آموز
-  const handleAttendance = async (studentId, status) => {
-    if (!date) {
-      toast.error('لطفاً تاریخ را انتخاب کنید!');
-      return;
-    }
-    
-    if (!selectedClass) {
-      toast.error('لطفاً کلاس را انتخاب کنید!');
-      return;
-    }
-    
-    setLoading(true);
-    const miladiDate = jalaliToGregorian(date);
-    
-    try {
-      const payload = {
-        student_id: studentId,
-        class_id: selectedClass,
-        date: miladiDate,
-        status,
-        reason: '',
-        is_justified: false
-      };
-      
-      console.log('Sending data:', payload);
-      
-      const res = await fetch('/api/attendances', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+  const handleAttendance = (studentId, status) => {
+    setTempStatuses(prev => ({ ...prev, [studentId]: status }));
+    if (status !== 'late') {
+      setTempDelays(prev => {
+        const newDelays = { ...prev };
+        delete newDelays[studentId];
+        return newDelays;
       });
-      
-      const result = await res.json();
-      
-      if (res.ok) {
-        setStatuses(prev => ({ ...prev, [studentId]: status }));
-        toast.success(result.message || 'ثبت شد');
-      } else {
-        console.error('Error response:', result);
-        toast.error(result.error || 'خطا در ثبت!');
-      }
-    } catch (error) {
-      console.error('Fetch error:', error);
-      toast.error('ارتباط با سرور برقرار نشد!');
     }
-    setLoading(false);
   };
 
   // ثبت تاخیر
@@ -213,61 +219,80 @@ useEffect(() => {
   };
 
   // ذخیره تاخیر
-  const saveDelay = async () => {
+  const saveDelay = () => {
     if (!delayForm.minutes || delayForm.minutes <= 0) {
       toast.error('لطفاً مقدار تاخیر را وارد کنید!');
       return;
     }
 
-    setLoading(true);
-    const miladiDate = jalaliToGregorian(date);
-    
-    try {
-      const payload = {
-        student_id: delayForm.studentId,
-        class_id: selectedClass,
-        date: miladiDate,
-        status: 'late',
-        delay_minutes: parseInt(delayForm.minutes),
-        delay_reason: delayForm.reason,
-        reason: '',
-        is_justified: false
-      };
-      
-      const res = await fetch('/api/attendances', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      
-      const result = await res.json();
-      
-      if (res.ok) {
-        setDelays(prev => ({
-          ...prev,
-          [delayForm.studentId]: {
-            minutes: parseInt(delayForm.minutes),
-            reason: delayForm.reason
-          }
-        }));
-        setStatuses(prev => ({ ...prev, [delayForm.studentId]: 'late' }));
-        setShowDelayModal(false);
-        setDelayForm({ studentId: null, minutes: '', reason: '' });
-        toast.success('تاخیر ثبت شد');
-      } else {
-        toast.error(result.error || 'خطا در ثبت تاخیر!');
+    setTempStatuses(prev => ({ ...prev, [delayForm.studentId]: 'late' }));
+    setTempDelays(prev => ({
+      ...prev,
+      [delayForm.studentId]: {
+        minutes: parseInt(delayForm.minutes),
+        reason: delayForm.reason
       }
-    } catch (error) {
-      console.error('Fetch error:', error);
-      toast.error('ارتباط با سرور برقرار نشد!');
-    }
-    setLoading(false);
+    }));
+    
+    setShowDelayModal(false);
+    setDelayForm({ studentId: null, minutes: '', reason: '' });
   };
 
   // حذف وضعیت
   const clearStatus = (studentId) => {
     setStatuses(prev => ({ ...prev, [studentId]: undefined }));
     setDelays(prev => ({ ...prev, [studentId]: undefined }));
+  };
+
+
+  const handleFinalSubmit = async () => {
+    if (!date || !selectedClass) {
+      toast.error('لطفاً تاریخ و کلاس را انتخاب کنید!');
+      return;
+    }
+
+    setIsSaving(true);
+    const miladiDate = jalaliToGregorian(date);
+    
+    try {
+      const attendances = Object.entries(tempStatuses).map(([studentId, status]) => ({
+        student_id: parseInt(studentId),
+        class_id: parseInt(selectedClass),
+        date: miladiDate,
+        status,
+        delay_minutes: status === 'late' ? tempDelays[studentId]?.minutes || null : null,
+        delay_reason: status === 'late' ? tempDelays[studentId]?.reason || null : null
+      }));
+
+      console.log('Sending attendances:', attendances);
+
+      const res = await fetch('/api/attendances/bulk', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ attendances })
+      });
+
+      const result = await res.json();
+      
+      if (result.success) {
+        toast.success('حضور و غیاب با موفقیت ثبت شد');
+        setStatuses(tempStatuses);
+        setDelays(tempDelays);
+        setTempStatuses({});
+        setTempDelays({});
+      } else {
+        console.error('API Error:', result);
+        toast.error(result.message || 'خطا در ثبت حضور و غیاب');
+      }
+    } catch (error) {
+      console.error('Error saving attendances:', error);
+      toast.error('خطا در ارتباط با سرور');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -288,7 +313,7 @@ useEffect(() => {
         </div>
       </div>
 
-            {/* موبایل: سایدبار drawer */}
+      {/* موبایل: سایدبار drawer */}
       {sidebarOpen && (
         <div className="sm:hidden fixed inset-0 z-50">
           <div
@@ -316,7 +341,7 @@ useEffect(() => {
             <nav className="p-3 space-y-1 flex-1 overflow-y-auto">
               {sidebarMenu.map((item) => {
                 const IconComponent = item.icon;
-                const isActive = item.active;
+                const isActive = currentPath === item.href;
                 return (
                   <button
                     key={item.label}
@@ -446,13 +471,15 @@ useEffect(() => {
       </nav>
 
       {/* Main Content */}
-      <div className="flex-1">
-        <div className="max-w-5xl mx-auto p-2 sm:p-4">
-          <h1 className="text-xl font-bold mb-4 text-center">ثبت حضور و غیاب</h1>
-          <div className="bg-white rounded-2xl shadow p-3 sm:p-6 mb-8 flex flex-col gap-3">
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 items-center mb-4">
+      <div className="flex-1 pb-20 sm:pb-4">
+        <div className="max-w-5xl mx-auto p-3 sm:p-6">
+          <h1 className="text-lg sm:text-2xl font-bold mb-3 sm:mb-6 text-center text-green-800">ثبت حضور و غیاب</h1>
+          
+          <div className="bg-white rounded-2xl shadow-lg p-3 sm:p-6 mb-4">
+            {/* فیلترها */}
+            <div className="flex flex-col gap-3 mb-4">
               <select
-                className="border rounded p-2 min-w-[160px] w-full sm:w-auto"
+                className="border border-green-200 rounded-xl p-3 w-full bg-green-50 focus:ring-2 focus:ring-green-400 outline-none text-sm sm:text-base"
                 value={selectedClass}
                 onChange={e => setSelectedClass(e.target.value)}
               >
@@ -461,6 +488,7 @@ useEffect(() => {
                   <option key={c.id} value={c.id}>{c.class_name}</option>
                 ))}
               </select>
+              
               <DatePicker
                 value={date}
                 onChange={dateObj => {
@@ -473,22 +501,24 @@ useEffect(() => {
                 }}
                 calendar={persian}
                 locale={persian_fa}
-                calendarPosition="bottom-right"
-                inputClass="w-full px-2 py-2 border rounded"
-                placeholder="تاریخ شمسی"
+                calendarPosition="bottom-center"
+                inputClass="w-full px-3 py-3 border border-green-200 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none text-sm sm:text-base"
+                placeholder="تاریخ شمسی را انتخاب کنید"
                 format="YYYY/MM/DD"
                 required
               />
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm bg-white rounded-xl shadow">
+
+            {/* نمایش دسکتاپ - جدول */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-sm bg-white rounded-xl">
                 <thead>
-                  <tr className="bg-green-50">
-                    <th className="p-2">نام و نام خانوادگی</th>
-                    <th className="p-2">شماره تلفن</th>
-                    <th className="p-2">کد ملی</th>
-                    <th className="p-2">وضعیت</th>
-                    <th className="p-2">تاخیر</th>
+                  <tr className="bg-green-50 border-b border-green-200">
+                    <th className="p-3 text-right font-bold text-green-800">نام و نام خانوادگی</th>
+                    <th className="p-3 text-right font-bold text-green-800">شماره تلفن</th>
+                    <th className="p-3 text-right font-bold text-green-800">کد ملی</th>
+                    <th className="p-3 text-center font-bold text-green-800">وضعیت</th>
+                    <th className="p-3 text-center font-bold text-green-800">تاخیر</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -498,49 +528,58 @@ useEffect(() => {
                     </tr>
                   )}
                   {filteredStudents.map(s => (
-                    <tr key={s.id} className="hover:bg-green-50 transition">
-                      <td className="p-2">
+                    <tr key={s.id} className="hover:bg-green-50 transition border-b border-green-100">
+                      <td className="p-3">
                         {s.users ? `${s.users.firstName || s.users.first_name || ''} ${s.users.lastName || s.users.last_name || ''}` : 'نامشخص'}
                       </td>
-                      <td className="p-2">{s.users?.phone || s.users?.phoneNumber || '-'}</td>
-                      <td className="p-2">{s.users?.nationalId || s.users?.national_id || '-'}</td>
-                      
-                      {/* ستون وضعیت */}
-                      <td className="p-2">
-                        {statuses[s.id] ? (
-                          <div className="flex gap-1 items-center flex-wrap">
-                            <span className={`px-2 py-1 rounded text-xs ${
-                              statuses[s.id] === 'present' 
+                      <td className="p-3">{s.users?.phone || s.users?.phoneNumber || '-'}</td>
+                      <td className="p-3">{s.users?.nationalId || s.users?.national_id || '-'}</td>
+
+                      <td className="p-3">
+                        {tempStatuses[s.id] ? (
+                          <div className="flex gap-2 items-center justify-center flex-wrap">
+                            <span className={`px-3 py-1 rounded-lg text-xs font-bold ${
+                              tempStatuses[s.id] === 'present' 
                                 ? 'bg-green-600 text-white' 
-                                : statuses[s.id] === 'late'
+                                : tempStatuses[s.id] === 'late'
                                   ? 'bg-orange-600 text-white'
                                   : 'bg-red-600 text-white'
                             }`}>
-                              {statuses[s.id] === 'present' 
+                              {tempStatuses[s.id] === 'present' 
                                 ? 'حاضر' 
-                                : statuses[s.id] === 'late' 
+                                : tempStatuses[s.id] === 'late' 
                                   ? 'تاخیر' 
                                   : 'غایب'}
                             </span>
                             <button
-                              className="px-2 py-1 rounded text-xs bg-gray-200 text-gray-700 border"
-                              disabled={loading}
-                              onClick={() => clearStatus(s.id)}
+                              className="px-3 py-1 rounded-lg text-xs font-bold bg-gray-200 text-gray-700 border hover:bg-gray-300 transition"
+                              onClick={() => {
+                                setTempStatuses(prev => {
+                                  const newStatuses = { ...prev };
+                                  delete newStatuses[s.id];
+                                  return newStatuses;
+                                });
+                                setTempDelays(prev => {
+                                  const newDelays = { ...prev };
+                                  delete newDelays[s.id];
+                                  return newDelays;
+                                });
+                              }}
                             >
                               لغو
                             </button>
                           </div>
                         ) : (
-                          <div className="flex gap-1 flex-wrap">
+                          <div className="flex gap-2 justify-center flex-wrap">
                             <button
-                              className="px-2 py-1 rounded text-xs bg-green-50 text-green-700 border"
+                              className="px-3 py-1 rounded-lg text-xs font-bold bg-green-100 text-green-700 border border-green-300 hover:bg-green-200 transition"
                               disabled={loading}
                               onClick={() => handleAttendance(s.id, 'present')}
                             >
                               حاضر
                             </button>
                             <button
-                              className="px-2 py-1 rounded text-xs bg-red-50 text-red-700 border"
+                              className="px-3 py-1 rounded-lg text-xs font-bold bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 transition"
                               disabled={loading}
                               onClick={() => handleAttendance(s.id, 'absent')}
                             >
@@ -550,35 +589,40 @@ useEffect(() => {
                         )}
                       </td>
 
-                      {/* ستون تاخیر */}
-                      <td className="p-2">
-                        {delays[s.id] ? (
-                          <div className="flex gap-1 items-center flex-wrap">
-                            <span className="px-2 py-1 rounded text-xs bg-orange-100 text-orange-700 border border-orange-200">
-                              {minutesToTime(delays[s.id].minutes)}
+                      <td className="p-3">
+                        {tempDelays[s.id] ? (
+                          <div className="flex gap-2 items-center justify-center flex-wrap">
+                            <span className="px-3 py-1 rounded-lg text-xs font-bold bg-orange-100 text-orange-700 border border-orange-300">
+                              {minutesToTime(tempDelays[s.id].minutes)}
                             </span>
                             <button
-                              className="px-1 py-1 rounded text-xs bg-blue-50 text-blue-700 border"
+                              className="p-1 rounded-lg bg-blue-100 text-blue-700 border border-blue-300 hover:bg-blue-200 transition"
                               onClick={() => handleDelay(s.id)}
                             >
-                              <Edit className="w-3 h-3" />
+                              <Edit className="w-4 h-4" />
                             </button>
                             <button
-                              className="px-1 py-1 rounded text-xs bg-red-50 text-red-700 border"
-                              onClick={() => setDelays(prev => ({ ...prev, [s.id]: undefined }))}
+                              className="p-1 rounded-lg bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 transition"
+                              onClick={() => setTempDelays(prev => {
+                                const newDelays = { ...prev };
+                                delete newDelays[s.id];
+                                return newDelays;
+                              })}
                             >
-                              <Trash2 className="w-3 h-3" />
+                              <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
                         ) : (
-                          <button
-                            className="px-2 py-1 rounded text-xs bg-orange-50 text-orange-700 border border-orange-200 flex items-center gap-1"
-                            disabled={loading}
-                            onClick={() => handleDelay(s.id)}
-                          >
-                            <Clock className="w-3 h-3" />
-                            تاخیر
-                          </button>
+                          <div className="flex justify-center">
+                            <button
+                              className="px-3 py-1 rounded-lg text-xs font-bold bg-orange-100 text-orange-700 border border-orange-300 hover:bg-orange-200 transition flex items-center gap-1"
+                              disabled={loading}
+                              onClick={() => handleDelay(s.id)}
+                            >
+                              <Clock className="w-3 h-3" />
+                              تاخیر
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -586,6 +630,147 @@ useEffect(() => {
                 </tbody>
               </table>
             </div>
+
+            {/* نمایش موبایل - کارت‌ها */}
+            <div className="sm:hidden space-y-3">
+              {filteredStudents.length === 0 && (
+                <div className="text-center text-gray-400 py-8">دانش‌آموزی یافت نشد.</div>
+              )}
+              {filteredStudents.map(s => (
+                <div key={s.id} className="bg-gradient-to-br from-green-50 to-white border border-green-200 rounded-xl p-3 shadow-sm">
+                  {/* اطلاعات دانش‌آموز */}
+                  <div className="mb-3 pb-3 border-b border-green-200">
+                    <h3 className="font-bold text-green-800 mb-1 text-sm">
+                      {s.users ? `${s.users.firstName || s.users.first_name || ''} ${s.users.lastName || s.users.last_name || ''}` : 'نامشخص'}
+                    </h3>
+                    <div className="flex flex-col gap-1 text-xs text-gray-600">
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-500">تلفن:</span>
+                        <span className="font-semibold">{s.users?.phone || s.users?.phoneNumber || '-'}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-500">کد ملی:</span>
+                        <span className="font-semibold">{s.users?.nationalId || s.users?.national_id || '-'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* دکمه‌های وضعیت */}
+                  <div className="mb-2">
+                    <p className="text-xs font-bold text-gray-700 mb-2">وضعیت حضور:</p>
+                    {tempStatuses[s.id] ? (
+                      <div className="flex gap-2 items-center">
+                        <span className={`px-3 py-2 rounded-lg text-xs font-bold flex-1 text-center ${
+                          tempStatuses[s.id] === 'present' 
+                            ? 'bg-green-600 text-white' 
+                            : tempStatuses[s.id] === 'late'
+                              ? 'bg-orange-600 text-white'
+                              : 'bg-red-600 text-white'
+                        }`}>
+                          {tempStatuses[s.id] === 'present' 
+                            ? 'حاضر' 
+                            : tempStatuses[s.id] === 'late' 
+                              ? 'تاخیر' 
+                              : 'غایب'}
+                        </span>
+                        <button
+                          className="px-3 py-2 rounded-lg text-xs font-bold bg-gray-200 text-gray-700 border hover:bg-gray-300 transition"
+                          onClick={() => {
+                            setTempStatuses(prev => {
+                              const newStatuses = { ...prev };
+                              delete newStatuses[s.id];
+                              return newStatuses;
+                            });
+                            setTempDelays(prev => {
+                              const newDelays = { ...prev };
+                              delete newDelays[s.id];
+                              return newDelays;
+                            });
+                          }}
+                        >
+                          لغو
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <button
+                          className="flex-1 px-3 py-2 rounded-lg text-xs font-bold bg-green-100 text-green-700 border border-green-300 hover:bg-green-200 transition"
+                          disabled={loading}
+                          onClick={() => handleAttendance(s.id, 'present')}
+                        >
+                          حاضر
+                        </button>
+                        <button
+                          className="flex-1 px-3 py-2 rounded-lg text-xs font-bold bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 transition"
+                          disabled={loading}
+                          onClick={() => handleAttendance(s.id, 'absent')}
+                        >
+                          غایب
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* دکمه تاخیر */}
+                  <div>
+                    <p className="text-xs font-bold text-gray-700 mb-2">تاخیر:</p>
+                    {tempDelays[s.id] ? (
+                      <div className="flex gap-2 items-center">
+                        <span className="flex-1 px-3 py-2 rounded-lg text-xs font-bold bg-orange-100 text-orange-700 border border-orange-300 text-center">
+                          {minutesToTime(tempDelays[s.id].minutes)}
+                        </span>
+                        <button
+                          className="p-2 rounded-lg bg-blue-100 text-blue-700 border border-blue-300 hover:bg-blue-200 transition"
+                          onClick={() => handleDelay(s.id)}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          className="p-2 rounded-lg bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 transition"
+                          onClick={() => setTempDelays(prev => {
+                            const newDelays = { ...prev };
+                            delete newDelays[s.id];
+                            return newDelays;
+                          })}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        className="w-full px-3 py-2 rounded-lg text-xs font-bold bg-orange-100 text-orange-700 border border-orange-300 hover:bg-orange-200 transition flex items-center justify-center gap-2"
+                        disabled={loading}
+                        onClick={() => handleDelay(s.id)}
+                      >
+                        <Clock className="w-4 h-4" />
+                        ثبت تاخیر
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* دکمه ثبت نهایی */}
+          <div className="fixed bottom-20 sm:bottom-8 left-1/2 transform -translate-x-1/2 z-40">
+            <button
+              onClick={handleFinalSubmit}
+              disabled={isSaving || Object.keys(tempStatuses).length === 0}
+              className="px-4 sm:px-6 py-2 sm:py-3 bg-green-600 text-white rounded-full shadow-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm sm:text-base font-bold"
+            >
+              {isSaving ? (
+                <>
+                  <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  در حال ثبت...
+                </>
+              ) : (
+                <>
+                  <CalendarCheck className="w-4 h-4 sm:w-5 sm:h-5" />
+                  ثبت نهایی حضور و غیاب
+                </>
+              )}
+            </button>
           </div>
         </div>
       </div>
@@ -594,9 +779,9 @@ useEffect(() => {
       {showDelayModal && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl">
-            <div className="flex justify-between items-center px-6 py-4 bg-gradient-to-r from-orange-100 to-orange-50 border-b border-orange-100">
-              <h2 className="text-lg font-bold text-orange-700 flex items-center gap-2">
-                <Clock className="w-5 h-5" />
+            <div className="flex justify-between items-center px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-orange-100 to-orange-50 border-b border-orange-100">
+              <h2 className="text-base sm:text-lg font-bold text-orange-700 flex items-center gap-2">
+                <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
                 ثبت تاخیر
               </h2>
               <button 
@@ -607,9 +792,9 @@ useEffect(() => {
               </button>
             </div>
             
-            <div className="px-6 py-4 space-y-4">
+            <div className="px-4 sm:px-6 py-4 space-y-4">
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">
+                <label className="block text-xs sm:text-sm font-bold text-gray-700 mb-2">
                   مدت تاخیر (دقیقه)
                 </label>
                 <input
@@ -618,7 +803,7 @@ useEffect(() => {
                   max="480"
                   value={delayForm.minutes}
                   onChange={(e) => setDelayForm(prev => ({ ...prev, minutes: e.target.value }))}
-                  className="w-full px-3 py-2 border border-orange-200 rounded-xl bg-orange-50 focus:ring-2 focus:ring-orange-400 outline-none"
+                  className="w-full px-3 py-2 border border-orange-200 rounded-xl bg-orange-50 focus:ring-2 focus:ring-orange-400 outline-none text-sm"
                   placeholder="مثال: 15"
                 />
                 <p className="text-xs text-gray-500 mt-1">
@@ -627,13 +812,13 @@ useEffect(() => {
               </div>
               
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">
+                <label className="block text-xs sm:text-sm font-bold text-gray-700 mb-2">
                   دلیل تاخیر (اختیاری)
                 </label>
                 <textarea
                   value={delayForm.reason}
                   onChange={(e) => setDelayForm(prev => ({ ...prev, reason: e.target.value }))}
-                  className="w-full px-3 py-2 border border-orange-200 rounded-xl bg-orange-50 focus:ring-2 focus:ring-orange-400 outline-none h-20 resize-none"
+                  className="w-full px-3 py-2 border border-orange-200 rounded-xl bg-orange-50 focus:ring-2 focus:ring-orange-400 outline-none h-20 resize-none text-sm"
                   placeholder="دلیل تاخیر را بنویسید..."
                 />
               </div>
@@ -641,14 +826,14 @@ useEffect(() => {
               <div className="flex justify-end gap-3 pt-4">
                 <button
                   onClick={() => setShowDelayModal(false)}
-                  className="px-4 py-2 bg-gray-100 rounded-xl text-gray-700 hover:bg-gray-200 transition"
+                  className="px-3 sm:px-4 py-2 bg-gray-100 rounded-xl text-gray-700 hover:bg-gray-200 transition text-xs sm:text-sm font-bold"
                 >
                   انصراف
                 </button>
                 <button
                   onClick={saveDelay}
                   disabled={loading}
-                  className="px-4 py-2 bg-orange-600 text-white rounded-xl hover:bg-orange-700 transition disabled:opacity-50"
+                  className="px-3 sm:px-4 py-2 bg-orange-600 text-white rounded-xl hover:bg-orange-700 transition disabled:opacity-50 text-xs sm:text-sm font-bold"
                 >
                   {loading ? 'در حال ثبت...' : 'ثبت تاخیر'}
                 </button>

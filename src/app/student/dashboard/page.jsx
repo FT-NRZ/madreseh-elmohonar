@@ -6,9 +6,11 @@ import ExamsList from '../components/ExamsList';
 import WeeklySchedule from '../components/WeeklySchedule';
 import MealSchedule from '../components/MealSchedule';
 import ExamResults from '../components/ExamResults';
+import Workshops from '../components/Workshops';
 import ReportCard from '../components/ReportCard';
 import SpecialClasses from '../components/SpecialClasses';
 import StudentSpecialNews from '../components/StudentSpecialNews';
+import AttendanceList from '../components/AttendanceList'
 import Reminders from '../components/Reminders';
 import {
   Menu, X, User, Calendar, ClipboardList, BookOpen, FileText, Newspaper, School, Image, UtensilsCrossed,
@@ -16,15 +18,16 @@ import {
 } from 'lucide-react';
 import ClassNews from '../components/ClassNews';
 
-const StudentProfile = ({ studentId, user }) => (
+const StudentProfile = ({ user, gradeName }) => (
   <div className="bg-white rounded-3xl shadow-2xl p-8 border border-green-100 flex items-center gap-6 student-profile">
     <div className="w-24 h-24 bg-gradient-to-br from-[#399918] to-green-600 rounded-full flex items-center justify-center text-white text-3xl font-bold shadow-lg">
       {user?.firstName?.[0] || 'د'}
     </div>
     <div>
-      <h2 className="text-2xl font-extrabold text-green-800 mb-1">پروفایل دانش‌آموز</h2>
-      <p className="text-green-600 text-lg">{user?.className || 'کلاس ابتدایی'}</p>
-      <p className="text-gray-400 text-sm mt-1">کد دانش‌آموزی: {studentId}</p>
+      <h2 className="text-2xl font-extrabold text-green-800 mb-1">
+        {user?.firstName ? `${user.firstName} ${user.lastName || ''}` : 'دانش‌آموز'}
+      </h2>
+      <p className="text-green-600 text-lg">{gradeName || 'پایه نامشخص'}</p>
     </div>
   </div>
 );
@@ -88,6 +91,7 @@ export default function StudentDashboardPage() {
         window.location.href = '/';
         return;
       }
+      // اطلاعات حساس را در کنسول لاگ نکنید
       const response = await fetch(`/api/student/${userId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -110,7 +114,9 @@ export default function StudentDashboardPage() {
         localStorage.removeItem('user');
         window.location.href = '/';
       }
-    } catch {}
+    } catch {
+      // هیچ اطلاعاتی از دانش‌آموز در کنسول لاگ نشود
+    }
   };
 
   const renderContent = () => {
@@ -126,9 +132,8 @@ export default function StudentDashboardPage() {
         );
       case 'attendance':
         return (
-          <div className="bg-white rounded-2xl shadow-lg p-6 border border-green-100">
-            <h3 className="text-xl font-bold text-green-800 mb-4">حضور و غیاب</h3>
-            <p className="text-gray-600">محتوای حضور و غیاب در حال توسعه است.</p>
+          <div className="space-y-6">
+            <AttendanceList studentId={studentId} /> 
           </div>
         );
       case 'exams':
@@ -258,7 +263,7 @@ export default function StudentDashboardPage() {
         <main className="flex-1 p-6 space-y-8">
           {activeTab === 'dashboard' && (
             <div className="space-y-6">
-              <StudentProfile studentId={studentId} user={user} />
+              <StudentProfile user={user} gradeName={gradeName}/>
               {/* Quick Actions */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {quickActions.map((action, idx) => {
@@ -283,10 +288,8 @@ export default function StudentDashboardPage() {
                   <h3 className="text-base font-bold text-green-700 mb-2">برنامه امروز</h3>
                   <WeeklySchedule studentId={studentId} todayOnly />
                 </div>
-                <div className="w-full mt-4">
-                  <SpecialClasses gradeId={gradeId || 1} />
-                </div>
               </div>
+              <Workshops />
               {/* آزمون‌های فعال */}
               <div className="bg-gradient-to-br from-green-100 via-white to-green-50 rounded-2xl shadow-lg p-4 border border-green-100 transition-all duration-300">
                 <h3 className="text-base font-bold text-green-700 mb-2">آزمون‌های فعال</h3>

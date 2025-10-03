@@ -1,14 +1,15 @@
 'use client'
 import React, { useState, useEffect } from 'react';
+import EditUserModal from '../users/EditUserModal';
 import { 
   Users, UserPlus, GraduationCap, BookOpen, BarChart3, Settings, LogOut, 
   Activity, Calendar, Clock, Crown, Target, RefreshCw, Sparkles,
   Edit, Trash2, CalendarCheck,
   NewspaperIcon,
-  FileText, Shield, Menu, X
+  FileText, Shield, Menu, X,
+  GalleryHorizontal
 } from 'lucide-react';
 import { Image, Calendar as CalendarIcon, LayoutGrid, GalleryHorizontalEnd } from 'lucide-react';
-
 
 const sidebarMenu = [
   { label: 'داشبورد', icon: LayoutGrid, href: '/admin/dashboard' },
@@ -17,13 +18,12 @@ const sidebarMenu = [
   { label: 'برنامه هفتگی', icon: CalendarIcon, href: '/admin/weekly_schedule' },
   { label: 'برنامه غذایی', icon: GalleryHorizontalEnd, href: '/admin/food-schedule' },
   { label: 'حضور و غیاب', icon: CalendarCheck, href: '/admin/attendances' },
-  { label: 'مدیریت گالری', icon: Image, href: '/admin/gallery' },
+  { label: 'مدیریت گالری', icon: GalleryHorizontal, href: '/admin/gallery' },
+  { label: 'مدیریت کارنامه ها', icon: BookOpen, href: '/admin/report_cards' },
   { label: 'مدیریت اخبار', icon: NewspaperIcon, href: '/admin/news' },
   { label: 'مدیریت بخشنامه ها', icon: FileText, href: '/admin/circular' },
-  { label: 'پیش‌ثبت‌نام', icon: UserPlus, href: '/admin/pre-registrations' }, // ← این خط را اضافه کن
+  { label: 'پیش‌ثبت‌نام', icon: UserPlus, href: '/admin/pre-registrations' },
   { label: 'توبیخی و تشویقی', icon: Shield, href: '/admin/disciplinary' },
-  { label: 'گزارش ها', icon: BarChart3, href: '/admin/reports' },
-  { label: 'تنظیمات', icon: Settings, href: '/admin/settings' },
 ];
 
 export default function AdminDashboard() {

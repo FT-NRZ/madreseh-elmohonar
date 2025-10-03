@@ -1,7 +1,8 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowRight, GraduationCap, User, Phone, Send, CheckCircle, Home } from 'lucide-react';
 import Link from 'next/link';
+import toast from 'react-hot-toast';
 
 export default function PreRegistrationPage() {
   const [formData, setFormData] = useState({
@@ -11,16 +12,33 @@ export default function PreRegistrationPage() {
     grade: ''
   });
 
+  const [grades, setGrades] = useState([
+    'اول ابتدایی',
+    'دوم ابتدایی', 
+    'سوم ابتدایی',
+    'چهارم ابتدایی'
+  ]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [errors, setErrors] = useState({});
 
-  const grades = [
-    'اول ابتدایی',
-    'دوم ابتدایی',
-    'سوم ابتدایی',
-    'چهارم ابتدایی'
-  ];
+  // دریافت لیست پایه‌ها از دیتابیس
+  useEffect(() => {
+    async function fetchGrades() {
+      try {
+        const response = await fetch('/api/grades');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && Array.isArray(data.grades)) {
+            setGrades(data.grades.map(g => g.grade_name));
+          }
+        }
+      } catch (error) {
+        console.log('خطا در دریافت پایه‌ها:', error);
+      }
+    }
+    fetchGrades();
+  }, []);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -46,10 +64,12 @@ export default function PreRegistrationPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // این تابع را اصلاح کردم تا اطلاعات به سرور ارسال شود
-  const handleSubmit = async (e) => {
+const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      toast.error('لطفاً همه فیلدها را به درستی پر کنید.');
+      return;
+    }
     setIsSubmitting(true);
     setErrors({});
     try {
@@ -65,12 +85,13 @@ export default function PreRegistrationPage() {
       });
       const result = await response.json();
       if (response.ok && result.success) {
+        toast.success('پیش‌ثبت‌نام با موفقیت انجام شد!');
         setIsSuccess(true);
       } else {
-        setErrors({ form: result.error || 'خطا در ثبت اطلاعات' });
+        toast.error(result.error || 'خطا در ثبت اطلاعات');
       }
     } catch (error) {
-      setErrors({ form: 'خطا در ارتباط با سرور' });
+      toast.error('خطا در ارتباط با سرور');
     } finally {
       setIsSubmitting(false);
     }
@@ -255,7 +276,9 @@ export default function PreRegistrationPage() {
 
             {/* نمایش خطاهای کلی */}
             {errors.form && (
-              <div className="text-center text-red-600 text-sm mb-2">{errors.form}</div>
+              <div className="text-center text-red-600 text-sm mb-2 bg-red-50 border border-red-200 rounded-lg p-3">
+                {errors.form}
+              </div>
             )}
 
             {/* دکمه ثبت */}

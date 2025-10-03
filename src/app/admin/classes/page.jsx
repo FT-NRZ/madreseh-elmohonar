@@ -10,23 +10,24 @@ import {
   GalleryHorizontalEnd,
   CalendarCheck,
   FileText,
-  Shield
+  Shield,
+  Calendar1Icon
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 
 const sidebarMenu = [
   { label: 'داشبورد', icon: LayoutGrid, href: '/admin/dashboard' },
   { label: 'مدیریت کاربران', icon: Users, href: '/admin/users' },
-  { label: 'مدیریت کلاس‌ها', icon: GraduationCap, href: '/admin/classes', active: true },
-  { label: 'برنامه هفتگی', icon: Calendar, href: '/admin/weekly_schedule' },
+  { label: 'مدیریت کلاس‌ها', icon: GraduationCap, href: '/admin/classes' },
+  { label: 'برنامه هفتگی', icon: Calendar1Icon, href: '/admin/weekly_schedule' },
   { label: 'برنامه غذایی', icon: GalleryHorizontalEnd, href: '/admin/food-schedule' },
   { label: 'حضور و غیاب', icon: CalendarCheck, href: '/admin/attendances' },
-  { label: 'مدیریت گالری', icon: Image, href: '/admin/gallery' },
+  { label: 'مدیریت گالری', icon: GalleryHorizontal, href: '/admin/gallery' },
+  { label: 'مدیریت کارنامه ها', icon: BookOpen, href: '/admin/report_cards' },
   { label: 'مدیریت اخبار', icon: NewspaperIcon, href: '/admin/news' },
   { label: 'مدیریت بخشنامه ها', icon: FileText, href: '/admin/circular' },
+  { label: 'پیش‌ثبت‌نام', icon: UserPlus, href: '/admin/pre-registrations' },
   { label: 'توبیخی و تشویقی', icon: Shield, href: '/admin/disciplinary' },
-  { label: 'گزارش ها', icon: BarChart3, href: '/admin/reports' },
-  { label: 'تنظیمات', icon: Settings, href: '/admin/settings' },
 ];
 
 export default function AdminClasses() {
