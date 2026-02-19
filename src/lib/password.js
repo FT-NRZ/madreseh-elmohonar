@@ -2,8 +2,14 @@ import bcrypt from 'bcryptjs';
 
 // هش کردن رمز عبور
 export async function hashPassword(password) {
-  const saltRounds = 12;
-  return await bcrypt.hash(password, saltRounds);
+  try {
+    const saltRounds = 12;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    return hashedPassword;
+  } catch (error) {
+    console.error('Password hashing error:', error.message);
+    throw new Error('خطا در رمزنگاری رمز عبور');
+  }
 }
 
 export async function hashToken(token) {
@@ -12,7 +18,12 @@ export async function hashToken(token) {
 
 // بررسی رمز عبور
 export async function verifyPassword(password, hashedPassword) {
-  return await bcrypt.compare(password, hashedPassword);
+  try {
+    return await bcrypt.compare(password, hashedPassword);
+  } catch (error) {
+    console.error('Password verification error:', error.message);
+    return false;
+  }
 }
 
 // تولید رمز عبور تصادفی
@@ -55,3 +66,5 @@ export function generateTeacherCode() {
   const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
   return `T${random}`;
 }
+
+export const DUMMY_PASSWORD_HASH = '$2a$12$w2w2w2w2w2w2w2w2w2w2wO2w2w2w2w2w2w2w2w2w2w2w2w2w2w2w2w2w2';

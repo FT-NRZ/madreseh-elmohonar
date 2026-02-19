@@ -4,27 +4,26 @@ import { ClipboardList } from 'lucide-react';
 import Link from 'next/link';
 
 export default function ExamsList({ studentId }) {
-  const [selectedClassId, setSelectedClassId] = useState('');
-  const [classes, setClasses] = useState([]);
+  const [selectedGradeId, setSelectedGradeId] = useState('');
+  const [grades, setGrades] = useState([]); 
   const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // دریافت کلاس‌ها از API
+  // دریافت پایه‌ها از API
   useEffect(() => {
-    async function fetchClasses() {
+    async function fetchGrades() {
       try {
-        // 🔥 اضافه کردن توکن احراز هویت
         const token = localStorage.getItem('token');
         if (!token) {
           setError('لطفاً وارد سیستم شوید');
           return;
         }
 
-        const res = await fetch('/api/classes', {
+        const res = await fetch('/api/grades', {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${token}`, // ✅ ارسال توکن
+            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
         });
@@ -37,34 +36,33 @@ export default function ExamsList({ studentId }) {
             window.location.href = '/login';
             return;
           }
-          throw new Error('خطا در دریافت کلاس‌ها');
+          throw new Error('خطا در دریافت پایه‌ها');
         }
 
         const data = await res.json();
         if (data.success) {
-          setClasses(data.classes);
+          setGrades(data.grades);
         } else {
-          setClasses([]);
-          setError(data.error || 'خطا در دریافت کلاس‌ها');
+          setGrades([]);
+          setError(data.error || 'خطا در دریافت پایه‌ها');
         }
       } catch (err) {
-        console.error('💥 Error fetching classes:', err);
-        setClasses([]);
+        console.error('💥 Error fetching grades:', err);
+        setGrades([]);
         setError('خطا در ارتباط با سرور');
       }
     }
-    fetchClasses();
+    fetchGrades();
   }, []);
 
-  // دریافت آزمون‌ها بر اساس کلاس انتخاب‌شده
+  // دریافت آزمون‌ها بر اساس grade انتخاب‌شده
   useEffect(() => {
-    if (!selectedClassId) return;
+    if (!selectedGradeId) return;
     setLoading(true);
     setError('');
     
     async function fetchExams() {
       try {
-        // 🔥 اضافه کردن توکن احراز هویت
         const token = localStorage.getItem('token');
         if (!token) {
           setError('لطفاً وارد سیستم شوید');
@@ -72,10 +70,11 @@ export default function ExamsList({ studentId }) {
           return;
         }
 
-        const res = await fetch(`/api/exams/all?class_id=${selectedClassId}`, {
+        // استفاده از endpoint جدید
+        const res = await fetch(`/api/exams/student?grade_id=${selectedGradeId}&active_only=true`, {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${token}`, // ✅ ارسال توکن
+            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
         });
@@ -106,7 +105,7 @@ export default function ExamsList({ studentId }) {
       setLoading(false);
     }
     fetchExams();
-  }, [selectedClassId]);
+  }, [selectedGradeId]); 
 
   return (
     <div className="max-w-3xl mx-auto bg-white shadow-lg rounded-lg p-6">
@@ -134,20 +133,20 @@ export default function ExamsList({ studentId }) {
 
       <div className="mb-4">
         <label className="block text-sm font-bold text-gray-700 mb-2">
-          پایه (کلاس) خود را انتخاب کنید:
+          پایه تحصیلی خود را انتخاب کنید:
         </label>
         <select
           className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition"
-          value={selectedClassId}
-          onChange={e => setSelectedClassId(e.target.value)}
-          disabled={classes.length === 0}
+          value={selectedGradeId}
+          onChange={e => setSelectedGradeId(e.target.value)}
+          disabled={grades.length === 0}
         >
           <option value="">
-            {classes.length === 0 ? 'در حال بارگذاری...' : 'انتخاب پایه...'}
+            {grades.length === 0 ? 'در حال بارگذاری...' : 'انتخاب پایه...'}
           </option>
-          {classes.map(cls => (
-            <option key={cls.id} value={cls.id}>
-              {cls.class_name} {cls.grades ? `(${cls.grades.grade_name})` : ""}
+          {grades.map(grade => (
+            <option key={grade.id} value={grade.id}>
+              پایه {grade.grade_name}
             </option>
           ))}
         </select>
@@ -162,7 +161,7 @@ export default function ExamsList({ studentId }) {
       )}
 
       {/* Exams List */}
-      {!loading && selectedClassId && !error && (
+      {!loading && selectedGradeId && !error && (
         exams.length === 0 ? (
           <div className="text-center py-8 bg-gray-50 rounded-lg">
             <div className="text-gray-500 mb-2">📝</div>
@@ -216,11 +215,11 @@ export default function ExamsList({ studentId }) {
         )
       )}
 
-      {/* No Class Selected */}
-      {!selectedClassId && !loading && (
+      {/* No Grade Selected */}
+      {!selectedGradeId && !loading && (
         <div className="text-center py-8 bg-blue-50 rounded-lg">
           <div className="text-blue-500 mb-2">🎯</div>
-          <p className="text-blue-700">لطفاً ابتدا پایه (کلاس) خود را انتخاب کنید</p>
+          <p className="text-blue-700">لطفاً ابتدا پایه تحصیلی خود را انتخاب کنید</p>
         </div>
       )}
     </div>

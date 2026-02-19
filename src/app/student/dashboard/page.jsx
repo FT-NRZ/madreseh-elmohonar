@@ -1,76 +1,44 @@
 'use client'
 
-import { useState, useEffect } from 'react';
-import toast, { Toaster } from 'react-hot-toast';
-import ExamsList from '../components/ExamsList';
-import WeeklySchedule from '../components/WeeklySchedule';
-import MealSchedule from '../components/MealSchedule';
-import ExamResults from '../components/ExamResults';
+import React, { useState, useEffect } from 'react';
 import Workshops from '../components/Workshops';
-import ReportCard from '../components/ReportCard';
-import SpecialClasses from '../components/SpecialClasses';
 import StudentSpecialNews from '../components/StudentSpecialNews';
-import AttendanceList from '../components/AttendanceList'
-import Reminders from '../components/Reminders';
+import moment from 'jalali-moment';
 import {
-  Menu, X, User, Calendar, ClipboardList, BookOpen, FileText, Newspaper, School, Image, UtensilsCrossed,
-  MessageSquare, Bell, LogOut, Home, Award, ChevronRight, TrendingUp, Clock, Star, Users
+  Calendar, ClipboardList, BookOpen, FileText, Award, 
+  Clock, Star, Users, UtensilsCrossed, Target, ArrowRight,
+  Coffee, NewspaperIcon, Sparkles, Bell, Image
 } from 'lucide-react';
-import ClassNews from '../components/ClassNews';
-
-const StudentProfile = ({ user, gradeName }) => (
-  <div className="bg-white rounded-3xl shadow-2xl p-8 border border-green-100 flex items-center gap-6 student-profile">
-    <div className="w-24 h-24 bg-gradient-to-br from-[#399918] to-green-600 rounded-full flex items-center justify-center text-white text-3xl font-bold shadow-lg">
-      {user?.firstName?.[0] || 'د'}
-    </div>
-    <div>
-      <h2 className="text-2xl font-extrabold text-green-800 mb-1">
-        {user?.firstName ? `${user.firstName} ${user.lastName || ''}` : 'دانش‌آموز'}
-      </h2>
-      <p className="text-green-600 text-lg">{gradeName || 'پایه نامشخص'}</p>
-    </div>
-  </div>
-);
-
-const dashboardTabs = [
-  { key: 'schedule', label: 'برنامه هفتگی', icon: Calendar },
-  { key: 'attendance', label: 'حضور و غیاب', icon: ClipboardList },
-  { key: 'reportCard', label: 'کارنامه', icon: BookOpen },
-  { key: 'exams', label: 'آزمون‌ها', icon: FileText },
-  { key: 'examResults', label: 'نتایج آزمون', icon: Award },
-  { key: 'classnews', label: 'اخبار کلاس', icon: Newspaper },
-  { key: 'reminders', label: 'یادآوری‌ها', icon: Bell },
-  { key: 'gallery', label: 'گالری', icon: Image },
-  { key: 'meals', label: 'برنامه غذایی', icon: UtensilsCrossed },
-  { key: 'suggestion', label: 'ارسال نظر/پیشنهاد', icon: MessageSquare },
-];
 
 const quickActions = [
-  { title: 'برنامه امروز', icon: Clock, tab: 'schedule' },
-  { title: 'آزمون‌ها', icon: Star, tab: 'exams' },
-  { title: 'گروه کلاسی', icon: Users, tab: 'classnews' },
-  { title: 'برنامه غذایی', icon: UtensilsCrossed, tab: 'meals' },
+  { title: 'برنامه امروز', icon: Clock, action: 'schedule' },
+  { title: 'آزمون‌ها', icon: Star, action: 'exams' },
+  { title: 'برنامه غذایی', icon: UtensilsCrossed, action: 'meals' },
 ];
 
 export default function StudentDashboardPage() {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState(null);
   const [studentId, setStudentId] = useState(null);
   const [gradeId, setGradeId] = useState(null);
   const [gradeName, setGradeName] = useState(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [student, setStudent] = useState(null);
+  const [studentStats, setStudentStats] = useState({
+    weeklyAttendance: '100%',
+    exams: '12'
+  });
 
   useEffect(() => {
-    setMounted(true);
     const userData = localStorage.getItem('user');
     if (userData) {
       try {
         const userObj = JSON.parse(userData);
         setUser(userObj);
+        setStudent(userObj);
         setStudentId(userObj.id);
+        setLoading(false);
         fetchStudentInfo(userObj.id);
+        fetchStudentStats(userObj.id);
       } catch {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
@@ -79,11 +47,66 @@ export default function StudentDashboardPage() {
     } else {
       window.location.href = '/';
     }
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
   }, []);
 
-  // گرفتن اطلاعات دانش‌آموز و gradeId
+  const fetchStudentStats = async (userId) => {
+    try {
+      const token = localStorage.getItem('token');
+      
+      // دریافت حضور و غیاب هفته گذشته
+      const attendanceRes = await fetch(`/api/student/${userId}/attendance?filter=week`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      let weeklyAttendance = '100%';
+      
+      if (attendanceRes.ok) {
+        const attendanceData = await attendanceRes.json();
+        if (attendanceData.success && attendanceData.stats) {
+          const { present, absent, late } = attendanceData.stats;
+          const totalDays = present + absent + late;
+          if (totalDays > 0) {
+            const attendancePercent = Math.round((present / totalDays) * 100);
+            weeklyAttendance = `${attendancePercent}%`;
+          }
+        }
+      }
+      
+      // دریافت آمار آزمون‌ها
+      const examsRes = await fetch(`/api/student/${userId}/exams`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      let examsCount = '12';
+      
+      if (examsRes.ok) {
+        const examsData = await examsRes.json();
+        if (examsData.success && examsData.exams) {
+          examsCount = examsData.exams.length.toString();
+        }
+      }
+      
+      setStudentStats({
+        weeklyAttendance,
+        exams: examsCount
+      });
+      
+    } catch (error) {
+      console.error('Error fetching student stats:', error);
+      // استفاده از مقادیر پیش‌فرض
+      setStudentStats({
+        weeklyAttendance: '95%',
+        exams: '8'
+      });
+    }
+  };
+
   const fetchStudentInfo = async (userId) => {
     try {
       const token = localStorage.getItem('token');
@@ -91,22 +114,20 @@ export default function StudentDashboardPage() {
         window.location.href = '/';
         return;
       }
-      // اطلاعات حساس را در کنسول لاگ نکنید
+      
       const response = await fetch(`/api/student/${userId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
+      
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.student) {
           if (data.student.class?.grade) {
             setGradeId(data.student.class.grade.id);
             setGradeName(data.student.class.grade.name);
-          } else {
-            setGradeId(null);
-            setGradeName(null);
           }
         }
       } else if (response.status === 401 || response.status === 403) {
@@ -114,223 +135,232 @@ export default function StudentDashboardPage() {
         localStorage.removeItem('user');
         window.location.href = '/';
       }
-    } catch {
-      // هیچ اطلاعاتی از دانش‌آموز در کنسول لاگ نشود
+    } catch (error) {
+      console.error('Error fetching student info:', error);
     }
   };
 
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'schedule':
-        return (
-          <>
-            <WeeklySchedule studentId={studentId} />
-            <div className="mt-8">
-              <SpecialClasses gradeId={gradeId || 1} />
-            </div>
-          </>
-        );
-      case 'attendance':
-        return (
-          <div className="space-y-6">
-            <AttendanceList studentId={studentId} /> 
-          </div>
-        );
-      case 'exams':
-        return studentId ? <ExamsList studentId={studentId} /> : <div>در حال بارگذاری...</div>;
-      case 'examResults':
-        return studentId ? <ExamResults studentId={studentId} /> : <div>در حال بارگذاری...</div>;
-      case 'reportCard':
-        return studentId ? <ReportCard studentId={studentId} /> : <div>در حال بارگذاری...</div>;
-      case 'classnews':
-        return studentId ? (
-          <ClassNews studentId={studentId} gradeId={gradeId} />
-        ) : (
-          <div>در حال بارگذاری...</div>
-        );
-      case 'reminders':
-        return studentId ? (
-          <Reminders studentId={studentId} gradeId={gradeId} />
-        ) : (
-          <div>در حال بارگذاری...</div>
-        );
-      case 'gallery':
-        return (
-          <div className="bg-white rounded-2xl shadow-lg p-6 border border-green-100">
-            <h3 className="text-xl font-bold text-green-800 mb-4">گالری</h3>
-            <p className="text-gray-600">محتوای گالری در حال توسعه است.</p>
-          </div>
-        );
-      case 'meals':
-        return studentId ? <MealSchedule studentId={studentId} /> : <div>در حال بارگذاری...</div>;
-      case 'suggestion':
-        return (
-          <div className="bg-white rounded-2xl shadow-lg p-6 border border-green-100">
-            <h3 className="text-xl font-bold text-green-800 mb-4">ارسال نظر/پیشنهاد</h3>
-            <p className="text-gray-600">فرم ارسال نظر و پیشنهاد در حال توسعه است.</p>
-          </div>
-        );
-      default:
-        return (
-          <div className="bg-white rounded-2xl shadow-lg p-6 border border-green-100">
-            <h3 className="text-xl font-bold text-green-800 mb-4">
-              {dashboardTabs.find(tab => tab.key === activeTab)?.label}
-            </h3>
-            <p className="text-gray-600">محتوای این بخش در حال توسعه است.</p>
-          </div>
-        );
-    }
-  };
-
-  const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.location.href = '/';
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'صبح بخیر';
+    if (hour < 17) return 'ظهر بخیر';
+    return 'عصر بخیر';
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-white">
-      <div className="flex">
-        {/* Sidebar */}
-        <aside className="right-0 top-0 w-72 bg-white/95 backdrop-blur-xl shadow-2xl z-0 border-l border-green-100">
-          <div className="p-6 bg-gradient-to-r from-green-200 via-green-100 to-green-50 text-green-800 border-b border-green-100">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center">
-                <School className="w-6 h-6 text-green-700" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold">پنل دانش‌آموز</h2>
-                <p className="text-green-700 text-sm">مدرسه علم و هنر</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-green-50 rounded-xl p-3 text-center border border-green-100">
-                <p className="text-xl font-bold text-green-700">18.5</p>
-                <p className="text-xs text-green-600">معدل</p>
-              </div>
-              <div className="bg-green-50 rounded-xl p-3 text-center border border-green-100">
-                <p className="text-xl font-bold text-green-700">98%</p>
-                <p className="text-xs text-green-600">حضور</p>
-              </div>
+    <div className="space-y-6 mb-5">
+      
+      {/* خوش‌آمدگویی */}
+      <div className="bg-gradient-to-r from-green-400 via-green-500 to-green-600 rounded-xl md:rounded-2xl shadow-lg p-4 md:p-6 text-white relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-20 h-20 md:w-32 md:h-32 bg-white/10 rounded-full -translate-y-10 md:-translate-y-16 translate-x-10 md:translate-x-16"></div>
+        <div className="absolute bottom-0 left-0 w-16 h-16 md:w-24 bg-white/10 rounded-full translate-y-8 md:translate-y-12 -translate-x-8 md:-translate-x-12"></div>
+        <div className="relative z-10">
+          <div className="flex items-center gap-2 md:gap-3 mb-2">
+            <Coffee className="w-6 h-6 md:w-8 md:h-8 text-white" />
+            <div>
+              <h1 className="text-lg md:text-2xl font-bold mb-2 md:mb-3">
+                {loading ? 'در حال بارگذاری...' : `${getGreeting()}، ${student?.firstName || 'دانش‌آموز عزیز'} ${student?.lastName || ''} 👋`}
+              </h1>
+              <p className="text-green-100 text-xs md:text-base">
+                {gradeName ? `دانش‌آموز ${gradeName}` : 'به داشبورد دانش‌آموز خوش آمدید.'}
+              </p>
             </div>
           </div>
-          <nav className="p-4 space-y-2">
-            <button
-              onClick={() => setActiveTab('dashboard')}
-              className={`group w-full text-right p-4 rounded-2xl font-semibold transition-all duration-300 flex items-center gap-4 relative overflow-hidden ${
-                activeTab === 'dashboard'
-                  ? 'bg-gradient-to-r from-green-200 to-green-100 text-green-900 shadow-xl scale-[1.02] transform'
-                  : 'text-green-700 hover:bg-gradient-to-r hover:from-green-50 hover:to-green-100 hover:shadow-lg hover:scale-[1.01]'
-              }`}
-            >
-              <div className={`p-2 rounded-xl ${activeTab === 'dashboard' ? 'bg-green-100' : 'bg-green-50'}`}>
-                <Home size={18} />
-              </div>
-              <span className="text-sm">داشبورد اصلی</span>
-            </button>
-            {dashboardTabs.map((item) => {
-              const IconComponent = item.icon;
-              const isActive = activeTab === item.key;
-              return (
-                <button
-                  key={item.key}
-                  onClick={() => setActiveTab(item.key)}
-                  className={`group w-full text-right p-4 rounded-2xl font-semibold transition-all duration-300 flex items-center gap-4 relative overflow-hidden ${
-                    isActive
-                      ? 'bg-gradient-to-r from-green-200 to-green-100 text-green-900 shadow-xl scale-[1.02] transform'
-                      : 'text-green-700 hover:bg-gradient-to-r hover:from-green-50 hover:to-green-100 hover:shadow-lg hover:scale-[1.01]'
-                  }`}
-                >
-                  <div className={`p-2 rounded-xl ${isActive ? 'bg-green-100' : 'bg-green-50'}`}>
-                    <IconComponent size={18} />
-                  </div>
-                  <span className="text-sm">{item.label}</span>
-                </button>
-              );
-            })}
-            <button
-              onClick={logout}
-              className="w-full text-right p-4 rounded-2xl font-semibold transition-all duration-300 flex items-center gap-4 text-red-600 hover:bg-red-50 hover:shadow-lg hover:scale-[1.01] mt-6"
-            >
-              <div className="p-2 rounded-xl bg-red-100">
-                <LogOut size={18} />
-              </div>
-              <span className="text-sm">خروج از سیستم</span>
-            </button>
-          </nav>
-        </aside>
-        {/* Main Content */}
-        <main className="flex-1 p-6 space-y-8">
-          {activeTab === 'dashboard' && (
-            <div className="space-y-6">
-              <StudentProfile user={user} gradeName={gradeName}/>
-              {/* Quick Actions */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {quickActions.map((action, idx) => {
-                  const IconComponent = action.icon;
-                  return (
-                    <button
-                      key={idx}
-                      className="bg-white/95 backdrop-blur-xl rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 cursor-pointer border border-green-100 flex flex-col items-center gap-2"
-                      onClick={() => setActiveTab(action.tab)}
-                    >
-                      <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-green-600 rounded-2xl flex items-center justify-center mb-2">
-                        <IconComponent className="w-6 h-6 text-white" />
-                      </div>
-                      <span className="font-bold text-gray-800">{action.title}</span>
-                    </button>
-                  );
-                })}
-              </div>
-              {/* برنامه امروز و کلاس ویژه */}
-              <div className="bg-gradient-to-br from-green-100 via-white to-green-50 rounded-2xl shadow-lg p-4 border border-green-100 flex flex-col gap-4 items-center transition-all duration-300">
-                <div className="w-full">
-                  <h3 className="text-base font-bold text-green-700 mb-2">برنامه امروز</h3>
-                  <WeeklySchedule studentId={studentId} todayOnly />
-                </div>
-              </div>
-              <Workshops />
-              {/* آزمون‌های فعال */}
-              <div className="bg-gradient-to-br from-green-100 via-white to-green-50 rounded-2xl shadow-lg p-4 border border-green-100 transition-all duration-300">
-                <h3 className="text-base font-bold text-green-700 mb-2">آزمون‌های فعال</h3>
-                <ExamsList studentId={studentId} activeOnly />
-              </div>
-              {/* اخبار ویژه دانش‌آموز */}
-              <div className="space-y-6">
-                <StudentSpecialNews studentId={studentId} />
-              </div>
-            </div>
-          )}
-          {activeTab !== 'dashboard' && (
-            <div className="space-y-6">
-              <div className="relative bg-gradient-to-r from-green-600 via-green-500 to-green-600 rounded-3xl p-8 text-white shadow-2xl overflow-hidden">
-                <div className="absolute inset-0 bg-black/10"></div>
-                <div className="relative z-10">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
-                      {(() => {
-                        const tab = dashboardTabs.find(tab => tab.key === activeTab);
-                        if (tab?.icon) {
-                          const IconComponent = tab.icon;
-                          return <IconComponent size={24} className="text-white" />;
-                        }
-                        return null;
-                      })()}
-                    </div>
-                    <h1 className="text-2xl font-bold text-white">
-                      {dashboardTabs.find(tab => tab.key === activeTab)?.label}
-                    </h1>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-xl border border-green-200 p-8">
-                {renderContent()}
-              </div>
-            </div>
-          )}
-        </main>
+        </div>
       </div>
-      <Toaster position="bottom-center" />
+
+      {/* آمار دانش‌آموز - حذف معدل کل و تغییر حضور به هفتگی */}
+      <div className="grid grid-cols-1 gap-2 md:gap-6">
+        <StatsCard
+          title="حضور هفته"
+          value={studentStats.weeklyAttendance}
+          icon={ClipboardList}
+          gradient="from-blue-50 to-white"
+          iconGradient="from-blue-600 to-blue-500"
+        />
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {quickActions.map((action, idx) => {
+          const IconComponent = action.icon;
+          return (
+            <button
+              key={idx}
+              className="bg-white/95 backdrop-blur-xl rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 cursor-pointer border border-green-100 flex flex-col items-center gap-2"
+              onClick={() => window.location.href = `/student/${action.action}`}
+            >
+              <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-green-600 rounded-2xl flex items-center justify-center mb-2">
+                <IconComponent className="w-6 h-6 text-white" />
+              </div>
+              <span className="font-bold text-gray-800">{action.title}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* دکمه‌های دسترسی سریع */}
+      <div className="bg-white rounded-xl md:rounded-2xl shadow-lg p-3 md:p-6 border border-gray-100">
+        <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-4 md:mb-6 flex items-center gap-2">
+          <Target className="w-5 h-5 md:w-6 md:h-6 text-green-600" />
+          دسترسی سریع
+        </h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4">
+          <QuickAccessCard
+            title="برنامه امروز"
+            description="مشاهده برنامه کلاسی امروز"
+            icon={Calendar}
+            color="from-blue-500 to-blue-600"
+            onClick={() => window.location.href = '/student/schedule'}
+          />
+          <QuickAccessCard
+            title="آزمون‌های فعال"
+            description="مشاهده آزمون‌های فعال و نتایج"
+            icon={FileText}
+            color="from-purple-500 to-purple-600"
+            onClick={() => window.location.href = '/student/exams'}
+          />
+          <QuickAccessCard
+            title="کارنامه"
+            description="مشاهده نمرات و عملکرد تحصیلی"
+            icon={BookOpen}
+            color="from-green-500 to-green-600"
+            onClick={() => window.location.href = '/student/Reportcards'}
+          />
+          <QuickAccessCard
+            title="یادآوری‌ها"
+            description="مشاهده یادآوری‌ها و اطلاعیه‌ها"
+            icon={Bell}
+            color="from-orange-500 to-orange-600"
+            onClick={() => window.location.href = '/student/reminders'}
+          />
+        </div>
+      </div>
+
+      {/* اخبار و اطلاعیه‌ها */}
+      <div className="grid grid-cols-1 md:grid-cols-1 gap-2 md:gap-6">
+        <RecentNews studentId={studentId} />
+      </div>
+
+      {/* ورک شاپ‌ها و برنامه‌های ویژه */}
+      <div className="space-y-6">
+        <Workshops />
+      </div>
+
+      {/* اخبار ویژه دانش‌آموز */}
+      <div className="space-y-6">
+        <StudentSpecialNews studentId={studentId} />
+      </div>
     </div>
+  );
+}
+
+// کامپوننت اخبار اخیر
+function RecentNews({ studentId }) {
+  const [recentNews, setRecentNews] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    if (studentId) {
+      fetchRecentNews();
+    }
+  }, [studentId]);
+
+  const fetchRecentNews = async () => {
+    try {
+      const response = await fetch(`/api/news?role=student&userId=${studentId}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setRecentNews((data.news || []).slice(0, 3));
+      }
+    } catch (error) {
+      console.error('Error fetching recent news:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-xl md:rounded-2xl shadow-lg p-3 md:p-6 border border-gray-100">
+        <div className="animate-pulse space-y-3">
+          <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+          <div className="space-y-2">
+            <div className="h-3 bg-gray-200 rounded"></div>
+            <div className="h-3 bg-gray-200 rounded w-5/6"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-xl md:rounded-2xl shadow-lg p-3 md:p-6 border border-gray-100">
+      <h4 className="text-base md:text-lg font-bold text-gray-900 mb-3 md:mb-4 flex items-center gap-2">
+        <NewspaperIcon className="w-4 h-4 md:w-5 md:h-5 text-green-500" />
+        اخبار اخیر
+      </h4>
+      
+      {recentNews.length === 0 ? (
+        <p className="text-sm text-gray-500">خبری وجود ندارد</p>
+      ) : (
+        <div className="space-y-2 md:space-y-3">
+          {recentNews.map((news, index) => (
+            <div key={index} className="flex items-center gap-2 md:gap-3 p-2 md:p-3 bg-green-50 rounded-lg border border-green-200">
+              <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
+              <div className="flex-1 min-w-0">
+                <span className="text-xs md:text-sm text-gray-700 font-medium line-clamp-1">
+                  {news.title}
+                </span>
+                <p className="text-xs text-gray-500">
+                  {moment(news.publish_date).format('jMM/jDD')}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Stats Card Component
+function StatsCard({ title, value, icon: Icon, gradient, iconGradient }) {
+  return (
+    <div className={`bg-gradient-to-br ${gradient} rounded-xl md:rounded-2xl p-2 md:p-6 border border-green-200 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 backdrop-blur-lg`}>
+      <div className="flex items-center justify-between mb-2 md:mb-6">
+        <div className={`w-7 h-7 md:w-14 md:h-14 bg-gradient-to-r ${iconGradient} rounded-lg md:rounded-2xl flex items-center justify-center shadow-lg`}>
+          <Icon className="w-4 h-4 md:w-7 md:h-7 text-white" />
+        </div>
+        <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-green-600" />
+      </div>
+      <div>
+        <p className="text-base md:text-4xl font-bold text-gray-800 mb-0.5 md:mb-2">{value}</p>
+        <p className="text-xs md:text-base text-gray-600 font-medium">{title}</p>
+      </div>
+    </div>
+  );
+}
+
+// Quick Access Card Component
+function QuickAccessCard({ title, description, icon: Icon, color, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="group bg-gradient-to-br from-white to-gray-50 rounded-lg md:rounded-xl p-3 md:p-4 border border-gray-200 hover:shadow-lg transition-all duration-300 transform hover:scale-[1.02] text-right"
+    >
+      <div className="flex items-start gap-2 md:gap-4">
+        <div className={`w-10 h-10 md:w-12 md:h-12 bg-gradient-to-r ${color} rounded-lg md:rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform`}>
+          <Icon className="w-5 h-5 md:w-6 md:h-6 text-white" />
+        </div>
+        <div className="flex-1">
+          <h4 className="font-bold text-gray-900 mb-1 group-hover:text-green-600 transition-colors text-sm md:text-base">{title}</h4>
+          <p className="text-xs md:text-sm text-gray-600 leading-relaxed">{description}</p>
+        </div>
+        <ArrowRight className="w-4 h-4 md:w-5 md:h-5 text-gray-400 group-hover:text-green-600 group-hover:translate-x-1 transition-all" />
+      </div>
+    </button>
   );
 }

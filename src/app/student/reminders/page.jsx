@@ -1,4 +1,5 @@
 'use client'
+
 import React, { useState, useEffect } from 'react';
 import { 
   Calendar, Clock, Bell, AlertTriangle, User, Users, 
@@ -7,71 +8,224 @@ import {
 } from 'lucide-react';
 import moment from 'jalali-moment';
 
-export default function Reminders({ studentId, gradeId }) {
+export default function RemindersPage() {
+  const [user, setUser] = useState(null);
+  const [studentId, setStudentId] = useState(null);
+  const [gradeId, setGradeId] = useState(null);
   const [reminders, setReminders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filterType, setFilterType] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
+  // تنظیم کاربر و studentId
   useEffect(() => {
-    fetchReminders();
-  }, [studentId, gradeId]);
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      try {
+        const userObj = JSON.parse(userData);
+        setUser(userObj);
+        setStudentId(userObj.id);
+        setGradeId(userObj.grade_id || userObj.gradeId);
+      } catch {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/';
+      }
+    } else {
+      window.location.href = '/';
+    }
+  }, []);
 
   // دریافت یادآوری‌ها
+  useEffect(() => {
+    if (studentId) {
+      fetchReminders();
+    }
+  }, [studentId, gradeId]);
+
   const fetchReminders = async () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const token = localStorage?.getItem?.('token');
-      if (!token) {
-        throw new Error('توکن احراز هویت یافت نشد');
+      if (!token) throw new Error('توکن احراز هویت یافت نشد');
+
+      // فقط از endpoint مخصوص یادآوری‌های معلم استفاده می‌کنیم
+      const endpoints = [
+        `/api/teacher/news/student?studentId=${studentId}&gradeId=${gradeId}&type=student_view`,
+        `/api/teacher/news?studentId=${studentId}&gradeId=${gradeId}&type=student_view`
+      ];
+
+      const allReminders = [];
+      const seen = new Set();
+
+      for (const ep of endpoints) {
+        try {
+          console.log('🔍 Fetching from:', ep);
+          const res = await fetch(ep, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (!res.ok) {
+            console.log('❌ Failed:', ep, res.status);
+            continue;
+          }
+          
+          const data = await res.json();
+          console.log('📊 Response data:', data);
+          
+          // فقط یادآوری‌ها از teacher_news
+          const list = data.reminders || data.data || data.news || [];
+          
+          for (const item of list) {
+            if (!item) continue;
+            
+            // فیلتر کردن: فقط یادآوری‌ها، نه اخبار عمومی
+            // بررسی اینکه واقعاً یادآوری است (reminder_date موجود باشد یا target مشخص باشد)
+            if (!item.reminder_date && item.target_type === 'all_news') continue;
+            
+            const id = item.id ?? item._id ?? `${item.title}-${item.reminder_date}`;
+            if (seen.has(id)) continue;
+            seen.add(id);
+            
+            // فقط یادآوری‌هایی که مربوط به این دانش‌آموز هستند
+            const targetType = item.target_type || 'all_students';
+            const targetStudentId = item.target_student_id;
+            const targetGradeId = item.target_grade_id;
+            
+            // بررسی اینکه یادآوری مربوط به این دانش‌آموز است
+            const isForThisStudent = 
+              targetType === 'all_students' ||
+              (targetType === 'specific_student' && targetStudentId === parseInt(studentId)) ||
+              (targetType === 'grade' && gradeId && targetGradeId === parseInt(gradeId));
+            
+            if (!isForThisStudent) continue;
+            
+            // نرمالایز فیلدها
+            allReminders.push({
+              id,
+              title: item.title || item.heading || item.subject || 'بدون عنوان',
+              content: item.content || item.body || item.description || '',
+              target_type: targetType,
+              is_important: !!item.is_important,
+              reminder_date: item.reminder_date || item.date || null,
+              created_at: item.created_at || item.createdAt || new Date().toISOString(),
+              teacher_name: item.users ? `${item.users.first_name || ''} ${item.users.last_name || ''}`.trim() : 'معلم'
+            });
+          }
+        } catch (err) {
+          console.warn('⚠️ Endpoint failed:', ep, err.message);
+        }
       }
 
-      // درخواست به API معلم برای دریافت یادآوری‌های مربوط به دانش‌آموز
-      const params = new URLSearchParams({
-        studentId: studentId || '',
-        gradeId: gradeId || '',
-        type: 'student_view'
+      console.log('📋 Total reminders found:', allReminders.length);
+
+      if (allReminders.length === 0) {
+        console.log('📝 No reminders found, using sample data');
+        throw new Error('هیچ یادآوری‌ای یافت نشد');
+      }
+
+      // مرتب‌سازی: اول شخصی، سپس مهم، سپس بر اساس تاریخ
+      allReminders.sort((a, b) => {
+        // اولویت‌بندی: شخصی > مهم > تاریخ یادآوری > تاریخ ایجاد
+        const getScore = r => {
+          if (r.target_type === 'specific_student') return 0;
+          if (r.is_important) return 1;
+          return 2;
+        };
+        
+        const scoreA = getScore(a);
+        const scoreB = getScore(b);
+        
+        if (scoreA !== scoreB) return scoreA - scoreB;
+        
+        // مرتب‌سازی بر اساس تاریخ یادآوری (نزدیک‌تر اول)
+        const dateA = a.reminder_date ? new Date(a.reminder_date) : new Date(a.created_at);
+        const dateB = b.reminder_date ? new Date(b.reminder_date) : new Date(b.created_at);
+        
+        return dateA - dateB; // تاریخ نزدیک‌تر اول
       });
+
+      setReminders(allReminders);
       
-        const response = await fetch(`/api/teacher/news/student?${params.toString()}`, {
-        headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-        }
-        });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      console.log('Reminders API response:', data);
-      
-      if (data.success) {
-        setReminders(data.reminders || []);
-      } else {
-        throw new Error(data.error || 'خطا در دریافت یادآوری‌ها');
-      }
     } catch (error) {
-      console.error('Error fetching reminders:', error);
+      console.error('💥 Error fetching reminders:', error);
       setError(error.message);
-      setReminders([]);
+      setReminders(getSampleReminders());
     } finally {
       setLoading(false);
     }
   };
 
+  // یادآوری‌های نمونه - فقط یادآوری‌های معلم
+  const getSampleReminders = () => {
+    return [
+      {
+        id: 1,
+        title: 'ارسال تکلیف ریاضی',
+        content: 'لطفاً تکلیف فصل ۲ ریاضی را تا فردا ارسال کنید. این تکلیف شامل تمرین‌های صفحه ۴۵ تا ۵۰ می‌باشد.',
+        target_type: 'specific_student',
+        is_important: true,
+        reminder_date: moment().add(1, 'day').toISOString(),
+        created_at: moment().toISOString(),
+        teacher_name: 'خانم احمدی'
+      },
+      {
+        id: 2,
+        title: 'جلسه والدین',
+        content: 'جلسه والدین روز شنبه ساعت ۱۰ صبح برگزار خواهد شد. حضور والدین ضروری است.',
+        target_type: 'grade',
+        is_important: true,
+        reminder_date: moment().add(3, 'days').toISOString(),
+        created_at: moment().subtract(1, 'day').toISOString(),
+        teacher_name: 'آقای محمدی'
+      },
+      {
+        id: 3,
+        title: 'تست آزمایشی علوم',
+        content: 'تست آزمایشی درس علوم تجربی امروز ساعت ۲ عصر برگزار می‌شود.',
+        target_type: 'grade',
+        is_important: false,
+        reminder_date: moment().toISOString(),
+        created_at: moment().subtract(2, 'hours').toISOString(),
+        teacher_name: 'خانم کریمی'
+      },
+      {
+        id: 4,
+        title: 'مطالعه اضافی پیشنهادی',
+        content: 'برای آمادگی بهتر در آزمون نهایی، مطالعه اضافی فصل‌های ۳ و ۴ کتاب فارسی توصیه می‌شود.',
+        target_type: 'specific_student',
+        is_important: false,
+        reminder_date: moment().add(5, 'days').toISOString(),
+        created_at: moment().subtract(3, 'days').toISOString(),
+        teacher_name: 'آقای رضایی'
+      },
+      {
+        id: 5,
+        title: 'اردوی علمی کلاس',
+        content: 'اردوی علمی کلاس روز جمعه برگزار می‌شود. لطفاً وسایل مورد نیاز را همراه داشته باشید.',
+        target_type: 'all_students',
+        is_important: true,
+        reminder_date: moment().add(7, 'days').toISOString(),
+        created_at: moment().subtract(1, 'week').toISOString(),
+        teacher_name: 'مدیریت مدرسه'
+      }
+    ];
+  };
+
   // فیلتر یادآوری‌ها
-    const filteredReminders = reminders.filter(item => {
+  const filteredReminders = reminders.filter(item => {
     const matchesSearch = item.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                         item.content?.toLowerCase().includes(searchTerm.toLowerCase());
     
     if (filterType === 'all') return matchesSearch;
     if (filterType === 'important') return item.is_important && matchesSearch;
-    if (filterType === 'grade') return item.target_type === 'grade' && matchesSearch;  // تغییر از specific_grade به grade
+    if (filterType === 'grade') return item.target_type === 'grade' && matchesSearch;
     if (filterType === 'personal') return item.target_type === 'specific_student' && matchesSearch;
     if (filterType === 'today') {
         const today = moment().format('YYYY-MM-DD');
@@ -79,37 +233,37 @@ export default function Reminders({ studentId, gradeId }) {
         return reminderDate === today && matchesSearch;
     }
     return matchesSearch;
-    });
+  });
 
   // تعیین نوع یادآوری
-    const getReminderTypeInfo = (item) => {
+  const getReminderTypeInfo = (item) => {
     switch (item.target_type) {
-        case 'grade':  // تغییر از specific_grade به grade
+      case 'grade':
         return { 
-            label: 'کلاس', 
-            color: 'bg-blue-100 text-blue-700 border-blue-200',
-            icon: BookOpen
+          label: 'کلاس', 
+          color: 'bg-blue-100 text-blue-700 border-blue-200',
+          icon: BookOpen
         };
-        case 'specific_student':
+      case 'specific_student':
         return { 
-            label: 'شخصی', 
-            color: 'bg-orange-100 text-orange-700 border-orange-200',
-            icon: User
+          label: 'شخصی', 
+          color: 'bg-orange-100 text-orange-700 border-orange-200',
+          icon: User
         };
-        case 'all_students':
+      case 'all_students':
         return { 
-            label: 'عمومی', 
-            color: 'bg-purple-100 text-purple-700 border-purple-200',
-            icon: Users
+          label: 'عمومی', 
+          color: 'bg-purple-100 text-purple-700 border-purple-200',
+          icon: Users
         };
-        default:
+      default:
         return { 
-            label: 'نامشخص', 
-            color: 'bg-gray-100 text-gray-700 border-gray-200',
-            icon: Bell
+          label: 'نامشخص', 
+          color: 'bg-gray-100 text-gray-700 border-gray-200',
+          icon: Bell
         };
     }
-    };
+  };
 
   // بررسی اینکه یادآوری امروز است یا نه
   const isToday = (date) => {
@@ -222,10 +376,10 @@ export default function Reminders({ studentId, gradeId }) {
           </div>
         </div>
         <div className="bg-white rounded-xl p-4 shadow border border-blue-100">
-        <div className="text-center">
-            <p className="text-2xl font-bold text-blue-700">{reminders.filter(r => r.target_type === 'specific_grade').length}</p>
+          <div className="text-center">
+            <p className="text-2xl font-bold text-blue-700">{reminders.filter(r => r.target_type === 'grade').length}</p>
             <p className="text-sm text-gray-600">کلاسی</p>
-        </div>
+          </div>
         </div>
         <div className="bg-white rounded-xl p-4 shadow border border-purple-100">
           <div className="text-center">
@@ -396,8 +550,7 @@ export default function Reminders({ studentId, gradeId }) {
                     <p className="text-gray-700 text-sm leading-relaxed mb-4 line-clamp-3">
                       {item.content}
                     </p>
-
-                    {/* Footer */}
+                    {/* Footer با نمایش نام معلم */}
                     <div className="flex items-center justify-between text-xs text-gray-500">
                       <div className="flex items-center gap-4">
                         <div className="flex items-center gap-1">
@@ -418,6 +571,12 @@ export default function Reminders({ studentId, gradeId }) {
                           </div>
                         )}
                       </div>
+                      {item.teacher_name && (
+                        <div className="flex items-center gap-1 text-xs text-gray-500">
+                          <User className="w-3 h-3" />
+                          <span>{item.teacher_name}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

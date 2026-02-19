@@ -22,6 +22,8 @@ export async function GET(req) {
 
     const { searchParams } = new URL(req.url);
     const studentIdParam = searchParams.get('student_id');
+    const gradeId = searchParams.get('grade_id'); // اضافه شده
+    const activeOnly = searchParams.get('active_only') === 'true';
     const studentId = studentIdParam ? Number(studentIdParam) : payload.userId;
 
     if (!studentId || Number.isNaN(studentId)) {
@@ -38,17 +40,21 @@ export async function GET(req) {
       }, { status: 403 });
     }
 
-    // ✅ اصلاح نام فیلدها
+    // تغییر به grade_id
     const student = await prisma.students.findUnique({
       where: { user_id: studentId },
       select: {
         id: true,
-        class_id: true,
+        classes: {
+          select: {
+            grade_id: true
+          }
+        },
         users: {
           select: {
             id: true,
-            first_name: true, // ✅ تغییر از firstName به first_name
-            last_name: true,  // ✅ تغییر از lastName به last_name
+            first_name: true,
+            last_name: true,
             role: true
           }
         }
@@ -69,9 +75,25 @@ export async function GET(req) {
       }, { status: 403 });
     }
 
-    const whereCondition = student.class_id
-      ? { class_id: student.class_id, is_active: true }
-      : { is_active: true };
+    // شرط جدید بر اساس grade_id
+    const whereCondition = {
+      is_active: activeOnly ? true : undefined
+    };
+
+    // اگر grade_id از query string آمده، از آن استفاده کن
+    if (gradeId) {
+      whereCondition.grade_id = Number(gradeId);
+    } else if (student.classes?.grade_id) {
+      // در غیر این صورت از grade_id دانش‌آموز استفاده کن
+      whereCondition.grade_id = student.classes.grade_id;
+    }
+
+    // حذف فیلدهای undefined
+    Object.keys(whereCondition).forEach(key => {
+      if (whereCondition[key] === undefined) {
+        delete whereCondition[key];
+      }
+    });
 
     const exams = await prisma.exams.findMany({
       where: whereCondition,
@@ -84,7 +106,7 @@ export async function GET(req) {
         total_marks: true,
         created_at: true,
         is_active: true,
-        class_id: true,
+        grade_id: true, // تغییر از class_id به grade_id
         subject: true
       },
       orderBy: { created_at: 'desc' }
@@ -118,8 +140,8 @@ export async function GET(req) {
       studentInfo: {
         id: student.id,
         user_id: student.users.id,
-        name: `${student.users.first_name} ${student.users.last_name}`, // ✅ اصلاح نام فیلدها
-        class_id: student.class_id
+        name: `${student.users.first_name} ${student.users.last_name}`,
+        grade_id: student.classes?.grade_id
       }
     });
 

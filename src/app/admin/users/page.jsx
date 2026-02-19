@@ -32,20 +32,6 @@ export default function AdminUsersPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const usersPerPage = 6;
 
-  const sidebarMenu = [
-    { label: 'داشبورد', icon: LayoutGrid, href: '/admin/dashboard' },
-    { label: 'مدیریت کاربران', icon: Users, href: '/admin/users', active: true },
-    { label: 'مدیریت کلاس‌ها', icon: GraduationCap, href: '/admin/classes' },
-    { label: 'برنامه هفتگی', icon: Calendar, href: '/admin/weekly_schedule' },
-    { label: 'برنامه غذایی', icon: GalleryHorizontalEnd, href: '/admin/food-schedule' },
-    { label: 'حضور و غیاب', icon: CalendarCheck, href: '/admin/attendances' },
-    { label: 'مدیریت گالری', icon: GalleryHorizontal, href: '/admin/gallery' },
-    { label: 'مدیریت کارنامه ها', icon: BookOpen, href: '/admin/report_cards' },
-    { label: 'مدیریت اخبار', icon: NewspaperIcon, href: '/admin/news' },
-    { label: 'مدیریت بخشنامه ها', icon: FileText, href: '/admin/circular' },
-    { label: 'پیش‌ثبت‌نام', icon: UserPlus, href: '/admin/pre-registrations' },
-    { label: 'توبیخی و تشویقی', icon: Shield, href: '/admin/disciplinary' },
-  ];
 
   useEffect(() => {
     const token = localStorage?.getItem?.('token');
@@ -187,145 +173,7 @@ export default function AdminUsersPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-white">
-      {/* موبایل: هدر و دکمه منو */}
-      <div className="sm:hidden sticky top-0 z-40 bg-white/90 backdrop-blur-lg border-b border-green-100 shadow-lg">
-        <div className="flex items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2">
-            <Users className="w-7 h-7 text-green-700" />
-            <span className="font-bold text-green-700">مدیریت کاربران</span>
-          </div>
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="p-2 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition"
-          >
-            <Menu className="w-6 h-6" />
-          </button>
-        </div>
-      </div>
-
-      {/* موبایل: سایدبار drawer */}
-      {sidebarOpen && (
-        <div className="sm:hidden fixed inset-0 z-50">
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => setSidebarOpen(false)}
-          ></div>
-          <aside className="absolute right-0 top-0 h-full w-72 bg-white shadow-2xl flex flex-col">
-            <div className="p-4 bg-gradient-to-r from-green-200 via-green-100 to-green-50 text-green-800 border-b border-green-100 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-100 rounded-2xl flex items-center justify-center">
-                  <Target className="w-5 h-5 text-green-700" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold">پنل مدیریت</h2>
-                  <p className="text-green-700 text-sm">مدرسه علم و هنر</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setSidebarOpen(false)}
-                className="p-2 rounded-full bg-green-50 hover:bg-green-200 transition"
-              >
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-            <nav className="p-3 space-y-1 flex-1 overflow-y-auto">
-              {sidebarMenu.map((item) => {
-                const IconComponent = item.icon;
-                const isActive = item.active || (typeof window !== 'undefined' && window.location.pathname === item.href);
-                return (
-                  <button
-                    key={item.label}
-                    onClick={() => {
-                      setSidebarOpen(false);
-                      window.location.href = item.href;
-                    }}
-                    className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-semibold transition-all duration-300 ${
-                      isActive
-                        ? 'bg-gradient-to-r from-green-200 to-green-100 text-green-900 shadow scale-[1.02]'
-                        : 'text-green-700 hover:bg-green-50 hover:shadow'
-                    }`}
-                  >
-                    <div className={`p-2 rounded-xl ${isActive ? 'bg-green-100' : 'bg-green-50'}`}>
-                      <IconComponent size={16} />
-                    </div>
-                    <span className="text-sm">{item.label}</span>
-                  </button>
-                );
-              })}
-              <button
-                onClick={() => {
-                  setSidebarOpen(false);
-                  logout();
-                }}
-                className="w-full flex items-center gap-3 px-3 py-3 rounded-xl font-semibold text-red-600 hover:bg-red-50 mt-4 transition"
-              >
-                <div className="p-2 rounded-xl bg-red-100">
-                  <LogOut size={16} />
-                </div>
-                <span className="text-sm">خروج از سیستم</span>
-              </button>
-            </nav>
-          </aside>
-        </div>
-      )}
-
       <div className="flex flex-col sm:flex-row">
-        {/* Sidebar - Desktop */}
-        <aside className="hidden sm:block right-0 top-0 w-72 bg-white/95 backdrop-blur-xl shadow-2xl z-0 border-l border-green-100">
-          <div className="p-6 bg-gradient-to-r from-green-200 via-green-100 to-green-50 text-green-800 border-b border-green-100">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center">
-                <Target className="w-6 h-6 text-green-700" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold">پنل مدیریت</h2>
-                <p className="text-green-700 text-sm">مدرسه علم و هنر</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-green-50 rounded-xl p-3 text-center border border-green-100">
-                <p className="text-xl font-bold text-green-700">{userStats.students}</p>
-                <p className="text-xs text-green-600">دانش‌آموز</p>
-              </div>
-              <div className="bg-green-50 rounded-xl p-3 text-center border border-green-100">
-                <p className="text-xl font-bold text-green-700">{userStats.teachers}</p>
-                <p className="text-xs text-green-600">معلم</p>
-              </div>
-            </div>
-          </div>
-          <nav className="p-4 space-y-2">
-            {sidebarMenu.map((item) => {
-              const IconComponent = item.icon;
-              const isActive = item.active || (typeof window !== 'undefined' && window.location.pathname === item.href);
-              return (
-                <button
-                  key={item.label}
-                  onClick={() => (window.location.href = item.href)}
-                  className={`group w-full text-right p-4 rounded-2xl font-semibold transition-all duration-300 flex items-center gap-4 relative overflow-hidden ${
-                    isActive
-                      ? 'bg-gradient-to-r from-green-200 to-green-100 text-green-900 shadow-xl scale-[1.02] transform'
-                      : 'text-green-700 hover:bg-gradient-to-r hover:from-green-50 hover:to-green-100 hover:shadow-lg hover:scale-[1.01]'
-                  }`}
-                >
-                  <div className={`p-2 rounded-xl ${isActive ? 'bg-green-100' : 'bg-green-50'}`}>
-                    <IconComponent size={18} />
-                  </div>
-                  <span className="text-sm">{item.label}</span>
-                </button>
-              );
-            })}
-            <button
-              onClick={logout}
-              className="w-full text-right p-4 rounded-2xl font-semibold transition-all duration-300 flex items-center gap-4 text-red-600 hover:bg-red-50 hover:shadow-lg hover:scale-[1.01] mt-6"
-            >
-              <div className="p-2 rounded-xl bg-red-100">
-                <LogOut size={18} />
-              </div>
-              <span className="text-sm">خروج از سیستم</span>
-            </button>
-          </nav>
-        </aside>
-
         {/* Main Content */}
         <main className="flex-1 p-2 sm:p-6 space-y-3 sm:space-y-8">
           {/* Header Card */}
@@ -462,6 +310,7 @@ export default function AdminUsersPage() {
                     <th className="px-6 py-4 text-right text-sm font-bold text-green-800">کاربر</th>
                     <th className="px-6 py-4 text-right text-sm font-bold text-green-800">کد ملی</th>
                     <th className="px-6 py-4 text-right text-sm font-bold text-green-800">نقش</th>
+                    <th className="px-6 py-4 text-right text-sm font-bold text-green-800">اطلاعات تحصیلی</th>
                     <th className="px-6 py-4 text-center text-sm font-bold text-green-800">وضعیت</th>
                     <th className="px-6 py-4 text-center text-sm font-bold text-green-800">عملیات</th>
                   </tr>
@@ -469,7 +318,7 @@ export default function AdminUsersPage() {
                 <tbody className="divide-y divide-green-100">
                   {loading ? (
                     <tr>
-                      <td colSpan="5" className="px-6 py-12 text-center">
+                      <td colSpan="6" className="px-6 py-12 text-center">
                         <div className="flex flex-col items-center">
                           <div className="w-10 h-10 border-4 border-green-600 border-t-transparent rounded-full animate-spin mb-4"></div>
                           <p className="text-gray-500">در حال بارگذاری...</p>
@@ -478,7 +327,7 @@ export default function AdminUsersPage() {
                     </tr>
                   ) : currentUsers.length === 0 ? (
                     <tr>
-                      <td colSpan="5" className="px-6 py-12 text-center">
+                      <td colSpan="6" className="px-6 py-12 text-center">
                         <div className="flex flex-col items-center">
                           <Users className="w-16 h-16 text-gray-400 mb-4" />
                           <p className="text-gray-500">کاربری یافت نشد</p>
@@ -620,6 +469,95 @@ function UserTableRow({ user, onEdit, onDelete, onToggleStatus }) {
     user.role === 'teacher' ? 'bg-gradient-to-r from-blue-600 to-blue-500' :
     'bg-gradient-to-r from-green-600 to-green-500';
 
+  // تابع نمایش اطلاعات تحصیلی
+  const renderEducationalInfo = () => {
+    if (user.role === 'student' && user.studentGrade) {
+      return (
+        <div className="flex flex-col gap-1">
+          <span className="text-sm font-medium text-gray-800">
+            🎓 پایه {user.studentGrade.gradeName}
+          </span>
+          {user.className && (
+            <span className="text-xs text-gray-600">
+              📚 کلاس: {user.className}
+            </span>
+          )}
+        </div>
+      );
+    } 
+    else if (user.role === 'teacher' && user.teacherDetails) {
+      const { teachingType, subject, workshopName, workshopIcon, teachingGrades } = user.teacherDetails;
+      
+      if (teachingType === 'workshop') {
+        return (
+          <div className="flex flex-col gap-1">
+            <span className="text-sm font-medium text-gray-800">
+              {workshopIcon || '🎪'} {workshopName || 'کارگاه نامشخص'}
+            </span>
+            {subject && (
+              <span className="text-xs text-gray-600">
+                📖 {subject}
+              </span>
+            )}
+          </div>
+        );
+      } 
+      else if (teachingType === 'grade' && teachingGrades?.length > 0) {
+        return (
+          <div className="flex flex-col gap-1">
+            <span className="text-sm font-medium text-gray-800">
+              📚 پایه‌های تدریس:
+            </span>
+            <div className="flex flex-wrap gap-1">
+              {teachingGrades.slice(0, 3).map((grade, idx) => (
+                <span key={idx} className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                  {grade.gradeName}
+                </span>
+              ))}
+              {teachingGrades.length > 3 && (
+                <span className="text-xs text-gray-500">
+                  +{teachingGrades.length - 3} مورد دیگر
+                </span>
+              )}
+            </div>
+            {subject && (
+              <span className="text-xs text-gray-600">
+                📖 {subject}
+              </span>
+            )}
+          </div>
+        );
+      } 
+      else {
+        return (
+          <div className="flex flex-col gap-1">
+            <span className="text-sm text-gray-500">
+              👨‍🏫 معلم {teachingType === 'grade' ? 'پایه‌ای' : 'کارگاه'}
+            </span>
+            {subject && (
+              <span className="text-xs text-gray-600">
+                📖 {subject}
+              </span>
+            )}
+          </div>
+        );
+      }
+    }
+    else if (user.role === 'admin') {
+      return (
+        <span className="text-sm text-gray-500">
+          👑 مدیر سیستم
+        </span>
+      );
+    }
+    
+    return (
+      <span className="text-sm text-gray-400">
+        اطلاعات ناکامل
+      </span>
+    );
+  };
+
   return (
     <tr className="hover:bg-green-50/50 transition-all duration-300">
       <td className="px-6 py-4">
@@ -648,6 +586,12 @@ function UserTableRow({ user, onEdit, onDelete, onToggleStatus }) {
         <span className={`px-4 py-2 text-sm font-bold rounded-full shadow-lg ${roleColor} text-white`}>
           {roleLabel}
         </span>
+      </td>
+      {/* ستون جدید اطلاعات تحصیلی */}
+      <td className="px-6 py-4">
+        <div className="min-w-0">
+          {renderEducationalInfo()}
+        </div>
       </td>
       <td className="px-6 py-4 text-center">
         <button
@@ -689,6 +633,69 @@ function UserMobileCard({ user, onEdit, onDelete, onToggleStatus }) {
     user.role === 'teacher' ? 'bg-gradient-to-r from-blue-600 to-blue-500' :
     'bg-gradient-to-r from-green-600 to-green-500';
 
+  // تابع نمایش اطلاعات تحصیلی موبایل
+  const renderMobileEducationalInfo = () => {
+    if (user.role === 'student' && user.studentGrade) {
+      return (
+        <div className="mt-2 p-2 bg-green-50 rounded-lg border border-green-200">
+          <span className="text-xs font-medium text-green-700">
+            🎓 پایه {user.studentGrade.gradeName}
+          </span>
+          {user.className && (
+            <div className="text-xs text-green-600 mt-1">
+              📚 کلاس: {user.className}
+            </div>
+          )}
+        </div>
+      );
+    } 
+    else if (user.role === 'teacher' && user.teacherDetails) {
+      const { teachingType, subject, workshopName, workshopIcon, teachingGrades } = user.teacherDetails;
+      
+      if (teachingType === 'workshop') {
+        return (
+          <div className="mt-2 p-2 bg-blue-50 rounded-lg border border-blue-200">
+            <span className="text-xs font-medium text-blue-700">
+              {workshopIcon || '🎪'} {workshopName || 'کارگاه نامشخص'}
+            </span>
+            {subject && (
+              <div className="text-xs text-blue-600 mt-1">
+                📖 {subject}
+              </div>
+            )}
+          </div>
+        );
+      } 
+      else if (teachingType === 'grade' && teachingGrades?.length > 0) {
+        return (
+          <div className="mt-2 p-2 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="text-xs font-medium text-blue-700 mb-1">
+              📚 پایه‌های تدریس:
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {teachingGrades.slice(0, 2).map((grade, idx) => (
+                <span key={idx} className="text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded">
+                  {grade.gradeName}
+                </span>
+              ))}
+              {teachingGrades.length > 2 && (
+                <span className="text-xs text-blue-600">
+                  +{teachingGrades.length - 2}
+                </span>
+              )}
+            </div>
+            {subject && (
+              <div className="text-xs text-blue-600 mt-1">
+                📖 {subject}
+              </div>
+            )}
+          </div>
+        );
+      }
+    }
+    return null;
+  };
+
   return (
     <div className="bg-white rounded-xl border border-green-100 p-3 shadow-sm hover:shadow-md transition-all">
       <div className="flex items-center gap-3 mb-3">
@@ -715,7 +722,10 @@ function UserMobileCard({ user, onEdit, onDelete, onToggleStatus }) {
         </div>
       </div>
       
-      <div className="flex items-center justify-between">
+      {/* اطلاعات تحصیلی در موبایل */}
+      {renderMobileEducationalInfo()}
+      
+      <div className="flex items-center justify-between mt-3">
         <button
           onClick={onToggleStatus}
           className={`px-3 py-1 text-xs font-bold rounded-full shadow transition ${

@@ -15,29 +15,33 @@ function getRoleText(role) {
 // تابع محاسبه زمان نسبی
 function getRelativeTime(date) {
   if (!date) return 'نامشخص';
-  const now = new Date();
-  const targetDate = new Date(date);
-  const diffInMinutes = Math.floor((now - targetDate) / (1000 * 60));
-  if (diffInMinutes < 1) return 'هم‌اکنون';
-  if (diffInMinutes < 60) return `${diffInMinutes} دقیقه پیش`;
-  const diffInHours = Math.floor(diffInMinutes / 60);
-  if (diffInHours < 24) return `${diffInHours} ساعت پیش`;
-  const diffInDays = Math.floor(diffInHours / 24);
-  if (diffInDays < 7) return `${diffInDays} روز پیش`;
-  return targetDate.toLocaleDateString('fa-IR');
+  try {
+    const now = new Date();
+    const targetDate = new Date(date);
+    const diffInMinutes = Math.floor((now - targetDate) / (1000 * 60));
+    if (diffInMinutes < 1) return 'هم‌اکنون';
+    if (diffInMinutes < 60) return `${diffInMinutes} دقیقه پیش`;
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours} ساعت پیش`;
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 7) return `${diffInDays} روز پیش`;
+    return targetDate.toLocaleDateString('fa-IR');
+  } catch {
+    return 'نامشخص';
+  }
+}
+
+// تابع دریافت توکن از هدر
+function getToken(request) {
+  const authHeader = request.headers.get('authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
+  const token = authHeader.replace('Bearer ', '').trim();
+  return token.length > 0 ? token : null;
 }
 
 export async function GET(request) {
   try {
-    // بررسی احراز هویت و ساختار توکن
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({
-        success: false,
-        message: 'احراز هویت مورد نیاز است'
-      }, { status: 401 });
-    }
-    const token = authHeader.replace('Bearer ', '').trim();
+    const token = getToken(request);
     if (!token) {
       return NextResponse.json({
         success: false,
@@ -96,10 +100,7 @@ export async function GET(request) {
     });
 
   } catch (error) {
-    // اطلاعات حساس را لاگ نکن
-    if (process.env.NODE_ENV === 'development') {
-      console.error('Activities API error');
-    }
+    // هیچ اطلاعات حساسی لاگ نکن
     return NextResponse.json({
       success: false,
       message: 'خطای سرور',

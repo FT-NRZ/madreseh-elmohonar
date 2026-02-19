@@ -1,74 +1,60 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/database';
+import { PrismaClient } from '@prisma/client';
+import { verifyJWT } from '@/lib/jwt';
 
-export async function PUT(request, context) {
+const prisma = new PrismaClient();
+
+export async function PUT(request, { params }) {
   try {
-    const { resultId } = await context.params;
-    const id = Number(resultId);
+    const { id } = params;
     
-    if (!id || Number.isNaN(id)) {
-      return NextResponse.json({ 
-        success: false,
-        error: 'شناسه نتیجه نامعتبر است' 
-      }, { status: 400 });
+    // احراز هویت
+    const token = request.headers.get('Authorization')?.replace('Bearer ', '');
+    if (!token) {
+      return NextResponse.json({ error: 'احراز هویت لازم است' }, { status: 401 });
     }
 
-    const body = await request.json().catch(() => ({}));
-    const { grade_desc } = body;
-
-    if (!grade_desc || typeof grade_desc !== 'string') {
-      return NextResponse.json({ 
-        success: false,
-        error: 'نمره توصیفی الزامی است' 
-      }, { status: 400 });
+    const decoded = verifyJWT(token);
+    if (!decoded || decoded.role !== 'teacher') {
+      return NextResponse.json({ error: 'دسترسی معلم لازم است' }, { status: 403 });
     }
 
-    // بررسی وجود رکورد
-    const existingResult = await prisma.exam_results.findUnique({
-      where: { id }
-    });
+    const body = await request.json();
+    const { grade_desc, marks_obtained } = body;
 
-    if (!existingResult) {
-      return NextResponse.json({ 
-        success: false,
-        error: 'نتیجه آزمون پیدا نشد' 
-      }, { status: 404 });
-    }
+    console.log('🔄 Updating exam result:', { id, grade_desc, marks_obtained });
 
-    // به‌روزرسانی نمره
+    // بروزرسانی نتیجه آزمون تستی
     const updatedResult = await prisma.exam_results.update({
-      where: { id },
-      data: { 
-        grade_desc: grade_desc.trim()
+      where: { id: parseInt(id) },
+      data: {
+        grade_desc,
+        marks_obtained: marks_obtained ? parseFloat(marks_obtained) : undefined,
+        updated_at: new Date()
       },
       include: {
         students: {
           include: {
-            users: {
-              select: {
-                id: true,
-                first_name: true,
-                last_name: true
-              }
-            }
+            users: true
           }
-        }
+        },
+        exams: true
       }
     });
 
-    console.log(`✅ Updated grade for result ${id}: ${grade_desc}`);
+    console.log('✅ Exam result updated successfully:', updatedResult);
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
       result: updatedResult,
       message: 'نمره با موفقیت ثبت شد'
     });
 
   } catch (error) {
-    console.error('PUT /exam-results/[id] error:', error);
-    return NextResponse.json({ 
+    console.error('💥 Error updating exam result:', error);
+    return NextResponse.json({
       success: false,
-      error: 'خطا در ثبت نمره' 
+      error: error.message || 'خطا در ثبت نمره'
     }, { status: 500 });
   }
 }

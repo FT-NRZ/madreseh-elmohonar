@@ -2,6 +2,26 @@
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 
+// تابع لاگر امن برای جلوگیری از لاگ داده‌های حساس
+const safeLog = (message, data = null) => {
+  if (process.env.NODE_ENV === 'production') return;
+  
+  // در محیط توسعه هم برخی داده‌های حساس را مخفی می‌کنیم
+  if (data && typeof data === 'object') {
+    const sanitized = { ...data };
+    
+    // حذف یا ماسک کردن داده‌های حساس
+    if (sanitized.file) sanitized.file = '[File Object]';
+    if (sanitized.pdf_url) sanitized.pdf_url = '[PDF URL]';
+    if (sanitized.image_url) sanitized.image_url = '[IMAGE URL]';
+    if (sanitized.questions) sanitized.questions = `[Questions: ${Array.isArray(sanitized.questions) ? sanitized.questions.length : 0}]`;
+    
+    console.log(`[DEBUG] ${message}`, sanitized);
+  } else {
+    console.log(`[DEBUG] ${message}`, data);
+  }
+};
+
 const initialForm = {
   title: '',
   type: 'pdf',
@@ -11,7 +31,7 @@ const initialForm = {
   questions: [
     { question: '', options: ['', '', '', ''], answer: 0 }
   ]
-}
+};
 
 export default function ExamsList() {
   const [form, setForm] = useState(initialForm)
@@ -40,7 +60,7 @@ export default function ExamsList() {
       const list = Array.isArray(data) ? data : (data.exams || data.data || []);
       setExams(Array.isArray(list) ? list : []);
     } catch (err) {
-      console.error('fetchExams error:', err);
+      safeLog('fetchExams error', { status: err.status, message: err.message });
       setExams([]);
       setError(err.message || 'خطا در دریافت لیست آزمون‌ها');
     }
@@ -78,7 +98,7 @@ export default function ExamsList() {
         setError(data.error || 'خطا در آپلود فایل');
       }
     } catch (error) {
-      console.error('💥 Upload error:', error);
+      safeLog('Upload error', { message: error.message });
       setError('خطا در آپلود فایل');
     } finally {
       setUploading(false);
@@ -114,7 +134,7 @@ export default function ExamsList() {
         setError(data.error || 'خطا در ثبت آزمون');
       }
     } catch (error) {
-      console.error('submit error:', error);
+      safeLog('submit error', { message: error.message });
       setError('خطا در ارتباط با سرور');
     }
   };
@@ -156,7 +176,7 @@ export default function ExamsList() {
         setError('خطا در حذف آزمون');
       }
     } catch (e) {
-      console.error('delete error:', e);
+      safeLog('delete error', { id, message: e.message });
       setError('خطا در ارتباط با سرور');
     }
   };
@@ -174,7 +194,7 @@ export default function ExamsList() {
         setError('خطا در تغییر وضعیت آزمون');
       }
     } catch (e) {
-      console.error('toggle error:', e);
+      safeLog('toggle error', { id, message: e.message });
       setError('خطا در ارتباط با سرور');
     }
   };
@@ -540,7 +560,7 @@ export default function ExamsList() {
                       </td>
                       
                       <td className="px-8 py-6">
-                        <div className="flex items-center justify-center space-x-2 space-x-reverse">
+                        <div className="flex items-center justify-center space-x-2">
                           <Link
                             href={`/teacher/exams/${exam.id}`}
                             className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"

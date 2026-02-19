@@ -1,9 +1,57 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { Book, Loader2, Calendar, GraduationCap, Award } from 'lucide-react';
-import { toast } from 'react-hot-toast';
 
-export default function ReportCard({ studentId }) {
+import React, { useState, useEffect } from 'react';
+import { 
+  Book, Award, TrendingUp, Calendar, 
+  BarChart3, PieChart, Target, Star,
+  Filter, Download, ChevronDown, 
+  Trophy, Medal, Sparkles, Loader2,
+  GraduationCap, FileText
+} from 'lucide-react';
+
+export default function ReportCardsPage() {
+  const [user, setUser] = useState(null);
+  const [studentId, setStudentId] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      try {
+        const userObj = JSON.parse(userData);
+        setUser(userObj);
+        setStudentId(userObj.id);
+        setLoading(false);
+      } catch {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/';
+      }
+    } else {
+      window.location.href = '/';
+    }
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center p-8 bg-white/90 backdrop-blur-lg rounded-3xl shadow-2xl border border-green-200">
+          <div className="w-16 h-16 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-700">در حال بارگذاری کارنامه...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* کامپوننت کارنامه اصلی */}
+      <ReportCard studentId={studentId} />
+    </div>
+  );
+}
+
+function ReportCard({ studentId }) {
   const [reportCards, setReportCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedSemester, setSelectedSemester] = useState('first');
@@ -53,7 +101,6 @@ export default function ReportCard({ studentId }) {
       }
     } catch (error) {
       console.error('Error fetching report cards:', error);
-      toast.error('خطا در دریافت کارنامه');
       setReportCards([]);
     } finally {
       setLoading(false);

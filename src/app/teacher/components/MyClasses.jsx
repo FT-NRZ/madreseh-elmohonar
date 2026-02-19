@@ -3,51 +3,79 @@ import React, { useEffect, useState } from 'react';
 export default function MyClasses({ teacherId }) {
   const [classes, setClasses] = useState([]);
   const [specialClasses, setSpecialClasses] = useState([]);
+  const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (!teacherId) {
-      console.log('teacherId not provided');
       setLoading(false);
+      setError('اطلاعات معلم در دسترس نیست');
       return;
     }
 
-    console.log('Fetching classes for teacherId:', teacherId);
-
-    // واکشی کلاس‌های معمولی
-    fetch(`/api/teacher/${teacherId}/classes`)
-      .then(res => {
-        console.log('Classes response status:', res.status);
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}`);
+    // واکشی کلاس‌های معمولی و دانش‌آموزان پایه معلم
+    const fetchClassesAndStudents = async () => {
+      try {
+        setLoading(true);
+        // دریافت کلاس‌ها
+        const res = await fetch(`/api/teacher/${teacherId}/classes`);
+        if (!res.ok) throw new Error('خطای دریافت داده');
+        const data = await res.json();
+        if (data.success) {
+          setClasses(data.classes || []);
+        } else {
+          setError(data.message || 'خطا در دریافت کلاس‌ها');
         }
-        return res.json();
-      })
-      .then(data => {
-        console.log('Classes data:', data);
-        setClasses(data.classes || []);
+
+        // دریافت دانش‌آموزان پایه‌های معلم
+        if (data.classes && data.classes.length > 0) {
+          // استخراج grade_name ها
+          const gradeNames = data.classes.map(cls => cls.grade_name).filter(Boolean);
+          // واکشی دانش‌آموزان هر پایه
+          const studentsRes = await fetch('/api/users/list?role=students');
+          if (studentsRes.ok) {
+            const studentsData = await studentsRes.json();
+            if (studentsData.success && studentsData.users) {
+              // فقط دانش‌آموزان پایه‌های معلم را نگه دار
+              const filtered = studentsData.users.filter(stu =>
+                gradeNames.includes(stu.grade_name)
+              );
+              setStudents(filtered);
+            }
+          }
+        }
+      } catch (err) {
+        setError('خطا در اتصال به سرور');
+      } finally {
         setLoading(false);
-      })
-      .catch(error => {
-        console.error('Error fetching classes:', error);
-        setClasses([]);
-        setLoading(false);
-      });
+      }
+    };
 
     // واکشی کلاس‌های فوق‌العاده
-    fetch(`/api/special-classes?teacher_id=${teacherId}`)
-      .then(res => res.json())
-      .then(data => {
-        console.log('Special classes data:', data);
-        setSpecialClasses(data.items || []);
-      })
-      .catch(error => {
-        console.error('Error fetching special classes:', error);
-        setSpecialClasses([]);
-      });
+    const fetchSpecialClasses = async () => {
+      try {
+        const res = await fetch(`/api/special-classes?teacher_id=${teacherId}`);
+        if (!res.ok) throw new Error('خطای دریافت داده');
+        const data = await res.json();
+        if (data.success) {
+          setSpecialClasses(data.items || []);
+        }
+      } catch (err) {
+        // خطای کلاس‌های ویژه نباید مانع نمایش کلاس‌های عادی شود
+      }
+    };
+
+    fetchClassesAndStudents();
+    fetchSpecialClasses();
   }, [teacherId]);
 
   if (loading) return <div>در حال دریافت کلاس‌ها...</div>;
+  
+  if (error) {
+    return <div className="bg-red-50 p-4 rounded-lg text-red-700">{error}</div>;
+  }
+  
   if (classes.length === 0 && specialClasses.length === 0) {
     return <div>کلاسی برای شما ثبت نشده است.</div>;
   }
@@ -79,6 +107,21 @@ export default function MyClasses({ teacherId }) {
           </li>
         )}
       </ul>
+      {/* نمایش دانش‌آموزان پایه معلم */}
+      {students.length > 0 && (
+        <div className="mt-6">
+          <h4 className="text-lg font-bold text-green-700 mb-2">دانش‌آموزان پایه‌های شما</h4>
+          <ul className="space-y-2">
+            {students.map(stu => (
+              <li key={stu.id} className="bg-green-50 rounded p-2 flex flex-col">
+                <span className="font-bold text-green-800">{stu.name}</span>
+                <span className="text-xs text-gray-600">{stu.grade_name}</span>
+                <span className="text-xs text-gray-400">{stu.class_name}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

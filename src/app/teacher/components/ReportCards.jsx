@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { 
   Book, Users, GraduationCap, Search, Filter, Eye, Calendar,
-  ChevronDown, ChevronUp, Loader2, RefreshCw
+  ChevronDown, ChevronUp, Loader2, RefreshCw, ChevronLeft, ChevronRight,
+  Menu, X
 } from 'lucide-react';
 import { toast, Toaster } from 'react-hot-toast';
 
@@ -18,6 +19,11 @@ export default function ReportCards() {
   const [selectedGrade, setSelectedGrade] = useState('');
   const [selectedSemester, setSelectedSemester] = useState('');
   const [selectedYear, setSelectedYear] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const studentsPerPage = 5;
 
   const gradeOptions = [
     { value: 'A', label: 'عالی' },
@@ -43,7 +49,6 @@ export default function ReportCards() {
       fetchGrades();
       fetchStudents();
     } catch (error) {
-      console.error('Error parsing user data:', error);
       window.location.href = '/login';
     }
   }, []);
@@ -59,7 +64,7 @@ export default function ReportCards() {
         setGrades(data.grades);
       }
     } catch (error) {
-      console.error('Error fetching grades:', error);
+      // خطا در دریافت پایه‌ها
     }
   };
   
@@ -80,10 +85,8 @@ export default function ReportCards() {
       }
       
       const data = await res.json();
-      console.log('Students API response:', data); // دیبگ اولیه
       
       if (data.success && data.users) {
-        // دریافت اطلاعات تکمیلی دانش‌آموزان شامل پایه تحصیلی
         const studentsWithGrades = await Promise.all(
           data.users.map(async (student) => {
             try {
@@ -93,32 +96,25 @@ export default function ReportCards() {
               
               if (studentRes.ok) {
                 const studentData = await studentRes.json();
-                console.log(`Student ${student.id} full data:`, studentData); // دیبگ تفصیلی
                 
-                // چک کردن مسیرهای مختلف برای پایه تحصیلی
                 let grade_id = null;
                 let grade_name = 'نامشخص';
                 let class_name = 'نامشخص';
                 
-                // حالت اول: اگر student داشته باشیم
                 if (studentData.student) {
-                  // چک کردن class
                   if (studentData.student.class) {
                     class_name = studentData.student.class.class_name || studentData.student.class.name || 'نامشخص';
                     
-                    // چک کردن grade داخل class
                     if (studentData.student.class.grade) {
                       grade_id = studentData.student.class.grade.id || studentData.student.class.grade_id;
                       grade_name = studentData.student.class.grade.grade_name || studentData.student.class.grade.name || 'نامشخص';
                     } else if (studentData.student.class.grade_id) {
                       grade_id = studentData.student.class.grade_id;
-                      // اگر grade object نبود، سعی می‌کنیم از لیست grades پیدا کنیم
                       const gradeInfo = grades.find(g => g.id === studentData.student.class.grade_id);
                       grade_name = gradeInfo ? gradeInfo.grade_name : 'نامشخص';
                     }
                   }
                   
-                  // چک کردن مستقیم grade_id در student
                   if (!grade_id && studentData.student.grade_id) {
                     grade_id = studentData.student.grade_id;
                     const gradeInfo = grades.find(g => g.id === studentData.student.grade_id);
@@ -126,7 +122,6 @@ export default function ReportCards() {
                   }
                 }
                 
-                // حالت دوم: اگر مستقیم class داشته باشیم
                 if (!grade_id && studentData.class) {
                   class_name = studentData.class.class_name || studentData.class.name || 'نامشخص';
                   
@@ -140,18 +135,11 @@ export default function ReportCards() {
                   }
                 }
                 
-                // حالت سوم: اگر مستقیم grade_id داشته باشیم
                 if (!grade_id && studentData.grade_id) {
                   grade_id = studentData.grade_id;
                   const gradeInfo = grades.find(g => g.id === studentData.grade_id);
                   grade_name = gradeInfo ? gradeInfo.grade_name : 'نامشخص';
                 }
-                
-                console.log(`Student ${student.id} parsed data:`, {
-                  grade_id,
-                  grade_name,
-                  class_name
-                });
                 
                 return {
                   ...student,
@@ -160,7 +148,6 @@ export default function ReportCards() {
                   class_name
                 };
               } else {
-                console.warn(`Failed to fetch student ${student.id} details:`, studentRes.status);
                 return {
                   ...student,
                   grade_id: null,
@@ -169,7 +156,6 @@ export default function ReportCards() {
                 };
               }
             } catch (error) {
-              console.error(`Error fetching student ${student.id}:`, error);
               return {
                 ...student,
                 grade_id: null,
@@ -180,13 +166,11 @@ export default function ReportCards() {
           })
         );
         
-        console.log('Final students with grades:', studentsWithGrades);
         setStudents(studentsWithGrades);
       } else {
         throw new Error(data.message || 'API returned unsuccessful response');
       }
     } catch (error) {
-      console.error('Error fetching students:', error);
       toast.error('خطا در دریافت لیست دانش‌آموزان');
       setStudents([]);
     } finally {
@@ -207,15 +191,12 @@ export default function ReportCards() {
       if (data.success) {
         setStudentReports(prev => ({ ...prev, [studentId]: data.reportCards }));
       } else {
-        // اگر کارنامه‌ای وجود نداشت، آرایه خالی قرار بده
         setStudentReports(prev => ({ ...prev, [studentId]: [] }));
-        // فقط در صورت خطای واقعی toast نشون بده
         if (res.status !== 404 && !data.message?.includes('یافت نشد')) {
           toast.error('خطا در دریافت کارنامه');
         }
       }
     } catch (error) {
-      console.error('Error fetching report cards:', error);
       setStudentReports(prev => ({ ...prev, [studentId]: [] }));
       toast.error('خطا در دریافت کارنامه');
     }
@@ -255,6 +236,17 @@ export default function ReportCards() {
     return matchesSearch && matchesGrade;
   });
 
+  // Pagination logic
+  const totalPages = Math.ceil(filteredStudents.length / studentsPerPage);
+  const startIndex = (currentPage - 1) * studentsPerPage;
+  const endIndex = startIndex + studentsPerPage;
+  const currentStudents = filteredStudents.slice(startIndex, endIndex);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedGrade]);
+
   // فیلتر کردن کارنامه‌ها
   const filterReports = (reports) => {
     return reports?.filter(report => {
@@ -281,10 +273,19 @@ export default function ReportCards() {
     await fetchStudents();
     setStudentReports({});
     setExpandedStudent(null);
+    setCurrentPage(1);
+  };
+
+  const getStudentInitials = (name) => {
+    const words = name.split(' ');
+    if (words.length >= 2) {
+      return words[0].charAt(0) + words[1].charAt(0);
+    }
+    return name.charAt(0);
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl border border-green-200 overflow-hidden">
+    <div className="bg-white rounded-3xl shadow-xl border border-green-100 overflow-hidden mx-2 sm:mx-0">
       <Toaster 
         position="top-center"
         toastOptions={{
@@ -297,94 +298,120 @@ export default function ReportCards() {
             padding: '12px 16px',
             borderRadius: '12px',
             border: '1px solid #e5e7eb',
-            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'
           }
         }} 
       />
 
-      {/* هدر */}
-      <div className="bg-gradient-to-r from-green-600 to-green-500 p-6 text-white">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
-              <Book className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold">مشاهده کارنامه‌ها</h2>
-              <p className="text-green-100 text-sm">نمرات و عملکرد دانش‌آموزان</p>
-              {user && (
-                <p className="text-green-200 text-xs mt-1">
-                  {user.role === 'teacher' ? 'پنل معلم' : 'پنل مدیر'} - {user.name}
-                </p>
-              )}
-            </div>
-          </div>
-          <button
-            onClick={refreshData}
-            disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl transition"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            <span className="text-sm font-medium">به‌روزرسانی</span>
-          </button>
+      {/* هدر موبایل فرندلی */}
+      <div className="bg-gradient-to-r from-green-600 via-green-500 to-green-400 p-4 sm:p-8 text-white relative overflow-hidden">
+        {/* پترن پس‌زمینه */}
+        <div className="absolute inset-0 opacity-5">
+          <div className="absolute top-0 right-0 w-24 sm:w-32 h-24 sm:h-32 bg-white rounded-full translate-x-12 sm:translate-x-16 -translate-y-12 sm:-translate-y-16"></div>
+          <div className="absolute bottom-0 left-0 w-16 sm:w-24 h-16 sm:h-24 bg-white rounded-full -translate-x-8 sm:-translate-x-12 translate-y-8 sm:translate-y-12"></div>
         </div>
+        
+        <div className="relative z-10">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-0 mb-4 sm:mb-6">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white/15 rounded-xl sm:rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                <Book className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl sm:text-3xl font-bold mb-1 sm:mb-2">مشاهده کارنامه‌ها</h2>
+                <p className="text-green-100 text-sm sm:text-base">نمرات و عملکرد دانش‌آموزان</p>
+                {user && (
+                  <p className="text-green-200 text-xs sm:text-sm mt-1 sm:mt-2">
+                    {user.role === 'teacher' ? 'پنل معلم' : 'پنل مدیر'} - {user.name}
+                  </p>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={refreshData}
+              disabled={loading}
+              className="flex items-center justify-center gap-2 sm:gap-3 px-4 sm:px-6 py-2 sm:py-3 bg-white/15 hover:bg-white/25 rounded-lg sm:rounded-xl transition-all duration-300 backdrop-blur-sm group text-sm sm:text-base"
+            >
+              <RefreshCw className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform duration-300 ${loading ? 'animate-spin' : 'group-hover:rotate-180'}`} />
+              <span className="font-medium">به‌روزرسانی</span>
+            </button>
+          </div>
 
-        {/* آمار */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white/10 rounded-xl p-4">
-            <div className="flex items-center gap-3">
-              <Users className="w-8 h-8 text-white" />
-              <div>
-                <p className="text-2xl font-bold">{students.length}</p>
-                <p className="text-green-100 text-sm">دانش‌آموز</p>
+          {/* آمار - موبایل فرندلی */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6">
+            <div className="bg-white/10 rounded-lg sm:rounded-xl p-4 sm:p-6 backdrop-blur-sm border border-white/10 hover:bg-white/15 transition-all duration-300">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-lg sm:rounded-xl flex items-center justify-center">
+                  <Users className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                </div>
+                <div>
+                  <p className="text-xl sm:text-2xl font-bold">{students.length}</p>
+                  <p className="text-green-100 text-xs sm:text-sm">دانش‌آموز</p>
+                </div>
               </div>
             </div>
-          </div>
-          <div className="bg-white/10 rounded-xl p-4">
-            <div className="flex items-center gap-3">
-              <GraduationCap className="w-8 h-8 text-white" />
-              <div>
-                <p className="text-2xl font-bold">{grades.length}</p>
-                <p className="text-green-100 text-sm">پایه تحصیلی</p>
+            <div className="bg-white/10 rounded-lg sm:rounded-xl p-4 sm:p-6 backdrop-blur-sm border border-white/10 hover:bg-white/15 transition-all duration-300">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-lg sm:rounded-xl flex items-center justify-center">
+                  <GraduationCap className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                </div>
+                <div>
+                  <p className="text-xl sm:text-2xl font-bold">{grades.length}</p>
+                  <p className="text-green-100 text-xs sm:text-sm">پایه تحصیلی</p>
+                </div>
               </div>
             </div>
-          </div>
-          <div className="bg-white/10 rounded-xl p-4">
-            <div className="flex items-center gap-3">
-              <Book className="w-8 h-8 text-white" />
-              <div>
-                <p className="text-2xl font-bold">
-                  {Object.values(studentReports).reduce((total, reports) => total + (reports?.length || 0), 0)}
-                </p>
-                <p className="text-green-100 text-sm">کارنامه</p>
+            <div className="bg-white/10 rounded-lg sm:rounded-xl p-4 sm:p-6 backdrop-blur-sm border border-white/10 hover:bg-white/15 transition-all duration-300">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-lg sm:rounded-xl flex items-center justify-center">
+                  <Book className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                </div>
+                <div>
+                  <p className="text-xl sm:text-2xl font-bold">
+                    {Object.values(studentReports).reduce((total, reports) => total + (reports?.length || 0), 0)}
+                  </p>
+                  <p className="text-green-100 text-xs sm:text-sm">کارنامه</p>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* فیلترها */}
-      <div className="p-6 border-b border-green-100 bg-green-50">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* فیلترها - موبایل فرندلی */}
+      <div className="p-4 sm:p-6 border-b border-green-100 bg-green-50/50">
+        {/* دکمه نمایش فیلترها در موبایل */}
+        <div className="flex sm:hidden justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold text-gray-800">فیلترها</h3>
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center gap-2 px-3 py-2 bg-green-100 text-green-700 rounded-lg transition-colors"
+          >
+            {showFilters ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+            <span className="text-sm">{showFilters ? 'بستن' : 'نمایش'}</span>
+          </button>
+        </div>
+
+        <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 ${!showFilters ? 'hidden sm:grid' : 'grid'}`}>
           {/* جستجو */}
           <div className="relative">
-            <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-green-400 w-4 h-4 sm:w-5 sm:h-5" />
             <input
               type="text"
-              placeholder="جستجوی نام دانش‌آموز..."
+              placeholder="جستجوی نام..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pr-10 pl-4 py-2 border border-green-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              className="w-full pr-10 sm:pr-11 pl-4 py-2 sm:py-3 border border-green-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white transition-all duration-200 text-sm sm:text-base"
             />
           </div>
 
           {/* فیلتر پایه */}
           <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-green-600" />
+            <Filter className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 hidden sm:block" />
             <select
               value={selectedGrade}
               onChange={(e) => setSelectedGrade(e.target.value)}
-              className="flex-1 p-2 border border-green-200 rounded-lg focus:ring-2 focus:ring-green-500"
+              className="flex-1 p-2 sm:p-3 border border-green-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-green-500 bg-white transition-all duration-200 text-sm sm:text-base"
             >
               <option value="">همه پایه‌ها</option>
               {grades.map(grade => (
@@ -400,7 +427,7 @@ export default function ReportCards() {
             <select
               value={selectedSemester}
               onChange={(e) => setSelectedSemester(e.target.value)}
-              className="w-full p-2 border border-green-200 rounded-lg focus:ring-2 focus:ring-green-500"
+              className="w-full p-2 sm:p-3 border border-green-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-green-500 bg-white transition-all duration-200 text-sm sm:text-base"
             >
               <option value="">همه نیمسال‌ها</option>
               <option value="first">نیمسال اول</option>
@@ -413,7 +440,7 @@ export default function ReportCards() {
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
-              className="w-full p-2 border border-green-200 rounded-lg focus:ring-2 focus:ring-green-500"
+              className="w-full p-2 sm:p-3 border border-green-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-green-500 bg-white transition-all duration-200 text-sm sm:text-base"
             >
               <option value="">همه سال‌ها</option>
               {getAvailableYears().map(year => (
@@ -426,109 +453,206 @@ export default function ReportCards() {
         </div>
       </div>
 
-      {/* لیست دانش‌آموزان */}
-      <div className="max-h-[600px] overflow-y-auto">
+      {/* لیست دانش‌آموزان - موبایل فرندلی */}
+      <div className="min-h-[400px]">
         {loading ? (
-          <div className="p-12 text-center">
-            <div className="w-12 h-12 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-500">در حال بارگذاری...</p>
+          <div className="p-8 sm:p-16 text-center">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-500 text-base sm:text-lg">در حال بارگذاری...</p>
           </div>
         ) : filteredStudents.length === 0 ? (
-          <div className="p-12 text-center text-gray-500">
-            <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <p>هیچ دانش‌آموزی یافت نشد</p>
+          <div className="p-8 sm:p-16 text-center text-gray-500">
+            <Users className="w-16 h-16 sm:w-20 sm:h-20 text-gray-300 mx-auto mb-4" />
+            <p className="text-lg sm:text-xl font-medium">هیچ دانش‌آموزی یافت نشد</p>
+            <p className="text-gray-400 mt-2 text-sm sm:text-base">فیلترهای خود را بررسی کنید</p>
           </div>
         ) : (
-          filteredStudents.map(student => (
-            <div key={student.id} className="border-b border-green-100 last:border-0">
-              <button
-                onClick={() => toggleStudentExpansion(student.id)}
-                className="w-full flex items-center justify-between p-6 hover:bg-green-50 transition text-right"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-gradient-to-r from-green-600 to-green-500 rounded-full flex items-center justify-center text-white font-bold">
-                    {student.name.charAt(0)}
+          <>
+            {currentStudents.map(student => (
+              <div key={student.id} className="border-b border-green-50 last:border-0">
+                <button
+                  onClick={() => toggleStudentExpansion(student.id)}
+                  className="w-full flex items-center justify-between p-4 sm:p-6 hover:bg-green-50/70 transition-all duration-200 text-right group"
+                >
+                  <div className="flex items-center gap-3 sm:gap-5">
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-green-500 to-green-400 rounded-xl sm:rounded-2xl flex items-center justify-center text-white font-bold text-base sm:text-lg shadow-md group-hover:shadow-lg transition-all duration-200">
+                      {getStudentInitials(student.name)}
+                    </div>
+                    <div className="text-right">
+                      <h3 className="font-bold text-gray-800 text-base sm:text-lg group-hover:text-green-600 transition-colors">
+                        {student.name}
+                      </h3>
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 mt-1 sm:mt-2">
+                        <span className="inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                          {student.grade_name}
+                        </span>
+                        <span className="inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                          {student.class_name}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <h3 className="font-semibold text-gray-800">{student.name}</h3>
-                    <p className="text-sm text-gray-500">{student.grade_name}</p>
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <Eye className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 group-hover:text-green-500 transition-colors" />
+                    {expandedStudent === student.id ? 
+                      <ChevronUp className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" /> : 
+                      <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+                    }
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Eye className="w-4 h-4 text-gray-400" />
-                  {expandedStudent === student.id ? 
-                    <ChevronUp className="w-5 h-5 text-gray-400" /> : 
-                    <ChevronDown className="w-5 h-5 text-gray-400" />
-                  }
-                </div>
-              </button>
+                </button>
 
-              {expandedStudent === student.id && (
-                <div className="p-6 bg-gray-50 border-t border-green-100">
-                  {studentReports[student.id] ? (
-                    filterReports(studentReports[student.id]).length > 0 ? (
-                      <div className="overflow-x-auto">
-                        <table className="w-full min-w-[600px] bg-white rounded-xl shadow-sm">
-                          <thead className="bg-green-100">
-                            <tr>
-                              <th className="p-4 text-right font-semibold text-gray-700">درس</th>
-                              <th className="p-4 text-center font-semibold text-gray-700">نمره</th>
-                              <th className="p-4 text-center font-semibold text-gray-700">نیمسال</th>
-                              <th className="p-4 text-center font-semibold text-gray-700">سال تحصیلی</th>
-                              <th className="p-4 text-center font-semibold text-gray-700">تاریخ ثبت</th>
-                            </tr>
-                          </thead>
-                          <tbody>
+                {expandedStudent === student.id && (
+                  <div className="p-4 sm:p-6 bg-gray-50/70 border-t border-green-100">
+                    {studentReports[student.id] ? (
+                      filterReports(studentReports[student.id]).length > 0 ? (
+                        <div className="overflow-x-auto">
+                          {/* جدول برای دسکتاپ */}
+                          <table className="hidden sm:table w-full min-w-[600px] bg-white rounded-2xl shadow-sm border border-green-100 overflow-hidden">
+                            <thead className="bg-green-100/70">
+                              <tr>
+                                <th className="p-4 text-right font-semibold text-gray-700">درس</th>
+                                <th className="p-4 text-center font-semibold text-gray-700">نمره</th>
+                                <th className="p-4 text-center font-semibold text-gray-700">نیمسال</th>
+                                <th className="p-4 text-center font-semibold text-gray-700">سال تحصیلی</th>
+                                <th className="p-4 text-center font-semibold text-gray-700">تاریخ ثبت</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {filterReports(studentReports[student.id]).map(report => (
+                                <tr key={report.id} className="border-b border-gray-50 hover:bg-green-50/50 transition-colors">
+                                  <td className="p-4 font-medium text-gray-800">{report.subject}</td>
+                                  <td className="p-4 text-center">
+                                    <span className={`inline-block px-4 py-2 rounded-full text-sm font-bold shadow-sm transition-all duration-200 hover:scale-105 ${
+                                      report.grade === 'A' ? 'bg-green-100 text-green-700' :
+                                      report.grade === 'B' ? 'bg-blue-100 text-blue-700' :
+                                      report.grade === 'C' ? 'bg-amber-100 text-amber-700' :
+                                      'bg-red-100 text-red-700'
+                                    }`}>
+                                      {getGradeLabel(report.grade)}
+                                    </span>
+                                  </td>
+                                  <td className="p-4 text-center text-sm text-gray-600">
+                                    {getSemesterLabel(report.semester)}
+                                  </td>
+                                  <td className="p-4 text-center text-sm text-gray-600">
+                                    {report.academic_year}
+                                  </td>
+                                  <td className="p-4 text-center text-sm text-gray-600">
+                                    {new Date(report.created_at).toLocaleDateString('fa-IR')}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+
+                          {/* کارت‌ها برای موبایل */}
+                          <div className="sm:hidden space-y-3">
                             {filterReports(studentReports[student.id]).map(report => (
-                              <tr key={report.id} className="border-b border-gray-100 hover:bg-green-50 transition">
-                                <td className="p-4 font-medium text-gray-800">{report.subject}</td>
-                                <td className="p-4 text-center">
-                                  <span className={`inline-block px-3 py-1 rounded-full text-sm font-bold shadow-sm ${
+                              <div key={report.id} className="bg-white rounded-xl p-4 shadow-sm border border-green-100">
+                                <div className="flex justify-between items-start mb-3">
+                                  <h4 className="font-bold text-gray-800">{report.subject}</h4>
+                                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold shadow-sm ${
                                     report.grade === 'A' ? 'bg-green-100 text-green-700' :
                                     report.grade === 'B' ? 'bg-blue-100 text-blue-700' :
-                                    report.grade === 'C' ? 'bg-yellow-100 text-yellow-700' :
+                                    report.grade === 'C' ? 'bg-amber-100 text-amber-700' :
                                     'bg-red-100 text-red-700'
                                   }`}>
                                     {getGradeLabel(report.grade)}
                                   </span>
-                                </td>
-                                <td className="p-4 text-center text-sm text-gray-600">
-                                  {getSemesterLabel(report.semester)}
-                                </td>
-                                <td className="p-4 text-center text-sm text-gray-600">
-                                  {report.academic_year}
-                                </td>
-                                <td className="p-4 text-center text-sm text-gray-600">
-                                  {new Date(report.created_at).toLocaleDateString('fa-IR')}
-                                </td>
-                              </tr>
+                                </div>
+                                <div className="space-y-2 text-sm text-gray-600">
+                                  <div className="flex justify-between">
+                                    <span>نیمسال:</span>
+                                    <span>{getSemesterLabel(report.semester)}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>سال تحصیلی:</span>
+                                    <span>{report.academic_year}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>تاریخ ثبت:</span>
+                                    <span>{new Date(report.created_at).toLocaleDateString('fa-IR')}</span>
+                                  </div>
+                                </div>
+                              </div>
                             ))}
-                          </tbody>
-                        </table>
-                      </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 sm:py-12">
+                          <Book className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-4" />
+                          <p className="text-gray-500 text-base sm:text-lg font-medium">
+                            {selectedSemester || selectedYear 
+                              ? 'کارنامه‌ای با فیلترهای انتخابی یافت نشد'
+                              : 'هنوز کارنامه‌ای ثبت نشده است'
+                            }
+                          </p>
+                        </div>
+                      )
                     ) : (
-                      <div className="text-center py-8">
-                        <Book className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                        <p className="text-gray-500">
-                          {selectedSemester || selectedYear 
-                            ? 'کارنامه‌ای با فیلترهای انتخابی یافت نشد'
-                            : 'هنوز کارنامه‌ای ثبت نشده است'
-                          }
-                        </p>
+                      <div className="text-center py-8 sm:py-12">
+                        <Loader2 className="w-8 h-8 sm:w-12 sm:h-12 text-green-600 animate-spin mx-auto mb-4" />
+                        <p className="text-gray-500 text-base sm:text-lg">در حال بارگذاری کارنامه...</p>
                       </div>
-                    )
-                  ) : (
-                    <div className="text-center py-8">
-                      <Loader2 className="w-8 h-8 text-green-600 animate-spin mx-auto mb-4" />
-                      <p className="text-gray-500">در حال بارگذاری کارنامه...</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          ))
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </>
         )}
       </div>
+
+      {/* Pagination - موبایل فرندلی */}
+      {filteredStudents.length > 0 && (
+        <div className="p-4 sm:p-6 border-t border-green-100 bg-gray-50/50">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="text-xs sm:text-sm text-gray-600 order-2 sm:order-1">
+              نمایش {startIndex + 1} تا {Math.min(endIndex, filteredStudents.length)} از {filteredStudents.length} دانش‌آموز
+            </div>
+            
+            <div className="flex items-center gap-2 order-1 sm:order-2">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              >
+                <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">قبلی</span>
+              </button>
+              
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                  const page = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
+                  if (page > totalPages) return null;
+                  return (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`w-8 h-8 sm:w-10 sm:h-10 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 ${
+                        currentPage === page
+                          ? 'bg-green-600 text-white shadow-md'
+                          : 'text-gray-600 hover:bg-green-50 hover:text-green-600'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  );
+                })}
+              </div>
+              
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              >
+                <span className="hidden sm:inline">بعدی</span>
+                <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -15,18 +15,23 @@ export default function Disciplinary({ teacherId }) {
   const [selectedAction, setSelectedAction] = useState(null);
   const [showModal, setShowModal] = useState(false);
 
+  useEffect(() => {
+    const userData = JSON.parse(localStorage.getItem('user') || '{}');
+    if (userData.id) {
+      fetchActions(userData.id);
+    }
+  }, []);
+  
   // دریافت توبیخی و تشویقی های معلم
-  const fetchActions = async () => {
+  const fetchActions = async (teacherId) => {
     setLoading(true);
     try {
-      const userData = JSON.parse(localStorage.getItem('user') || '{}');
-      const response = await fetch(`/api/disciplinary?teacherId=${userData.id}`);
+      const response = await fetch(`/api/disciplinary?teacherId=${teacherId}`);
       const data = await response.json();
       if (data.success) {
         setActions(data.actions || []);
       }
     } catch (error) {
-      console.error('Error fetching actions:', error);
       setActions([]);
     } finally {
       setLoading(false);

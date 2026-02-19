@@ -44,11 +44,10 @@ export default function Header({ onLoginClick }) {
     { name: 'خبرنامه', href: '/News' },
     { name: 'پیش ثبت نام', href: '/pre-registration' },
     { name: 'گالری', href: '/gallery' },
-    { name: 'کارگاه', href: '#' },
+    { name: 'کارگاه', href: '/workshops' },
     { name: 'آزمونک', href: '#' },
     { name: 'ارتباط با ما', href: '/contact' },
-      { name: 'درباره ما', href: '/about' }  // این درست است
-
+    { name: 'درباره ما', href: '/about' }
   ];
 
   const headerClasses = `
@@ -112,7 +111,7 @@ export default function Header({ onLoginClick }) {
           <div className={`absolute -bottom-1/2 -left-1/4 w-1/2 h-[150%] bg-gradient-to-tr from-green-200/15 to-transparent rounded-full blur-3xl transition-opacity duration-1000 ${isScrolled ? 'opacity-20' : 'opacity-70'}`}></div>
         </div>
         <div className="w-full px-4 sm:px-6 lg:px-8 relative">
-          <div className="flex items-center justify-between h-24">
+          <div className="flex items-center justify-between h-16 md:h-24">
             <div className="hidden lg:flex items-center justify-between w-full">
               <Link href="/" className="flex items-center group cursor-pointer">
                 <div className="relative">
@@ -129,7 +128,9 @@ export default function Header({ onLoginClick }) {
               <nav className="flex items-center justify-center">
                 <div className="flex items-center space-x-2 space-x-reverse bg-white/60 backdrop-blur-md rounded-full px-4 py-3 border border-gray-200/80 shadow-xl hover:shadow-2xl transition-all duration-300">
                   {menuItems.map((item) => {
-                    const isActive = pathname === item.href;
+                    // بررسی فعال بودن - شامل /workshops و /workshops/[id]
+                    const isActive = pathname === item.href || 
+                      (item.href === '/workshops' && pathname.startsWith('/workshops'));
                     return (
                       <Link
                         key={item.name}
@@ -270,21 +271,22 @@ export default function Header({ onLoginClick }) {
                 )}
               </div>
             </div>
+            {/* 🔥 موبایل هدر - کوچک‌تر شده */}
             <div className="lg:hidden flex items-center justify-between w-full">
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="p-3 rounded-2xl bg-white/80 backdrop-blur-md text-gray-600 border border-gray-200/80 shadow-lg hover:shadow-xl transition-all duration-300"
+                className="p-2 rounded-xl bg-white/80 backdrop-blur-md text-gray-600 border border-gray-200/80 shadow-md hover:shadow-lg transition-all duration-300"
               >
-                {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
               <Link href="/" className="flex items-center group cursor-pointer">
                 <div className="relative">
-                  <h1 className="text-3xl font-haftad text-[#399918] tracking-wide leading-none font-semibold">
+                  <h1 className="text-xl font-haftad text-[#399918] tracking-wide leading-none font-semibold">
                     <span className="transition-all duration-300 group-hover:text-green-700">
                       علم و هنر
                     </span>
                   </h1>
-                  <p className="text-xs font-medium text-gray-400 tracking-[0.15em] mt-1 text-center group-hover:text-gray-600 transition-colors duration-300">
+                  <p className="text-xs font-medium text-gray-400 tracking-[0.1em] mt-0.5 text-center group-hover:text-gray-600 transition-colors duration-300">
                     SCIENCE & ART
                   </p>
                 </div>
@@ -292,53 +294,59 @@ export default function Header({ onLoginClick }) {
               {user ? (
                 <button
                   onClick={goToPanel}
-                  className="flex items-center justify-center px-4 h-12 bg-gradient-to-br from-green-600 to-[#399918] rounded-2xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 ring-2 ring-[#399918]/20 hover:ring-[#399918]/40 font-bold text-white text-sm"
+                  className="flex items-center justify-center px-3 h-9 bg-gradient-to-br from-green-600 to-[#399918] rounded-xl shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300 ring-1 ring-[#399918]/20 hover:ring-[#399918]/40 font-bold text-white text-sm"
                 >
                   {user.firstName} | پنل
                 </button>
               ) : (
                 <button 
                   onClick={onLoginClick}
-                  className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-[#399918] to-green-600 rounded-2xl shadow-lg hover:shadow-xl hover:scale-110 transition-all duration-300 ring-2 ring-[#399918]/20 hover:ring-[#399918]/40"
+                  className="flex items-center justify-center w-9 h-9 bg-gradient-to-br from-[#399918] to-green-600 rounded-xl shadow-md hover:shadow-lg hover:scale-110 transition-all duration-300 ring-1 ring-[#399918]/20 hover:ring-[#399918]/40"
                 >
-                  <User className="w-6 h-6 text-white" />
+                  <User className="w-5 h-5 text-white" />
                 </button>
               )}
             </div>
           </div>
         </div>
+        {/* 🔥 موبایل منو - کوچک‌تر شده */}
         {isMenuOpen && (
-          <div className="lg:hidden bg-white/95 backdrop-blur-xl border-t border-gray-200/80 shadow-2xl">
-            <div className="p-6">
-              <div className="mb-6">
-                <div className="flex items-center bg-gray-50/80 backdrop-blur-sm rounded-2xl px-4 py-3 border border-gray-200/80 shadow-md focus-within:border-[#399918]/50 focus-within:shadow-lg transition-all duration-300">
-                  <Search className="w-5 h-5 text-gray-400 ml-3" />
+          <div className="lg:hidden bg-white/95 backdrop-blur-xl border-t border-gray-200/80 shadow-xl">
+            <div className="p-4">
+              <div className="mb-4">
+                <div className="flex items-center bg-gray-50/80 backdrop-blur-sm rounded-xl px-3 py-2 border border-gray-200/80 shadow-sm focus-within:border-[#399918]/50 focus-within:shadow-md transition-all duration-300">
+                  <Search className="w-4 h-4 text-gray-400 ml-2" />
                   <input
                     type="text"
                     placeholder="جستجو کنید..."
-                    className="bg-transparent flex-1 outline-none text-gray-700 text-right font-medium placeholder:text-gray-400"
+                    className="bg-transparent flex-1 outline-none text-gray-700 text-right font-medium placeholder:text-gray-400 text-sm"
                     style={{ direction: 'rtl' }}
                   />
                 </div>
               </div>
-              <nav className="flex flex-col space-y-2 mb-6">
-                {menuItems.map((item) => (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    onClick={() => setIsMenuOpen(false)}
-                    className={`group px-5 py-4 text-right font-bold rounded-xl transition-all duration-300 relative overflow-hidden ${
-                      item.active 
-                        ? 'bg-gradient-to-r from-[#399918] to-green-600 text-white shadow-lg' 
-                        : 'text-gray-700 hover:bg-[#399918]/5 hover:text-[#399918]'
-                    }`}
-                  >
-                    <span className="relative z-10">{item.name}</span>
-                    {!item.active && (
-                      <div className="absolute inset-0 bg-gradient-to-r from-[#399918]/0 via-[#399918]/5 to-[#399918]/0 -translate-x-full group-hover:translate-x-full transition-transform duration-500"></div>
-                    )}
-                  </Link>
-                ))}
+              <nav className="flex flex-col space-y-1 mb-4">
+                {menuItems.map((item) => {
+                  // بررسی فعال بودن برای موبایل هم - شامل /workshops و /workshops/[id]
+                  const isActive = pathname === item.href || 
+                    (item.href === '/workshops' && pathname.startsWith('/workshops'));
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      onClick={() => setIsMenuOpen(false)}
+                      className={`group px-4 py-3 text-right font-bold rounded-xl transition-all duration-300 relative overflow-hidden text-sm ${
+                        isActive 
+                          ? 'bg-gradient-to-r from-[#399918] to-green-600 text-white shadow-md' 
+                          : 'text-gray-700 hover:bg-[#399918]/5 hover:text-[#399918]'
+                      }`}
+                    >
+                      <span className="relative z-10">{item.name}</span>
+                      {!isActive && (
+                        <div className="absolute inset-0 bg-gradient-to-r from-[#399918]/0 via-[#399918]/5 to-[#399918]/0 -translate-x-full group-hover:translate-x-full transition-transform duration-500"></div>
+                      )}
+                    </Link>
+                  );
+                })}
               </nav>
             </div>
           </div>

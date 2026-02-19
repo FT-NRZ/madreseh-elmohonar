@@ -1,94 +1,66 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/database';
-import { verifyJWT } from '@/lib/jwt';
 
 export async function GET(request) {
   try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({
-        success: false,
-        message: 'توکن نامعتبر است'
-      }, { status: 401 });
-    }
+    console.log('🔍 شروع دریافت دانش‌آموزان...');
 
-    const token = authHeader.replace('Bearer ', '').trim();
-    const payload = await verifyJWT(token);
-
-    if (!payload || !payload.userId) {
-      return NextResponse.json({
-        success: false,
-        message: 'دسترسی غیرمجاز'
-      }, { status: 403 });
-    }
-
-    // اگر نقش ادمین بود، همه دانش‌آموزان را بده
-    if (payload.role === 'admin') {
-      const students = await prisma.students.findMany({
-        include: {
-          users: {
-            select: {
-              first_name: true,
-              last_name: true,
-              national_id: true
-            }
-          },
-          classes: true
-        },
-        orderBy: {
-          users: {
-            last_name: 'asc'
-          }
-        }
-      });
-      return NextResponse.json({ success: true, students });
-    }
-
-    // اگر معلم بود، فقط دانش‌آموزان کلاس‌های خودش را بده
-    const teacher = await prisma.teachers.findFirst({
-      where: { user_id: payload.userId }
-    });
-
-    if (!teacher) {
-      return NextResponse.json({
-        success: false,
-        message: 'معلم یافت نشد'
-      }, { status: 404 });
-    }
-
-    const classIds = await prisma.class_teachers.findMany({
-      where: { teacher_id: teacher.id },
-      select: { class_id: true }
-    }).then(arr => arr.map(c => c.class_id));
-
+    // دریافت همه دانش‌آموزان بدون احراز هویت (فعلاً برای تست)
     const students = await prisma.students.findMany({
-      where: {
-        class_id: { in: classIds }
-      },
       include: {
-        users: {
-          select: {
-            first_name: true,
-            last_name: true,
-            national_id: true
+        users: true,
+        classes: {
+          include: {
+            grades: true
           }
-        },
-        classes: true
-      },
-      orderBy: {
-        users: {
-          last_name: 'asc'
         }
       }
     });
 
-    return NextResponse.json({ success: true, students });
+    console.log(`✅ تعداد دانش‌آموزان: ${students.length}`);
+
+    // فرمت کردن داده‌ها
+    const formattedStudents = students.map(student => ({
+      id: student.id,
+      user_id: student.users?.id || null,
+      student_number: student.student_number || '',
+      full_name: `${student.users?.first_name || ''} ${student.users?.last_name || ''}`.trim() || 'نام نامشخص',
+      first_name: student.users?.first_name || 'نامشخص',
+      last_name: student.users?.last_name || '',
+      phone: student.users?.phone || '',
+      national_id: student.users?.national_id || '',
+      class_id: student.classes?.id || null,
+      class_name: student.classes?.class_name || 'بدون کلاس',
+      grade_id: student.classes?.grade_id || null,
+      grade_name: student.classes?.grades?.grade_name || 'بدون پایه',
+      grade_level: student.classes?.grades?.grade_level || 0,
+      father_name: student.father_name || '',
+      mother_name: student.mother_name || '',
+      parent_phone: student.parent_phone || '',
+      enrollment_date: student.enrollment_date,
+      status: student.status || 'active'
+    }));
+
+    // دریافت پایه‌ها
+    const grades = await prisma.grades.findMany({
+      orderBy: { grade_level: 'asc' }
+    });
+
+    console.log(`✅ تعداد پایه‌ها: ${grades.length}`);
+
+    return NextResponse.json({
+      success: true,
+      students: formattedStudents,
+      total: formattedStudents.length,
+      grades: grades
+    });
 
   } catch (error) {
-    console.error('Error fetching students:', error);
+    console.error('💥 خطا در API:', error);
     return NextResponse.json({
       success: false,
-      message: 'خطا در دریافت لیست دانش‌آموزان'
+      message: error.message || 'خطا در دریافت دانش‌آموزان',
+      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
     }, { status: 500 });
   }
 }

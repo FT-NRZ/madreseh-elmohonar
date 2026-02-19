@@ -59,13 +59,18 @@ export default function ExamResults({ examId }) {
   }, [examId]);
 
   // هندل ثبت نمره تستی
-  const handleScoreSubmit = async (resultId, grade) => {
+ const handleScoreSubmit = async (resultId, grade) => {
     console.log('💾 Submitting score:', { resultId, grade });
     
     try {
+      const token = localStorage.getItem('token'); // اضافه کردن token
+      
       const res = await fetch(`/api/exam-results/${resultId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` // اضافه کردن header
+        },
         body: JSON.stringify({ grade_desc: grade })
       });
       
@@ -74,12 +79,19 @@ export default function ExamResults({ examId }) {
       
       if (res.ok && result.success) {
         alert('نمره با موفقیت ثبت شد! ✅');
+        // بروزرسانی state محلی
         setData(prev => ({
           ...prev,
           quizAnswers: prev.quizAnswers.map(ans =>
             ans.id === resultId ? { ...ans, grade_desc: grade } : ans
           )
         }));
+        // پاک کردن input
+        setScoreInputs(prev => {
+          const newInputs = { ...prev };
+          delete newInputs[resultId];
+          return newInputs;
+        });
       } else {
         alert(`خطا در ثبت نمره: ${result.error || 'خطای ناشناخته'}`);
       }
@@ -94,9 +106,14 @@ export default function ExamResults({ examId }) {
     console.log('💾 Submitting file feedback:', { answerId, grade, feedback });
     
     try {
+      const token = localStorage.getItem('token'); // اضافه کردن token
+      
       const res = await fetch(`/api/exam-file-answers/${answerId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` // اضافه کردن header
+        },
         body: JSON.stringify({ grade_desc: grade, teacher_feedback: feedback })
       });
       
@@ -105,12 +122,19 @@ export default function ExamResults({ examId }) {
       
       if (res.ok && result.success) {
         alert('بازخورد با موفقیت ثبت شد! ✅');
+        // بروزرسانی state محلی
         setData(prev => ({
           ...prev,
           fileAnswers: prev.fileAnswers.map(ans =>
             ans.id === answerId ? { ...ans, grade_desc: grade, teacher_feedback: feedback } : ans
           )
         }));
+        // پاک کردن input
+        setFileInputs(prev => {
+          const newInputs = { ...prev };
+          delete newInputs[answerId];
+          return newInputs;
+        });
       } else {
         alert(`خطا در ثبت بازخورد: ${result.error || 'خطای ناشناخته'}`);
       }

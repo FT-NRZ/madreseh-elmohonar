@@ -29,7 +29,7 @@ export async function GET(request, context) {
         pdf_url: true,
         image_url: true,
         subject: true,
-        class_id: true
+        grade_id: true // تغییر از class_id به grade_id
       }
     });
 
@@ -85,6 +85,8 @@ export async function POST(request, context) {
     const { examId } = await context.params;
     const id = Number(examId);
 
+    console.log('🚀 API POST called with examId:', id);
+
     if (!id || Number.isNaN(id) || id <= 0) {
       return NextResponse.json({
         success: false,
@@ -110,8 +112,9 @@ export async function POST(request, context) {
         error: 'توکن نامعتبر است'
       }, { status: 401 });
     }
-
     const requestBody = await request.json().catch(() => null);
+    console.log('📥 Request body received:', requestBody);
+
     if (!requestBody) {
       return NextResponse.json({
         success: false,
@@ -154,26 +157,42 @@ export async function POST(request, context) {
       }, { status: 403 });
     }
 
+    // پیدا کردن دانش‌آموز
     let student = await prisma.students.findUnique({
       where: { user_id: Number(student_id) },
       select: { id: true, user_id: true }
     });
+
+    console.log('👤 Student lookup by user_id:', student);
 
     if (!student) {
       student = await prisma.students.findUnique({
         where: { id: Number(student_id) },
         select: { id: true, user_id: true }
       });
+      console.log('👤 Student lookup by id:', student);
     }
 
     if (!student) {
+      console.log('❌ Student not found with either user_id or id:', student_id);
       return NextResponse.json({
         success: false,
         error: 'دانش‌آموز پیدا نشد'
       }, { status: 404 });
     }
 
+    console.log('✅ Student found:', student);
+
+    console.log('🔍 Processing exam submission:', {
+      examId: id,
+      studentId: student.id,
+      examType: exam.type,
+      hasAnswers: !!answers,
+      hasFileUrl: !!file_url
+    });
+
     const result = await prisma.$transaction(async (tx) => {
+      // پردازش فایل
       if (file_url && typeof file_url === 'string' && file_url.trim()) {
         const existingFileAnswer = await tx.exam_file_answers.findFirst({
           where: {
@@ -191,7 +210,6 @@ export async function POST(request, context) {
           throw new Error('آدرس فایل نامعتبر است');
         }
 
-        // ✅ حذف submitted_at که در schema وجود ندارد
         const fileAnswer = await tx.exam_file_answers.create({
           data: {
             exam_id: id,
@@ -215,7 +233,10 @@ export async function POST(request, context) {
         };
       }
 
+      // پردازش آزمون تستی
       if (exam.type === 'quiz' && answers && typeof answers === 'object') {
+        console.log('🧪 Processing quiz answers:', answers);
+
         const existingResult = await tx.exam_results.findFirst({
           where: {
             exam_id: id,
@@ -230,7 +251,8 @@ export async function POST(request, context) {
         let examQuestions = [];
         try {
           examQuestions = exam.questions ? JSON.parse(exam.questions) : [];
-        } catch {
+        } catch (e) {
+          console.error('🚨 Error parsing questions:', e);
           throw new Error('ساختار سوالات آزمون نامعتبر است');
         }
 
@@ -245,13 +267,22 @@ export async function POST(request, context) {
         let correctAnswers = 0;
         let totalQuestions = examQuestions.length;
 
+        console.log('📝 Evaluating answers:', {
+          totalQuestions,
+          submittedAnswers: Object.keys(answers).length,
+          examQuestions: examQuestions.map(q => ({ question: q.question?.substring(0, 30), correctAnswer: q.answer }))
+        });
+
         Object.entries(answers).forEach(([questionIndex, selectedOption]) => {
           const qIdx = Number(questionIndex);
           const optIdx = Number(selectedOption);
 
           if (qIdx >= 0 && qIdx < examQuestions.length && !Number.isNaN(optIdx)) {
             const question = examQuestions[qIdx];
-            const isCorrect = question && Number(question.answer) === optIdx;
+            const correctAnswer = Number(question.answer);
+            const isCorrect = correctAnswer === optIdx;
+
+            console.log(`📊 Question ${qIdx}: selected=${optIdx}, correct=${correctAnswer}, isCorrect=${isCorrect}`);
 
             if (isCorrect) {
               correctAnswers++;
@@ -263,12 +294,21 @@ export async function POST(request, context) {
         const maxMarks = Number(exam.total_marks) || 100;
         const obtainedMarks = Math.round((scorePercentage / 100) * maxMarks);
 
+        console.log('🎯 Final score calculation:', {
+          correctAnswers,
+          totalQuestions,
+          scorePercentage,
+          maxMarks,
+          obtainedMarks
+        });
+
         const examResult = await tx.exam_results.create({
           data: {
             exam_id: id,
             student_id: student.id,
-            marks_obtained: obtainedMarks, // ✅ حذف String() - مطابق schema Decimal است
-            status: 'completed',
+            marks_obtained: obtainedMarks,
+            // حذف فیلد status اگر مشکل دارد
+            // status: 'completed', 
             completed_at: new Date()
           },
           select: {
@@ -280,6 +320,8 @@ export async function POST(request, context) {
             completed_at: true
           }
         });
+
+        console.log('✅ Exam result created:', examResult);
 
         return {
           success: true,
@@ -302,8 +344,9 @@ export async function POST(request, context) {
     return NextResponse.json(result);
 
   } catch (error) {
-    console.error('POST /api/exams/student/[examId] error:', error);
-
+    console.error('🚨 POST /api/exams/student/[examId] error:', error);
+    console.error('🚨 Error stack:', error.stack);
+   
     if (error.message.includes('شناسه') || error.message.includes('نامعتبر')) {
       return NextResponse.json({
         success: false,
@@ -334,7 +377,7 @@ export async function POST(request, context) {
 
     return NextResponse.json({
       success: false,
-      error: 'خطا در پردازش درخواست'
+      error: 'خطا در پردازش درخواست: ' + error.message
     }, { status: 500 });
   }
 }

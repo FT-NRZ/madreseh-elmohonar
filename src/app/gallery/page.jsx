@@ -1,6 +1,6 @@
 'use client'
 import React, { useState, useEffect, useRef } from "react";
-import { Download, ChevronLeft, ChevronRight, Calendar, Image, Trophy, BookOpen, Users, Heart, Camera, Loader2, Maximize2, X } from "lucide-react";
+import { Download, Lock, ChevronLeft, ChevronRight, Calendar, Image, Trophy, BookOpen, Users, Heart, Camera, Loader2, Maximize2, X } from "lucide-react";
 
 const GalleryPage = () => {
   const [categories, setCategories] = useState([]);
@@ -16,16 +16,24 @@ const GalleryPage = () => {
   const [error, setError] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const slideInterval = useRef(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // همه useEffect ها باید قبل از شرطی return باشند
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const user = localStorage.getItem('user');
+    setIsLoggedIn(!!token && !!user);
+  }, []);
 
   // دریافت دسته‌بندی‌ها
   useEffect(() => {
     const fetchCategories = async () => {
       try {
+        const token = localStorage.getItem('token');
         const response = await fetch('/api/gallery_categories', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
         });
+        
         if (!response.ok) throw new Error('خطا در دریافت دسته‌بندی‌ها');
         const data = await response.json();
         if (data.success) {
@@ -44,34 +52,46 @@ const GalleryPage = () => {
           throw new Error(data.message || 'خطا در دریافت دسته‌بندی‌ها');
         }
       } catch (err) {
-        setError('خطا در بارگذاری دسته‌بندی‌ها');
+        console.error('خطا در بارگذاری دسته‌بندی‌ها:', err);
+        setError('خطا در بارگذاری دسته‌بندی‌ها. لطفاً ابتدا وارد شوید.');
       }
     };
-    fetchCategories();
-  }, []);
+    
+    if (isLoggedIn) {
+      fetchCategories();
+    }
+  }, [isLoggedIn]);
 
-  // دریافت پایه‌های تحصیلی از دیتابیس grades
+  // دریافت پایه‌های تحصیلی
   useEffect(() => {
     const fetchGrades = async () => {
       try {
+        const token = localStorage.getItem('token');
         const response = await fetch('/api/grades', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
         });
-        const data = await response.json();
-        if (data.success) {
-          console.log('Grades fetched:', data.grades);
-          setGrades(data.grades);
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            setGrades(data.grades);
+          }
         }
       } catch (err) {
         console.error('خطا در دریافت پایه‌ها:', err);
       }
     };
-    fetchGrades();
-  }, []);
+    
+    if (isLoggedIn) {
+      fetchGrades();
+    }
+  }, [isLoggedIn]);
 
   // دریافت تصاویر
   useEffect(() => {
     const fetchImages = async () => {
+      if (!isLoggedIn) return;
+      
       setLoading(true);
       try {
         let url = '/api/gallery';
@@ -86,11 +106,11 @@ const GalleryPage = () => {
           url += '?' + params.join('&');
         }
 
+        const token = localStorage.getItem('token');
         const response = await fetch(url, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
         });
+        
         if (!response.ok) throw new Error('خطا در دریافت تصاویر');
         const data = await response.json();
         if (data.success) {
@@ -105,15 +125,19 @@ const GalleryPage = () => {
           throw new Error(data.message || 'خطا در دریافت تصاویر');
         }
       } catch (err) {
-        setError('خطا در بارگذاری تصاویر');
+        console.error('خطا در بارگذاری تصاویر:', err);
+        setError('خطا در بارگذاری تصاویر. لطفاً ابتدا وارد شوید.');
         setImages([]);
         setFilteredImages([]);
       } finally {
         setLoading(false);
       }
     };
-    if (selectedCategory !== null) fetchImages();
-  }, [selectedCategory, selectedGrade]);
+    
+    if (selectedCategory !== null && isLoggedIn) {
+      fetchImages();
+    }
+  }, [selectedCategory, selectedGrade, isLoggedIn]);
 
   // تغییر خودکار اسلاید پس‌زمینه
   useEffect(() => {
@@ -127,7 +151,7 @@ const GalleryPage = () => {
     };
   }, [backgroundImages]);
 
-  // رنگ و آیکون دسته‌بندی
+  // رنگ و آیکون دسته‌بندی - تبدیل به useCallback یا قرار دادن خارج از کامپوننت
   const getColorByIndex = (index) => {
     const colors = [
       { bg: "bg-gradient-to-br from-green-600 via-emerald-500 to-teal-600", text: "text-white", shadow: "shadow-emerald-200" },
@@ -168,7 +192,7 @@ const GalleryPage = () => {
     return Image;
   };
 
-  // آخرین عکس هر دسته‌بندی و تعداد عکس‌ها
+  // باقی توابع...
   function getLastImageByCategory(categoryId) {
     const imgs = images.filter(img => img.gallery_categories?.id === categoryId);
     return imgs.length > 0 ? imgs[0] : null;
@@ -214,6 +238,93 @@ const GalleryPage = () => {
     setIsFullscreen(!isFullscreen);
   };
 
+  // اکنون شرطی return قرار می‌گیرد
+  if (!isLoggedIn) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-green-50 relative overflow-hidden">
+        {/* پس‌زمینه تزئینی */}
+        <div className="fixed inset-0 w-screen h-screen overflow-hidden pointer-events-none z-0">
+          <FloatingParticles />
+        </div>
+
+        {/* موج و تزئینات بالا */}
+        <div className="relative w-full">
+          <div className="absolute top-8 left-8 w-32 h-32 bg-gradient-to-br from-emerald-400/30 via-green-300/20 to-teal-200/10 rounded-full blur-2xl animate-pulse"></div>
+          <div className="absolute top-12 right-8 w-24 h-24 bg-gradient-to-bl from-green-500/25 via-emerald-300/15 to-green-100/10 rounded-full blur-xl animate-pulse delay-1000"></div>
+          
+          <div className="w-full overflow-hidden" style={{height: "md:72px"}}>
+            <svg viewBox="0 0 1200 50" className="w-full h-full block">
+              <path fill="#22c55e" fillOpacity="0.12" d="M0,0V25c47.79,10,103.59,15,158,13,70.36-2,136.33-16,206.8-18C438.64,18,512.34,29,583,35c69.27,6,138.3,8,209.4,4,36.15-2,69.85-6,104.45-10C989.49,8,1113-5,1200,22V0Z"/>
+              <path fill="#22c55e" fillOpacity="0.20" d="M0,0V8C13,15,27.64,23,47.69,30,99.41,47,165,47,224.58,38c31.15-4,60.09-11,89.67-17,40.92-8,84.73-19,130.83-21,36.26-1,70.9,4,98.6,13,31.77,11,62.32,26,103.63,30,40.44,4,81.35-3,119.13-10s75.16-17,116.92-18c59.73-2,113.28,10,168.9,17,30.2,3,59,2,87.09-3,22.43-4,48-11,60.65-20V0Z"/>
+              <path fill="#22c55e" fillOpacity="0.35" d="M0,0V3C149.93,25,314.09,30,475.83,18c43-3,84.23-8,127.61-11,59-3,112.48,5,165.56,14C827.93,32,886,39,951.2,37c86.53-2,172.46-18,248.8-34V0Z"/>
+            </svg>
+          </div>
+          
+          <div className="relative z-10 flex flex-col items-center mt-6 mb-4">
+            <h1 className="text-4xl md:text-5xl font-extrabold text-green-800 mb-3 tracking-tight">گالری تصاویر</h1>
+            <p className="text-base mt-2 md:text-lg font-medium text-green-700 bg-white/70 px-6 py-2 rounded-full shadow-sm inline-block">
+              مجموعه‌ای از زیباترین لحظات و خاطرات مدرسه علم و هنر
+            </p>
+          </div>
+        </div>
+
+        {/* پیام لاگین */}
+        <main className="max-w-4xl mx-auto px-4 py-12 relative z-10">
+          <div className="text-center py-20">
+            <div className="bg-gradient-to-br from-amber-50 to-yellow-50 border-2 border-amber-200 rounded-3xl p-12 max-w-lg mx-auto shadow-2xl">
+              <div className="w-24 h-24 bg-gradient-to-br from-amber-400 to-yellow-500 rounded-full flex items-center justify-center mx-auto mb-8 shadow-lg">
+                <Lock className="w-12 h-12 text-white" />
+              </div>
+              <h2 className="text-3xl font-bold text-amber-800 mb-4">دسترسی محدود</h2>
+              <p className="text-lg text-amber-700 font-medium mb-8 leading-relaxed">
+                برای مشاهده گالری تصاویر و دسته‌بندی‌ها، ابتدا وارد حساب کاربری خود شوید.
+              </p>
+              <div className="space-y-4">
+                <button
+                  onClick={() => window.location.href = '/Login'}
+                  className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold py-4 px-8 rounded-2xl transition-all duration-300 transform hover:scale-105 shadow-xl text-lg"
+                >
+                  ورود به حساب کاربری
+                </button>
+                <p className="text-sm text-amber-600">
+                  حساب کاربری ندارید؟ با مدیریت مدرسه تماس بگیرید.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* کارت‌های نمایشی */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-16">
+            <div className="bg-white/70 backdrop-blur-md rounded-2xl p-6 shadow-lg border border-gray-200">
+              <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mb-4">
+                <Camera className="w-8 h-8 text-blue-600" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-800 mb-2">تصاویر با کیفیت</h3>
+              <p className="text-gray-600 text-sm">مجموعه‌ای از بهترین تصاویر فعالیت‌های مدرسه</p>
+            </div>
+            
+            <div className="bg-white/70 backdrop-blur-md rounded-2xl p-6 shadow-lg border border-gray-200">
+              <div className="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center mb-4">
+                <BookOpen className="w-8 h-8 text-green-600" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-800 mb-2">دسته‌بندی هوشمند</h3>
+              <p className="text-gray-600 text-sm">تصاویر بر اساس موضوع و پایه تحصیلی دسته‌بندی شده</p>
+            </div>
+            
+            <div className="bg-white/70 backdrop-blur-md rounded-2xl p-6 shadow-lg border border-gray-200">
+              <div className="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center mb-4">
+                <Download className="w-8 h-8 text-purple-600" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-800 mb-2">دانلود آسان</h3>
+              <p className="text-gray-600 text-sm">امکان دانلود تصاویر با یک کلیک ساده</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // باقی کد گالری...
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-green-50 relative overflow-hidden">
       {/* پس‌زمینه اسلایدشو */}

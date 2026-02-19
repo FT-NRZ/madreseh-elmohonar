@@ -89,8 +89,17 @@ export default function StudentExamPage() {
       return;
     }
 
+    // اضافه کردن دیباگ
+    console.log('🔍 Debug info:', {
+      examId,
+      studentId,
+      answers,
+      answersCount: Object.keys(answers).length,
+      user: JSON.parse(localStorage.getItem('user') || '{}'),
+      token: localStorage.getItem('token') ? 'موجود' : 'ناموجود'
+    });
+
     try {
-      // 🔥 اضافه کردن توکن احراز هویت
       const token = localStorage.getItem('token');
       if (!token) {
         setMessage('لطفاً وارد سیستم شوید');
@@ -98,14 +107,26 @@ export default function StudentExamPage() {
         return;
       }
 
+      const submitData = { 
+        student_id: studentId, 
+        answers 
+      };
+      
+      console.log('📤 Sending data:', submitData);
+
       const res = await fetch(`/api/exams/student/${examId}`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` // ✅ ارسال توکن
+          'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ student_id: studentId, answers })
+        body: JSON.stringify(submitData)
       });
+
+      console.log('📡 Response status:', res.status);
+      
+      const data = await res.json();
+      console.log('📊 Response data:', data);
 
       if (!res.ok) {
         if (res.status === 401) {
@@ -115,20 +136,18 @@ export default function StudentExamPage() {
           window.location.href = '/login';
           return;
         }
-        throw new Error('خطا در ارسال پاسخ');
+        throw new Error(data.error || 'خطا در ارسال پاسخ');
       }
 
-      const data = await res.json();
       if (data.success) {
         setMessage('پاسخ شما با موفقیت ثبت شد!');
-        // پاک کردن فرم بعد از ثبت موفق
         setAnswers({});
       } else {
         setMessage(data.error || 'خطا در ثبت پاسخ');
       }
     } catch (error) {
-      console.error('خطا در ارسال آزمون:', error);
-      setMessage('خطا در ارتباط با سرور!');
+      console.error('💥 Submit error:', error);
+      setMessage('خطا در ارتباط با سرور: ' + error.message);
     }
   };
 

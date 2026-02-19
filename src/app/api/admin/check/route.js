@@ -1,14 +1,22 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/database';
 
-const ADMIN_CHECK_SECRET = process.env.ADMIN_CHECK_SECRET || 'dev-secret';
+const ADMIN_CHECK_SECRET = process.env.ADMIN_CHECK_SECRET || 'change-this-secret-key';
 
 export async function GET(request) {
   try {
-    // فقط در محیط توسعه یا با secret خاص اجازه بده
-    if (process.env.NODE_ENV !== 'development') {
+    // در محیط production همیشه secret ضروری است
+    if (process.env.NODE_ENV === 'production') {
       const authHeader = request.headers.get('authorization');
-      if (!authHeader || authHeader !== `Bearer ${ADMIN_CHECK_SECRET}`) {
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return NextResponse.json({
+          success: false,
+          message: 'دسترسی غیرمجاز'
+        }, { status: 403 });
+      }
+
+      const token = authHeader.replace('Bearer ', '').trim();
+      if (token !== ADMIN_CHECK_SECRET || !token || token.length < 8) {
         return NextResponse.json({
           success: false,
           message: 'دسترسی غیرمجاز'
@@ -16,10 +24,28 @@ export async function GET(request) {
       }
     }
 
+    // در محیط development هم امنیت اولیه داشته باش
+    if (process.env.NODE_ENV === 'development') {
+      const authHeader = request.headers.get('authorization');
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.replace('Bearer ', '').trim();
+        if (token && token !== ADMIN_CHECK_SECRET) {
+          return NextResponse.json({
+            success: false,
+            message: 'دسترسی غیرمجاز'
+          }, { status: 403 });
+        }
+      }
+    }
+
+    // فقط چک کردن وجود مدیر، بدون برگرداندن اطلاعات اضافی
     const adminExists = await prisma.entrances.findFirst({
       where: {
         role: 'admin',
         is_active: true
+      },
+      select: {
+        id: true // فقط id برای چک وجود
       }
     });
 
@@ -29,10 +55,11 @@ export async function GET(request) {
     });
 
   } catch (error) {
-    // اطلاعات حساس را لاگ نکن
+    // هیچ اطلاعات خطا را لاگ نکن در production
     if (process.env.NODE_ENV === 'development') {
-      console.error('Admin check error:', error);
+      console.error('Admin check error:', error.message);
     }
+    
     return NextResponse.json({
       success: false,
       hasAdmin: false,

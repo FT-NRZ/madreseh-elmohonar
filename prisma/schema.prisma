@@ -135,6 +135,7 @@ model exams {
   description             String?
   subject                 String?            @db.VarChar(100)
   class_id                Int?
+  grade_id                Int?               // ← این خط را اضافه کن
   teacher_id              Int?
   duration_minutes        Int
   total_marks             Decimal            @db.Decimal(6, 2)
@@ -151,6 +152,7 @@ model exams {
   exam_questions          exam_questions[]
   exam_results            exam_results[]
   classes                 classes?           @relation(fields: [class_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  grades                  grades?            @relation(fields: [grade_id], references: [id], onDelete: Cascade, onUpdate: NoAction) // ← این خط را اضافه کن
   teachers                teachers?          @relation(fields: [teacher_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   exam_file_answers       exam_file_answers[]
 }
@@ -195,8 +197,9 @@ model grades {
   updated_at        DateTime            @default(now()) @db.Timestamp(6)
   classes           classes[]
   pre_registrations pre_registrations[]
-  gallery_images    gallery_images[]    // اضافه شده
-  teacher_news      teacher_news[]      @relation("GradeNews") // اضافه شده
+  gallery_images    gallery_images[]
+  teacher_news      teacher_news[]      @relation("GradeNews")
+  exams             exams[]             // ← این خط را اضافه کن
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.

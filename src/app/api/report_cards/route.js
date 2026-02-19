@@ -2,6 +2,21 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/database';
 import { verifyJWT } from '@/lib/jwt';
 
+// Logger ایمن که فقط در محیط توسعه لاگ می‌کند و اطلاعات حساس را پنهان می‌کند
+const secureLogger = (message, data) => {
+  if (process.env.NODE_ENV !== 'production') {
+    // در محیط توسعه، داده‌های حساس را مخفی می‌کنیم
+    const sanitizedData = data ? JSON.parse(JSON.stringify(data)) : {};
+    
+    if (sanitizedData.student_id) sanitizedData.student_id = '[HIDDEN]';
+    if (sanitizedData.subjects) {
+      sanitizedData.subjects = `[Array(${sanitizedData.subjects.length})]`;
+    }
+    
+    console.log(`[DEV-ONLY] ${message}`, sanitizedData);
+  }
+};
+
 export async function POST(request) {
   try {
     const authHeader = request.headers.get('authorization');
@@ -25,7 +40,8 @@ export async function POST(request) {
     const body = await request.json();
     const { student_id, subjects, semester, academic_year } = body;
 
-    console.log('Received data:', { student_id, subjects, semester, academic_year });
+    // جایگزینی console.log با logger ایمن
+    secureLogger('Received data', { student_id, subjects, semester, academic_year });
 
     if (!student_id || !subjects || !Array.isArray(subjects) || subjects.length === 0) {
       return NextResponse.json({ 
@@ -46,7 +62,8 @@ export async function POST(request) {
       }, { status: 404 });
     }
 
-    console.log('Found student:', student);
+    // جایگزینی console.log با logger ایمن
+    secureLogger('Found student', { id: '[HIDDEN]' });
 
     // ثبت کارنامه‌ها یکی یکی
     const reportCards = [];
@@ -71,10 +88,14 @@ export async function POST(request) {
     });
 
   } catch (error) {
-    console.error('Error creating report card:', error);
+    // لاگ خطا بدون افشای جزئیات حساس
+    const errorId = `err_${Date.now().toString(36)}`;
+    secureLogger(`Error creating report card [${errorId}]`, { message: error.message });
+    
     return NextResponse.json({ 
       success: false, 
-      message: 'خطا در ثبت کارنامه: ' + error.message
+      message: 'خطا در ثبت کارنامه',
+      error_id: errorId
     }, { status: 500 });
   }
 }
@@ -104,8 +125,14 @@ export async function DELETE(request) {
     return NextResponse.json({ success: true, message: 'درس با موفقیت حذف شد' });
 
   } catch (error) {
-    console.error('Error deleting report card entry:', error);
-    return NextResponse.json({ success: false, message: 'خطا در حذف درس' }, { status: 500 });
+    const errorId = `err_${Date.now().toString(36)}`;
+    secureLogger(`Error deleting report card [${errorId}]`, { message: error.message });
+    
+    return NextResponse.json({ 
+      success: false, 
+      message: 'خطا در حذف درس',
+      error_id: errorId
+    }, { status: 500 });
   }
 }
 
@@ -117,18 +144,20 @@ export async function PUT(request) {
     const payload = await verifyJWT(token);
 
     if (!payload || !['admin', 'teacher'].includes(payload.role)) {
-      return Response.json({ success: false, error: 'دسترسی غیرمجاز' }, { status: 403 });
+      return NextResponse.json({ success: false, message: 'دسترسی غیرمجاز' }, { status: 403 });
     }
 
     const body = await request.json();
     const { id, subject, grade } = body;
 
-    console.log('PUT data received:', { id, subject, grade, subjectLength: subject?.length, gradeLength: grade?.length });
+    // جایگزینی console.log با logger ایمن
+    secureLogger('PUT data received', { id, subject: subject || '[EMPTY]', grade: grade || '[EMPTY]' });
 
     if (!id || !subject || !grade) {
       return NextResponse.json({ success: false, message: 'اطلاعات ناقص است' }, { status: 400 });
     }
-        // بررسی طول مقادیر
+    
+    // بررسی طول مقادیر
     if (subject.length > 100) {
       return NextResponse.json({ success: false, message: 'نام درس خیلی طولانی است (حداکثر 100 کاراکتر)' }, { status: 400 });
     }
@@ -164,10 +193,13 @@ export async function PUT(request) {
     });
 
   } catch (error) {
-    console.error('Error updating report card entry:', error);
+    const errorId = `err_${Date.now().toString(36)}`;
+    secureLogger(`Error updating report card [${errorId}]`, { message: error.message });
+    
     return NextResponse.json({ 
       success: false, 
-      message: 'خطا در ویرایش درس: ' + error.message 
+      message: 'خطا در ویرایش درس',
+      error_id: errorId
     }, { status: 500 });
   }
 }
