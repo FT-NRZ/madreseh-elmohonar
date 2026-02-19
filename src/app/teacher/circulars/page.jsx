@@ -6,6 +6,15 @@ import {
 } from 'lucide-react';
 import moment from 'jalali-moment';
 
+// تابع ساده برای نمایش عکس‌ها از فضای ابری
+const getImageUrl = (url) => {
+  if (!url) return null;
+  // اگر لینک کامل Liara هست
+  if (url.startsWith('http')) return url;
+  // اگر فایل قدیمی محلی هست (سازگاری با گذشته)
+  return url.startsWith('/') ? url : `/${url}`;
+};
+
 export default function Circulars({ teacherId }) {
   const [circulars, setCirculars] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -257,25 +266,38 @@ export default function Circulars({ teacherId }) {
                   !circular.is_read ? 'ring-2 ring-green-400 ring-opacity-50' : 'border-green-100'
                 } ${circular.is_expired ? 'opacity-60' : ''}`}
               >
-                {/* عکس یا پس‌زمینه */}
+                {/* عکس یا پس‌زمینه - اصلاح شده */}
                 <div className="relative h-32 md:h-48 overflow-hidden">
-                  {circular.image_url ? (
+                  {getImageUrl(circular.image_url) ? (
                     <img
-                      src={circular.image_url}
+                      src={getImageUrl(circular.image_url)}
                       alt={circular.title}
                       className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                      onError={(e) => { 
+                        e.currentTarget.style.display = 'none';
+                        // نمایش placeholder
+                        const placeholder = e.currentTarget.parentElement.querySelector('.image-placeholder');
+                        if (placeholder) {
+                          placeholder.style.display = 'flex';
+                        }
+                      }}
                     />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-green-500 via-green-600 to-green-700 flex items-center justify-center relative overflow-hidden">
-                      <div className="absolute inset-0 bg-black/20"></div>
-                      <div className="relative z-10 text-center text-white">
-                        <FileText className="w-8 h-8 md:w-12 md:h-12 mx-auto mb-1 md:mb-2 opacity-80" />
-                        <div className="text-xl md:text-3xl font-bold opacity-90">
-                          {circular.circular_number || circular.title?.[0] || "ب"}
-                        </div>
+                  ) : null}
+                  
+                  {/* Placeholder */}
+                  <div 
+                    className={`image-placeholder w-full h-full bg-gradient-to-br from-green-500 via-green-600 to-green-700 flex items-center justify-center relative overflow-hidden ${
+                      getImageUrl(circular.image_url) ? 'hidden' : 'flex'
+                    }`}
+                  >
+                    <div className="absolute inset-0 bg-black/20"></div>
+                    <div className="relative z-10 text-center text-white">
+                      <FileText className="w-8 h-8 md:w-12 md:h-12 mx-auto mb-1 md:mb-2 opacity-80" />
+                      <div className="text-xl md:text-3xl font-bold opacity-90">
+                        {circular.circular_number || circular.title?.[0] || "ب"}
                       </div>
                     </div>
-                  )}
+                  </div>
                   
                   {/* برچسب‌ها */}
                   <div className="absolute top-2 md:top-3 right-2 md:right-3 flex flex-col gap-1 md:gap-2">
@@ -383,13 +405,14 @@ export default function Circulars({ teacherId }) {
 
             {/* محتوای مودال */}
             <div className="p-4 md:p-6 space-y-4 md:space-y-6">
-              {/* عکس بخشنامه */}
-              {selectedCircular.image_url && (
+              {/* عکس بخشنامه - اصلاح شده */}
+              {getImageUrl(selectedCircular.image_url) && (
                 <div className="w-full h-48 md:h-64 rounded-xl overflow-hidden shadow-lg">
                   <img
-                    src={selectedCircular.image_url}
+                    src={getImageUrl(selectedCircular.image_url)}
                     alt={selectedCircular.title}
                     className="w-full h-full object-cover"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
                   />
                 </div>
               )}
@@ -432,7 +455,7 @@ export default function Circulars({ teacherId }) {
               {/* تاریخ انقضا */}
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 md:p-4">
                 <div className="flex items-center gap-2 text-yellow-700">
-                  <AlertTriangle className="w-4 h-4" /> {/* جایگزین شد */}
+                  <AlertTriangle className="w-4 h-4" />
                   <span className="text-sm font-medium">
                     این بخشنامه تا {moment(selectedCircular.expiry_date).format('jYYYY/jMM/jDD')} معتبر است
                   </span>

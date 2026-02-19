@@ -9,6 +9,15 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
+// تابع برای نمایش عکس‌ها - اصلاح شده برای Liara Storage
+const getImageUrl = (url) => {
+  if (!url) return null;
+  // اگر لینک کامل Liara Storage هست
+  if (url.startsWith('http')) return url;
+  // اگر فایل محلی قدیمی هست (سازگاری)
+  return url.startsWith('/') ? url : `/${url}`;
+};
+
 const NewsPage = () => {
   const [news, setNews] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -256,20 +265,29 @@ const NewsPage = () => {
                   onClick={() => openNewsModal(item)}
                 >
                   {/* Image */}
-                  <div className={`relative overflow-hidden ${
+                  <div className={`relative overflow-hidden bg-gray-50 flex items-center justify-center ${
                     viewMode === 'list' ? 'md:w-80 h-48 md:h-auto' : 'h-48'
                   }`}>
-                    {item.image_url ? (
+                    {getImageUrl(item.image_url) ? (
                       <img
-                        src={item.image_url}
+                        src={getImageUrl(item.image_url)}
                         alt={item.title}
-                        className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                        className="max-w-full max-h-full object-contain transition-transform duration-300 hover:scale-105"
+                        style={{ width: 'auto', height: 'auto' }}
+                        onError={(e) => { 
+                          e.currentTarget.style.display = 'none';
+                          const placeholder = e.currentTarget.parentElement.querySelector('.image-placeholder');
+                          if (placeholder) placeholder.style.display = 'flex';
+                        }}
                       />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-[#399918] to-[#22c55e] flex items-center justify-center">
-                        <Camera className="w-12 h-12 text-white opacity-80" />
-                      </div>
-                    )}
+                    ) : null}
+                    
+                    {/* Placeholder */}
+                    <div className={`image-placeholder w-full h-full bg-gradient-to-br from-[#399918] to-[#22c55e] flex items-center justify-center ${
+                      getImageUrl(item.image_url) ? 'hidden' : 'flex'
+                    }`}>
+                      <Camera className="w-12 h-12 text-white opacity-80" />
+                    </div>
                     
                     {/* Overlay */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300"></div>
@@ -361,12 +379,14 @@ const NewsPage = () => {
             {/* Modal Content */}
             <div className="p-6">
               {/* Image */}
-              {selectedNews.image_url && (
-                <div className="mb-6 rounded-xl overflow-hidden">
+              {getImageUrl(selectedNews.image_url) && (
+                <div className="mb-6 bg-gray-50 rounded-xl overflow-hidden flex items-center justify-center" style={{ minHeight: '200px' }}>
                   <img
-                    src={selectedNews.image_url}
+                    src={getImageUrl(selectedNews.image_url)}
                     alt={selectedNews.title}
-                    className="w-full h-64 object-cover"
+                    className="max-w-full max-h-96 object-contain"
+                    style={{ width: 'auto', height: 'auto' }}
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
                   />
                 </div>
               )}

@@ -66,17 +66,42 @@ export default function AdminLayout({ children }) {
   const fetchUserStats = async () => {
     try {
       const token = localStorage?.getItem?.('token');
+      
+      // اگه توکن نداریم، آمار صفر بزار و برگرد
+      if (!token) {
+        setUserStats({ students: 0, teachers: 0, admins: 0, total: 0 });
+        return;
+      }
+
       const response = await fetch('/api/admin/stats', {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 
+          'Authorization': `Bearer ${token}`
+        }
       });
+
+      // 🔥 فقط اگه response موفق بود، دیتا رو بگیر
       if (response.ok) {
         const data = await response.json();
-        setUserStats(data.userStats || { students: 0, teachers: 0, admins: 0, total: 0 });
+        
+        if (data.success && data.stats) {
+          setUserStats({
+            students: data.stats.students || 0,
+            teachers: data.stats.teachers || 0,
+            admins: data.stats.admins || 0,
+            total: (data.stats.students || 0) + (data.stats.teachers || 0) + (data.stats.admins || 0)
+          });
+        } else {
+          // اگه فرمت دیتا اشتباه بود
+          setUserStats({ students: 0, teachers: 0, admins: 0, total: 0 });
+        }
       } else {
-        setUserStats({ students: 25, teachers: 8, admins: 2, total: 35 });
+        // 🔥 اگه 401 یا هر خطای دیگه‌ای بود، فقط آمار صفر بزار
+        // هیچ redirect یا حذف توکنی نداریم
+        setUserStats({ students: 0, teachers: 0, admins: 0, total: 0 });
       }
-    } catch {
-      setUserStats({ students: 25, teachers: 8, admins: 2, total: 35 });
+    } catch (error) {
+      // 🔥 اگه network error یا exception خورد، فقط آمار صفر بزار
+      setUserStats({ students: 0, teachers: 0, admins: 0, total: 0 });
     }
   };
 

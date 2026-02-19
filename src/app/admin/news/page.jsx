@@ -2,18 +2,27 @@
 import React, { useState, useEffect } from 'react';
 import {
   Users, GraduationCap, Calendar, BookOpen, BarChart3,
-  Settings, LogOut, Image, LayoutGrid, NewspaperIcon,
+  Settings, LogOut, Image, LayoutGrid,
+  Newspaper as NewspaperIcon, 
   Edit, Trash2, RefreshCw, X, Plus, Eye, Target,
   ArrowLeft, ChevronLeft, ChevronRight,
   GalleryHorizontalEnd,
   CalendarCheck,
   FileText,
   Shield,
-  Calendar1Icon,
   UserPlus,
   GalleryHorizontal,
 } from 'lucide-react';
 import moment from 'jalali-moment';
+
+// تابع نمایش عکس از Liara Storage
+const getImageUrl = (url) => {
+  if (!url) return null;
+  // اگر لینک کامل هست، همونطور برگردون
+  if (url.startsWith('http')) return url;
+  // برای فایل‌های قدیمی محلی
+  return url.startsWith('/') ? url : `/${url}`;
+};
 
 export default function NewsAdminPage() {
   const [user, setUser] = useState(null);
@@ -26,7 +35,6 @@ export default function NewsAdminPage() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [teachers, setTeachers] = useState([]);
   const [students, setStudents] = useState([]);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [form, setForm] = useState({
     id: null,
     title: '',
@@ -37,21 +45,6 @@ export default function NewsAdminPage() {
     target_type: 'public',
     target_user_id: null,
   });
-
-  const resetForm = () => {
-    setForm({
-      id: null,
-      title: '',
-      content: '',
-      is_published: false,
-      publish_date: '',
-      image_url: null,
-      target_type: 'public',
-      target_user_id: null,
-    });
-    setSelectedDate(null);
-    setShowModal(false);
-  };
 
   const fetchUsers = async () => {
     try {
@@ -216,12 +209,6 @@ export default function NewsAdminPage() {
     }
   };
 
-  const logout = () => {
-    localStorage?.removeItem?.('token');
-    localStorage?.removeItem?.('user');
-    window.location.href = '/';
-  };
-
   const formatPersianDate = (dateString) => {
     if (!dateString) return 'تعیین نشده';
     try {
@@ -311,24 +298,34 @@ export default function NewsAdminPage() {
                     key={item.id}
                     className="group bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-green-100 overflow-hidden hover:scale-[1.02]"
                   >
-                    {/* عکس یا رنگ دیفالت */}
+                    {/* عکس یا رنگ دیفالت - اصلاح شده */}
                     <div className="relative h-32 md:h-48 overflow-hidden">
-                      {item.image_url ? (
+                      {getImageUrl(item.image_url) ? (
                         <img
-                          src={item.image_url}
+                          src={getImageUrl(item.image_url)}
                           alt={item.title}
                           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                            // نمایش placeholder
+                            const placeholder = e.currentTarget.parentElement.querySelector('.image-placeholder');
+                            if (placeholder) {
+                              placeholder.style.display = 'flex';
+                            }
+                          }}
                         />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-[#399918] to-[#22c55e] flex items-center justify-center">
-                          <div className="text-center text-white">
-                            <NewspaperIcon className="w-8 h-8 md:w-12 md:h-12 mx-auto mb-2 opacity-80" />
-                            <div className="text-xl md:text-3xl font-bold opacity-90">
-                              {item.title?.[0] || "خ"}
-                            </div>
+                      ) : null}
+                      
+                      {/* Placeholder */}
+                      <div className={`image-placeholder w-full h-full bg-gradient-to-br from-[#399918] to-[#22c55e] flex items-center justify-center ${getImageUrl(item.image_url) ? 'hidden' : 'flex'}`}>
+                        <div className="text-center text-white">
+                          <NewspaperIcon className="w-8 h-8 md:w-12 md:h-12 mx-auto mb-2 opacity-80" />
+                          <div className="text-xl md:text-3xl font-bold opacity-90">
+                            {item.title?.[0] || "خ"}
                           </div>
                         </div>
-                      )}
+                      </div>
+                      
                       {/* وضعیت انتشار و هدف */}
                       <div className="absolute top-2 md:top-3 right-2 md:right-3 flex flex-col gap-2">
                         <span className={`px-2 md:px-3 py-1 text-xs rounded-full font-semibold ${
@@ -436,22 +433,46 @@ export default function NewsAdminPage() {
                       type="file"
                       accept="image/*"
                       onChange={async (e) => {
-                        const file = e.target.files[0];
+                        const file = e.target.files?.[0];
                         if (!file) return;
+
                         const formData = new FormData();
                         formData.append('file', file);
-                        const res = await fetch('/api/upload', { method: 'POST', body: formData });
-                        const data = await res.json();
-                        if (data.success && data.url) {
-                          setForm(prev => ({ ...prev, image_url: data.url }));
-                        } else {
-                          alert('خطا در آپلود عکس');
+                        formData.append('folder', 'news');
+
+                        try {
+                          // 🔥 مستقیماً به storage/upload میریم
+                          const response = await fetch('/api/storage/upload', {
+                            method: 'POST',
+                            body: formData
+                          });
+
+                          const data = await response.json();
+                          
+                          if (data.success && data.url) {
+                            setForm(prev => ({ ...prev, image_url: data.url }));
+                            console.log('✅ Upload successful:', data.url);
+                          } else {
+                            console.error('❌ Upload failed:', data);
+                            alert(data.error || 'خطا در آپلود تصویر');
+                          }
+                        } catch (error) {
+                          console.error('💥 Upload error:', error);
+                          alert('خطا در آپلود: ' + error.message);
                         }
                       }}
                       className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 mt-2"
                     />
-                    {form.image_url && (
-                      <img src={form.image_url} alt="خبر" className="mt-2 w-32 h-32 object-cover rounded-xl border" />
+                    {form.image_url && getImageUrl(form.image_url) && (
+                      <img 
+                        src={getImageUrl(form.image_url)} 
+                        alt="خبر" 
+                        className="mt-2 w-32 h-32 object-cover rounded-xl border"
+                        onError={(e) => { 
+                          console.error('❌ Image failed to load:', getImageUrl(form.image_url)); // 🔥 دیباگ
+                          e.currentTarget.style.display = 'none'; 
+                        }}
+                      />
                     )}
                   </div>
                   <div className="space-y-2">

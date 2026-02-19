@@ -35,7 +35,6 @@ export default function StudentExamPage() {
   useEffect(() => {
     async function fetchExam() {
       try {
-        // 🔥 اضافه کردن توکن احراز هویت
         const token = localStorage.getItem('token');
         if (!token) {
           setError('لطفاً وارد سیستم شوید');
@@ -46,7 +45,7 @@ export default function StudentExamPage() {
         const res = await fetch(`/api/exams/student/${examId}`, {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${token}`, // ✅ ارسال توکن
+            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
         });
@@ -82,6 +81,31 @@ export default function StudentExamPage() {
     setAnswers(a => ({ ...a, [idx]: value }));
   };
 
+  const getFileName = (url) => {
+    try {
+      const u = new URL(url, typeof window !== 'undefined' ? window.location.origin : 'http://localhost');
+      return (u.pathname || '').split('/').pop() || 'file';
+    } catch {
+      return (url.split('/').pop() || 'file');
+    }
+  };
+
+  // ✅ فقط یک تابع makeFileUrl
+  const makeFileUrl = (url, disposition = 'attachment') => {
+    if (!url) return null;
+
+    // اگر URL کامل است، مستقیم استفاده کن
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+
+    // هر مسیر نسبی یا نام فایل را از API دانلود بده
+    // API خودش اگر uploads/ نباشد، اضافه می‌کند
+    const raw = url.replace(/^\/+/, ''); // حذف / اول
+    const name = getFileName(url);
+    return `/api/files/download?path=${encodeURIComponent(raw)}&disposition=${disposition}&name=${encodeURIComponent(name)}`;
+  };
+
   const handleSubmitQuiz = async (e) => {
     e.preventDefault();
     if (exam?.is_active === false) {
@@ -89,7 +113,6 @@ export default function StudentExamPage() {
       return;
     }
 
-    // اضافه کردن دیباگ
     console.log('🔍 Debug info:', {
       examId,
       studentId,
@@ -163,7 +186,6 @@ export default function StudentExamPage() {
     }
 
     try {
-      // 🔥 اضافه کردن توکن احراز هویت
       const token = localStorage.getItem('token');
       if (!token) {
         setMessage('لطفاً وارد سیستم شوید');
@@ -171,33 +193,43 @@ export default function StudentExamPage() {
         return;
       }
 
-      // آپلود فایل
+      // 🔥 تغییر: آپلود فایل مستقیماً به storage
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('folder', 'student-exam-answers'); // فولدر مخصوص پاسخ‌های دانش‌آموزان
       
-      const uploadRes = await fetch('/api/upload', { 
+      console.log('🚀 Uploading student answer file:', file.name);
+
+      const uploadRes = await fetch('/api/storage/upload', { // ← تغییر از /api/upload به /api/storage/upload
         method: 'POST', 
-        body: formData,
-        headers: {
-          'Authorization': `Bearer ${token}` // ✅ ارسال توکن برای آپلود
-        }
+        body: formData
+        // حذف Authorization header چون storage/upload نیاز نداره
       });
 
       const uploadData = await uploadRes.json();
-      if (!uploadData.url) {
+      console.log('📊 Upload response:', uploadData);
+      
+      if (!uploadData.success || !uploadData.url) {
         setMessage(uploadData.error || 'خطا در آپلود فایل');
         return;
       }
+
+      console.log('✅ File uploaded successfully:', uploadData.url);
 
       // ارسال URL فایل آپلود شده
       const res = await fetch(`/api/exams/student/${examId}`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` // ✅ ارسال توکن
+          'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ student_id: studentId, file_url: uploadData.url })
+        body: JSON.stringify({ 
+          student_id: studentId, 
+          file_url: uploadData.url 
+        })
       });
+
+      console.log('📡 Submit response status:', res.status);
 
       if (!res.ok) {
         if (res.status === 401) {
@@ -207,25 +239,27 @@ export default function StudentExamPage() {
           window.location.href = '/login';
           return;
         }
-        throw new Error('خطا در ارسال پاسخ');
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'خطا در ارسال پاسخ');
       }
 
       const data = await res.json();
+      console.log('📊 Submit response data:', data);
+      
       if (data.success) {
         setMessage('پاسخ شما با موفقیت ثبت شد!');
-        // پاک کردن فایل بعد از ثبت موفق
         setFile(null);
-        // ریست کردن input file
         const fileInput = document.querySelector('input[type="file"]');
         if (fileInput) fileInput.value = '';
       } else {
         setMessage(data.error || 'خطا در ثبت پاسخ');
       }
     } catch (error) {
-      console.error('خطا در ارسال فایل:', error);
-      setMessage('خطا در ارتباط با سرور!');
+      console.error('💥 Submit file error:', error);
+      setMessage('خطا در ارتباط با سرور: ' + error.message);
     }
   };
+
 
   if (loading) {
     return (
@@ -330,14 +364,27 @@ export default function StudentExamPage() {
           {exam.type === 'pdf' && (
             <>
               {exam.pdf_url ? (
-                <div className="mb-6">
-                  <iframe
-                    src={exam.pdf_url}
-                    width="100%"
-                    height="600px"
-                    title="PDF آزمون"
-                    className="border border-gray-300 rounded-lg"
-                  />
+                <div className="mb-6 space-y-3">
+                  <div className="p-4 bg-gray-50 rounded border border-gray-200 text-gray-700">
+                    این آزمون PDF است. می‌توانید در تب جدید باز کنید یا دانلود کنید.
+                  </div>
+                  <div className="flex gap-3 justify-end">
+                    <a
+                      href={makeFileUrl(exam.pdf_url, 'inline')}
+                      target="_blank"
+                      rel="noopener"
+                      className="inline-flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+                    >
+                      🔎 مشاهده در تب جدید
+                    </a>
+                    <a
+                      href={makeFileUrl(exam.pdf_url, 'attachment')}
+                      download={getFileName(exam.pdf_url)}
+                      className="inline-flex items-center bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
+                    >
+                      ⬇️ دانلود PDF
+                    </a>
+                  </div>
                 </div>
               ) : (
                 <div className="text-gray-600 mb-6 p-4 bg-gray-50 rounded-lg">
@@ -375,12 +422,27 @@ export default function StudentExamPage() {
           {exam.type === 'image' && (
             <>
               {exam.image_url ? (
-                <div className="mb-6">
-                  <img 
-                    src={exam.image_url} 
-                    alt="آزمون تصویری" 
-                    className="max-w-full border border-gray-300 rounded-lg" 
-                  />
+                <div className="mb-6 space-y-3">
+                  <div className="p-4 bg-gray-50 rounded border border-gray-200 text-gray-700">
+                    این آزمون تصویری است. می‌توانید در تب جدید باز کنید یا دانلود کنید.
+                  </div>
+                  <div className="flex gap-3 justify-end">
+                    <a
+                      href={makeFileUrl(exam.image_url, 'inline')}
+                      target="_blank"
+                      rel="noopener"
+                      className="inline-flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+                    >
+                      🔎 مشاهده در تب جدید
+                    </a>
+                    <a
+                      href={makeFileUrl(exam.image_url, 'attachment')}
+                      download={getFileName(exam.image_url)}
+                      className="inline-flex items-center bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
+                    >
+                      ⬇️ دانلود تصویر
+                    </a>
+                  </div>
                 </div>
               ) : (
                 <div className="text-gray-600 mb-6 p-4 bg-gray-50 rounded-lg">

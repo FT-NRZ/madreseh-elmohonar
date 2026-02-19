@@ -15,6 +15,8 @@ export default function TeacherClassesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [teacher, setTeacher] = useState(null);
+  const [grades, setGrades] = useState([]);
+  const [workshop, setWorkshop] = useState(null);
 
   useEffect(() => {
     // بررسی احراز هویت و دریافت اطلاعات معلم
@@ -64,11 +66,21 @@ const fetchAllData = async (teacherId) => {
       
       if (classesData.success) {
         setClasses(classesData.classes || []);
-        console.log('✅ کلاس‌ها تنظیم شد:', classesData.classes?.length);
+        setGrades(classesData.grades || []);
+        setWorkshop(classesData.workshop || null);
         
-        // دریافت دانش‌آموزان کلاس‌های معلم
+        console.log('✅ کلاس‌ها:', classesData.classes?.length);
+        console.log('✅ پایه‌ها:', classesData.grades?.length);
+        console.log('✅ کارگاه:', classesData.workshop ? 'دارد' : 'ندارد');
+        
+        // 🔥 اصلاح: همیشه دانش‌آموزان رو بگیر اگر کلاس وجود داره
+        // (چه معلم عادی باشه چه معلم کارگاه)
         if (classesData.classes && classesData.classes.length > 0) {
           await fetchStudentsForClasses(classesData.classes);
+        } else {
+          // اگر کلاسی نبود، دانش‌آموزان رو خالی کن
+          setStudents([]);
+          console.log('⚠️ کلاسی برای دریافت دانش‌آموزان وجود ندارد');
         }
       } else {
         console.error('❌ خطا در دریافت کلاس‌ها:', classesData.message);
@@ -92,7 +104,6 @@ const fetchAllData = async (teacherId) => {
       }
     } catch (specialError) {
       console.error('⚠️ خطا در دریافت کلاس‌های ویژه:', specialError);
-      // این خطا فقط کلاس‌های ویژه را تحت تأثیر قرار می‌دهد
     }
 
   } catch (err) {
@@ -105,28 +116,45 @@ const fetchAllData = async (teacherId) => {
 
 const fetchStudentsForClasses = async (classes) => {
   try {
+    console.log('🔍 شروع دریافت دانش‌آموزان برای', classes.length, 'کلاس');
     const allStudents = [];
     
     for (const cls of classes) {
-      const studentsRes = await fetch(`/api/teacher/classes/${cls.id}/students`);
-      if (studentsRes.ok) {
-        const studentsData = await studentsRes.json();
-        if (studentsData.students) {
-          const studentsWithClass = studentsData.students.map(student => ({
-            ...student,
-            class_name: cls.class_name,
-            grade_name: cls.grade_name,
-            grade_level: cls.grade_level
-          }));
-          allStudents.push(...studentsWithClass);
+      console.log(`📡 درخواست دانش‌آموزان کلاس ${cls.id} (${cls.class_name})`);
+      
+      try {
+        const studentsRes = await fetch(`/api/teacher/classes/${cls.id}/students`);
+        console.log(`📊 Status برای کلاس ${cls.id}:`, studentsRes.status);
+        
+        if (studentsRes.ok) {
+          const studentsData = await studentsRes.json();
+          console.log(`✅ دانش‌آموزان کلاس ${cls.id}:`, studentsData.students?.length || 0);
+          
+          if (studentsData.students && studentsData.students.length > 0) {
+            const studentsWithClass = studentsData.students.map(student => ({
+              ...student,
+              class_name: cls.class_name,
+              grade_name: cls.grade_name,
+              grade_level: cls.grade_level
+            }));
+            allStudents.push(...studentsWithClass);
+          } else {
+            console.log(`⚠️ کلاس ${cls.id} دانش‌آموزی ندارد`);
+          }
+        } else {
+          console.error(`❌ خطا در دریافت دانش‌آموزان کلاس ${cls.id}:`, studentsRes.status);
         }
+      } catch (err) {
+        console.error(`❌ Exception در دریافت دانش‌آموزان کلاس ${cls.id}:`, err);
       }
     }
     
+    console.log('✅ مجموع دانش‌آموزان:', allStudents.length);
     setStudents(allStudents);
-    console.log('✅ دانش‌آموزان تنظیم شد:', allStudents.length);
+    
   } catch (error) {
-    console.error('⚠️ خطا در دریافت دانش‌آموزان:', error);
+    console.error('💥 خطای کلی در دریافت دانش‌آموزان:', error);
+    setStudents([]);
   }
 };
 
@@ -249,33 +277,53 @@ const fetchStudentsForClasses = async (classes) => {
             <p className="text-xs md:text-base text-gray-600 font-medium">کلاس‌های عادی</p>
           </div>
         </div>
-
-        <div className="bg-gradient-to-br from-yellow-50 to-white rounded-xl md:rounded-2xl p-2 md:p-6 border border-yellow-200 hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
-          <div className="flex items-center justify-between mb-2 md:mb-6">
-            <div className="w-7 h-7 md:w-14 md:h-14 bg-gradient-to-r from-yellow-600 to-yellow-500 rounded-lg md:rounded-2xl flex items-center justify-center shadow-lg">
-              <Star className="w-4 h-4 md:w-7 md:h-7 text-white" />
-            </div>
-            <Crown className="w-4 h-4 md:w-5 md:h-5 text-yellow-600" />
-          </div>
-          <div>
-            <p className="text-base md:text-4xl font-bold text-gray-800 mb-0.5 md:mb-2">{specialClasses.length}</p>
-            <p className="text-xs md:text-base text-gray-600 font-medium">کلاس‌های ویژه</p>
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-br from-blue-50 to-white rounded-xl md:rounded-2xl p-2 md:p-6 border border-blue-200 hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
-          <div className="flex items-center justify-between mb-2 md:mb-6">
-            <div className="w-7 h-7 md:w-14 md:h-14 bg-gradient-to-r from-blue-600 to-blue-500 rounded-lg md:rounded-2xl flex items-center justify-center shadow-lg">
-              <Users className="w-4 h-4 md:w-7 md:h-7 text-white" />
-            </div>
-            <UserCheck className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
-          </div>
-          <div>
-            <p className="text-base md:text-4xl font-bold text-gray-800 mb-0.5 md:mb-2">{students.length}</p>
-            <p className="text-xs md:text-base text-gray-600 font-medium">دانش‌آموزان</p>
-          </div>
-        </div>
       </div>
+
+      {/* نمایش پایه‌ها و کارگاه برای معلم کارگاه */}
+      {grades.length > 0 && (
+        <div className="bg-white rounded-xl md:rounded-2xl shadow-lg p-4 md:p-6 border border-gray-100">
+          <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-4 md:mb-6 flex items-center gap-2">
+            <School className="w-5 h-5 md:w-6 md:h-6 text-green-600" />
+            پایه‌های تدریس شما
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
+            {grades.map(g => (
+              <div key={g.id} className="bg-gradient-to-r from-green-50 to-green-100 rounded-xl p-3 border border-green-200 text-center hover:shadow-lg transition-all">
+                <div className="text-lg md:text-2xl font-bold text-green-800 mb-1">
+                  {g.grade_level}
+                </div>
+                <div className="text-xs md:text-sm text-green-700">
+                  {g.grade_name}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {workshop && (
+        <div className="bg-white rounded-xl md:rounded-2xl shadow-lg p-4 md:p-6 border border-yellow-200">
+          <h3 className="text-lg md:text-xl font-bold text-yellow-700 mb-4 flex items-center gap-2">
+            <Crown className="w-5 h-5 md:w-6 md:h-6 text-yellow-600" />
+            کارگاه تدریسی شما
+          </h3>
+          <div className="bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-xl p-4 border border-yellow-200">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 bg-yellow-600 rounded-lg flex items-center justify-center">
+                <Award className="w-5 h-5 text-white" />
+              </div>
+              <div className="font-bold text-yellow-800 text-base md:text-lg">
+                {workshop.title}
+              </div>
+            </div>
+            {workshop.description && (
+              <p className="text-yellow-700 text-sm md:text-base mt-2">
+                {workshop.description}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* کلاس‌های عادی */}
       {classes.length > 0 && (

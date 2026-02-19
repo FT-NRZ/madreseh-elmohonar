@@ -6,58 +6,96 @@ const prisma = new PrismaClient()
 export async function GET(request, context) {
   try {
     const params = await context.params;
-    const studentId = Number(params.studentId);
+    const inputId = Number(params.studentId);
 
-    console.log('🔍 Received studentId:', studentId);
+    console.log('🔍 Input ID received:', inputId);
 
-    // ❌ مشکل اینجاست: studentId ممکن است user_id باشد نه students.id
-    // ابتدا بررسی کن که این ID مربوط به کدام جدول است
-
-    // بررسی اینکه آیا این user_id است یا student_id
-    let student = await prisma.students.findUnique({
-      where: { id: studentId },
-      include: { users: true }
+    // یافتن دانش‌آموز (هم با user_id هم با student.id)
+    let student = await prisma.students.findFirst({
+      where: {
+        OR: [
+          { id: inputId },
+          { user_id: inputId }
+        ]
+      },
+      include: { 
+        users: true 
+      }
     });
 
-    // اگر student پیدا نشد، احتمالاً user_id پاس شده
     if (!student) {
-      console.log('❌ Not found by student.id, trying user_id...');
-      student = await prisma.students.findUnique({
-        where: { user_id: studentId },
-        include: { users: true }
-      });
-    }
-
-    if (!student) {
-      console.log('❌ Student not found with ID:', studentId);
+      console.log('❌ Student not found with ID:', inputId);
       return NextResponse.json({ 
         success: false, 
-        error: `دانش‌آموز با شناسه ${studentId} یافت نشد`,
+        error: `دانش‌آموز با شناسه ${inputId} یافت نشد`,
         results: []
       });
     }
 
-    const actualStudentId = student.id; // ID واقعی از جدول students
-    console.log('✅ Student found:', student.users.first_name, student.users.last_name, 'actual student_id:', actualStudentId);
+    console.log('✅ Student found:', student.users.first_name, student.users.last_name, 'student.id:', student.id, 'user_id:', student.user_id);
 
-    // حالا با student_id واقعی جستجو کن
+    // 🔥 جستجو هم با student.id هم با user_id برای اطمینان
     const quizResults = await prisma.exam_results.findMany({
-      where: { student_id: actualStudentId },
+      where: {
+        OR: [
+          { student_id: student.id },
+          { student_id: student.user_id },
+          // اگر معلم user_id رو به‌جای student_id ثبت کرده
+          { student_id: inputId }
+        ]
+      },
       include: {
-        exams: true
+        exams: true,
+        students: {
+          include: {
+            users: true
+          }
+        }
       },
       orderBy: { completed_at: 'desc' }
     });
-    console.log('📊 Quiz results found:', quizResults.length);
 
+    console.log('📊 Quiz results found:', quizResults.length);
+    if (quizResults.length > 0) {
+      console.log('📋 Quiz results details:', quizResults.map(r => ({
+        id: r.id,
+        exam_id: r.exam_id,
+        student_id: r.student_id,
+        marks: r.marks_obtained,
+        grade: r.grade_desc
+      })));
+    }
+
+    // 🔥 جستجو فایل‌ها هم با همه ID ها
     const fileResults = await prisma.exam_file_answers.findMany({
-      where: { student_id: actualStudentId },
+      where: {
+        OR: [
+          { student_id: student.id },
+          { student_id: student.user_id },
+          { student_id: inputId }
+        ]
+      },
       include: {
-        exams: true
+        exams: true,
+        students: {
+          include: {
+            users: true
+          }
+        }
       },
       orderBy: { created_at: 'desc' }
     });
+
     console.log('📊 File results found:', fileResults.length);
+    if (fileResults.length > 0) {
+      console.log('📋 File results details:', fileResults.map(r => ({
+        id: r.id,
+        exam_id: r.exam_id,
+        student_id: r.student_id,
+        grade: r.grade_desc,
+        feedback: r.teacher_feedback
+      })));
+    }
 
     // ترکیب نتایج
     const allResults = [
@@ -69,7 +107,7 @@ export async function GET(request, context) {
           id: result.exams.id,
           title: result.exams.title,
           type: result.exams.type,
-          total_marks: Number(result.exams.total_marks)
+          total_marks: Number(result.exams.total_marks || 0)
         },
         marks_obtained: result.marks_obtained ? Number(result.marks_obtained) : null,
         grade_desc: result.grade_desc,
@@ -86,7 +124,7 @@ export async function GET(request, context) {
           id: result.exams.id,
           title: result.exams.title,
           type: result.exams.type,
-          total_marks: Number(result.exams.total_marks)
+          total_marks: Number(result.exams.total_marks || 0)
         },
         marks_obtained: null,
         grade_desc: result.grade_desc,
@@ -98,7 +136,7 @@ export async function GET(request, context) {
       }))
     ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-    console.log('✅ Total results found:', allResults.length);
+    console.log('✅ Total results combined:', allResults.length);
 
     return NextResponse.json({
       success: true,
@@ -109,8 +147,9 @@ export async function GET(request, context) {
         name: `${student.users.first_name} ${student.users.last_name}`
       },
       debug: {
-        inputStudentId: studentId,
-        actualStudentId: actualStudentId,
+        inputId: inputId,
+        studentTableId: student.id,
+        userTableId: student.user_id,
         quizResults: quizResults.length,
         fileResults: fileResults.length,
         totalResults: allResults.length

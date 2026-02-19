@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 
 export async function PUT(request, { params }) {
   try {
-    const { id } = params;
+    const { resultId } = params;
     
     // احراز هویت
     const token = request.headers.get('Authorization')?.replace('Bearer ', '');
@@ -22,22 +22,18 @@ export async function PUT(request, { params }) {
     const body = await request.json();
     const { grade_desc, marks_obtained } = body;
 
-    console.log('🔄 Updating exam result:', { id, grade_desc, marks_obtained });
+    console.log('🔄 Updating exam result:', { resultId, grade_desc, marks_obtained });
 
     // بروزرسانی نتیجه آزمون تستی
     const updatedResult = await prisma.exam_results.update({
-      where: { id: parseInt(id) },
+      where: { id: parseInt(resultId) },
       data: {
         grade_desc,
         marks_obtained: marks_obtained ? parseFloat(marks_obtained) : undefined,
         updated_at: new Date()
       },
       include: {
-        students: {
-          include: {
-            users: true
-          }
-        },
+        students: { include: { users: true } },
         exams: true
       }
     });

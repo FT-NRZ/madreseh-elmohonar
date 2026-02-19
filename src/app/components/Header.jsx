@@ -7,8 +7,6 @@ import { usePathname } from 'next/navigation';
 export default function Header({ onLoginClick }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const [user, setUser] = useState(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const userMenuRef = useRef();
@@ -45,7 +43,6 @@ export default function Header({ onLoginClick }) {
     { name: 'پیش ثبت نام', href: '/pre-registration' },
     { name: 'گالری', href: '/gallery' },
     { name: 'کارگاه', href: '/workshops' },
-    { name: 'آزمونک', href: '#' },
     { name: 'ارتباط با ما', href: '/contact' },
     { name: 'درباره ما', href: '/about' }
   ];
@@ -70,11 +67,6 @@ export default function Header({ onLoginClick }) {
 
   // منوی کاربر با پنل‌های مختلف برای هر نقش
   const userMenuItems = [
-    {
-      name: 'پروفایل من',
-      icon: <UserCircle className="w-5 h-5 ml-2 text-green-600" />,
-      href: '/profile'
-    },
     // پنل مدیریت برای ادمین
     {
       name: 'پنل مدیریت',
@@ -157,55 +149,6 @@ export default function Header({ onLoginClick }) {
                 </div>
               </nav>
               <div className="flex items-center space-x-4">
-                <div className="flex items-center">
-                  <div className={`flex items-center transition-all duration-500 ease-out ${
-                    isSearchOpen ? 'w-80' : 'w-12'
-                  }`}>
-                    <div className="relative flex items-center w-full">
-                      <button 
-                        onClick={() => setIsSearchOpen(!isSearchOpen)}
-                        className={`flex items-center justify-center h-12 bg-white/80 backdrop-blur-md shadow-lg hover:shadow-xl transition-all duration-300 group border border-gray-200/80 ${
-                          isSearchOpen 
-                            ? 'w-12 rounded-r-2xl border-l-0' 
-                            : 'w-12 rounded-2xl hover:bg-[#399918]/5'
-                        }`}
-                      >
-                        <Search className={`w-5 h-5 transition-all duration-300 ${
-                          isSearchOpen ? 'text-[#399918]' : 'text-gray-600 group-hover:text-[#399918]'
-                        }`} />
-                      </button>
-                      <div className={`flex items-center bg-white/90 backdrop-blur-md shadow-lg border border-gray-200/80 border-r-0 rounded-l-2xl transition-all duration-500 overflow-hidden ${
-                        isSearchOpen ? 'w-full opacity-100' : 'w-0 opacity-0 border-opacity-0'
-                      }`}>
-                        <input
-                          type="text"
-                          placeholder="جستجو در علم و هنر..."
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          className="w-full px-6 py-3 bg-transparent outline-none text-gray-700 text-right font-medium placeholder:text-gray-400 placeholder:font-normal"
-                          style={{ direction: 'rtl' }}
-                        />
-                        <div className="flex items-center px-3">
-                          {searchQuery && (
-                            <button 
-                              onClick={() => setSearchQuery('')}
-                              className="p-1 rounded-full hover:bg-gray-100 transition-colors duration-200"
-                            >
-                              <X className="w-4 h-4 text-gray-400" />
-                            </button>
-                          )}
-                          <div className="w-px h-6 bg-gray-200 mx-2"></div>
-                          <button 
-                            onClick={() => setIsSearchOpen(false)}
-                            className="p-1 rounded-full hover:bg-red-50 hover:text-red-500 transition-all duration-200 text-gray-400"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
                 {user ? (
                   <div className="relative" ref={userMenuRef}>
                     <button
@@ -313,17 +256,6 @@ export default function Header({ onLoginClick }) {
         {isMenuOpen && (
           <div className="lg:hidden bg-white/95 backdrop-blur-xl border-t border-gray-200/80 shadow-xl">
             <div className="p-4">
-              <div className="mb-4">
-                <div className="flex items-center bg-gray-50/80 backdrop-blur-sm rounded-xl px-3 py-2 border border-gray-200/80 shadow-sm focus-within:border-[#399918]/50 focus-within:shadow-md transition-all duration-300">
-                  <Search className="w-4 h-4 text-gray-400 ml-2" />
-                  <input
-                    type="text"
-                    placeholder="جستجو کنید..."
-                    className="bg-transparent flex-1 outline-none text-gray-700 text-right font-medium placeholder:text-gray-400 text-sm"
-                    style={{ direction: 'rtl' }}
-                  />
-                </div>
-              </div>
               <nav className="flex flex-col space-y-1 mb-4">
                 {menuItems.map((item) => {
                   // بررسی فعال بودن برای موبایل هم - شامل /workshops و /workshops/[id]

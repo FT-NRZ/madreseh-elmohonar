@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/database';
 
-const prisma = new PrismaClient();
+const buildImageUrl = (url) => {
+  if (!url) return null;
+  if (/^https?:\/\//i.test(url)) return url;
+  const base = process.env.NEXT_PUBLIC_BASE_URL || '';
+  return `${base}${url}`;
+};
 
 export async function GET(request) {
   try {
@@ -15,109 +20,45 @@ export async function GET(request) {
     
     // اگر برای دانش‌آموز است (student view)
     if (type === 'student_view' && studentId) {
-      console.log('Fetching reminders for student:', { studentId, gradeId });
-      
-      const whereConditions = {
-        OR: [
-          { target_type: 'all_students' },
-          { 
-            target_type: 'specific_student', 
-            target_student_id: parseInt(studentId)  // تغییر از target_user_id به target_student_id
-          }
-        ]
-      };
-      
-      if (gradeId && gradeId !== 'null' && gradeId !== 'undefined' && gradeId !== '') {
-        whereConditions.OR.push({
-          target_type: 'grade',  // تغییر از specific_grade به grade
-          target_grade_id: parseInt(gradeId)
+      const studentRes = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/teacher/news/student?studentId=${studentId}${gradeId ? `&gradeId=${gradeId}` : ''}`);
+      const json = await studentRes.json();
+      if (json.success) {
+        return NextResponse.json({
+          success: true,
+          reminders: json.reminders.map(r => ({ ...r, image_url: buildImageUrl(r.image_url) }))
         });
       }
-      
-      const reminders = await prisma.teacher_news.findMany({
-        where: whereConditions,
-        include: {
-          users: {
-            select: { first_name: true, last_name: true }
-          },
-          target_grade: {
-            select: { id: true, grade_name: true }
-          },
-          target_student: {
-            include: {
-              users: {
-                select: { first_name: true, last_name: true }
-              }
-            }
-          }
-        },
-        orderBy: [
-          { is_important: 'desc' },
-          { reminder_date: 'asc' },
-          { created_at: 'desc' }
-        ]
-      });
-      
-      return NextResponse.json({ success: true, reminders });
+      return NextResponse.json({ success: false, error: json.error || 'خطا' }, { status: 400 });
     }
     
     // اگر برای معلم است (teacher dashboard)
     if (teacherId) {
-      console.log('Fetching news for teacher:', teacherId);
-      
       const news = await prisma.teacher_news.findMany({
-        where: { author_id: parseInt(teacherId) },
+        where: { author_id: Number(teacherId) },
         include: {
-          users: {
-            select: {
-              first_name: true,
-              last_name: true
-            }
-          },
-          target_grade: {
-            select: {
-              id: true,
-              grade_name: true
-            }
-          },
+          users: { select: { first_name: true, last_name: true } },
+          target_grade: { select: { id: true, grade_name: true } },
           target_student: {
             select: {
               id: true,
               student_number: true,
-              users: {
-                select: {
-                  first_name: true,
-                  last_name: true
-                }
-              }
+              users: { select: { first_name: true, last_name: true } }
             }
           }
         },
         orderBy: { created_at: 'desc' }
       });
 
-      console.log(`Found ${news.length} news items for teacher ${teacherId}`);
-
-      return NextResponse.json({ 
-        success: true, 
-        news 
+      return NextResponse.json({
+        success: true,
+        news: news.map(n => ({ ...n, image_url: buildImageUrl(n.image_url) }))
       });
     }
     
-    return NextResponse.json({ 
-      success: false, 
-      error: 'پارامترهای مورد نیاز ارسال نشده‌اند' 
-    }, { status: 400 });
-    
-  } catch (error) {
-    console.error('Error in teacher news API:', error);
-    return NextResponse.json({ 
-      success: false, 
-      error: 'خطا در دریافت اطلاعات',
-      details: error.message 
-    }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
+    return NextResponse.json({ success: false, error: 'پارامتر نامعتبر' }, { status: 400 });
+  } catch (e) {
+    console.error('Error news GET:', e);
+    return NextResponse.json({ success: false, error: 'خطا در دریافت اطلاعات' }, { status: 500 });
   }
 }
 

@@ -31,6 +31,8 @@ export default function AdminUsersPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const usersPerPage = 6;
+  const [grades, setGrades] = useState([]);
+  const [filterGrade, setFilterGrade] = useState('all');
 
 
   useEffect(() => {
@@ -48,11 +50,28 @@ export default function AdminUsersPage() {
       }
       setUser(parsedUser);
       fetchUsers();
+      fetchGrades(token); 
     } catch {
       window.location.href = '/login';
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const fetchGrades = async (token) => {
+    try {
+      const res = await fetch('/api/grades', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setGrades(Array.isArray(data.grades) ? data.grades : []);
+      } else {
+        setGrades([]);
+      }
+    } catch {
+      setGrades([]);
+    }
+  };
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -81,16 +100,25 @@ export default function AdminUsersPage() {
     }
   };
 
-  const filteredUsers = users.filter(u => {
-    const s = searchTerm.trim();
-    const matchesSearch =
-      (u.firstName || '').includes(s) ||
-      (u.lastName || '').includes(s) ||
-      (u.nationalCode || '').includes(s) ||
-      (u.phone || '').includes(s);
-    const matchesRole = filterRole === 'all' || u.role === filterRole;
-    return matchesSearch && matchesRole;
-  });
+const filteredUsers = users.filter(u => {
+  const s = searchTerm.trim();
+  const matchesSearch =
+    (u.firstName || '').includes(s) ||
+    (u.lastName || '').includes(s) ||
+    (u.nationalCode || '').includes(s) ||
+    (u.phone || '').includes(s);
+  const matchesRole = filterRole === 'all' || u.role === filterRole;
+  
+  // 🔥 اصلاح: فیلتر پایه فقط وقتی اعمال میشه که نقش دانش‌آموز انتخاب شده باشه
+  let matchesGrade = true; // پیش‌فرض همه رو نشون بده
+  
+  // اگر نقش دانش‌آموز انتخاب شده و فیلتر پایه هم تنظیم شده
+  if (filterRole === 'student' && filterGrade !== 'all') {
+    matchesGrade = u.role === 'student' && u.studentGrade?.id?.toString() === filterGrade;
+  }
+  
+  return matchesSearch && matchesRole && matchesGrade;
+});
 
   // صفحه‌بندی
   const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
@@ -102,7 +130,8 @@ export default function AdminUsersPage() {
   // ریست صفحه هنگام تغییر فیلتر
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterRole]);
+  }, [searchTerm, filterRole, filterGrade]);
+
 
   const handleDeleteUser = async (userId) => {
     try {
@@ -145,12 +174,6 @@ export default function AdminUsersPage() {
         );
       }
     } catch {}
-  };
-
-  const logout = () => {
-    localStorage?.removeItem?.('token');
-    localStorage?.removeItem?.('user');
-    window.location.href = '/';
   };
 
   if (!user) {
@@ -272,6 +295,20 @@ export default function AdminUsersPage() {
                   <option value="teacher">معلم</option>
                   <option value="admin">مدیر</option>
                 </select>
+                {filterRole === 'student' && (
+                  <select
+                    value={filterGrade}
+                    onChange={e => setFilterGrade(e.target.value)}
+                    className="w-full sm:w-auto px-4 py-2 border border-green-200 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-600 outline-none text-sm"
+                  >
+                    <option value="all">همه پایه‌ها</option>
+                    {grades.map(grade => (
+                      <option key={grade.id} value={grade.id.toString()}>
+                        {grade.grade_name}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
               <div className="flex gap-2 w-full sm:w-auto">
                 <button
@@ -469,16 +506,20 @@ function UserTableRow({ user, onEdit, onDelete, onToggleStatus }) {
     user.role === 'teacher' ? 'bg-gradient-to-r from-blue-600 to-blue-500' :
     'bg-gradient-to-r from-green-600 to-green-500';
 
-  // تابع نمایش اطلاعات تحصیلی
+  // تابع نمایش اطلاعات تحصیلی یکپارچه
   const renderEducationalInfo = () => {
     if (user.role === 'student' && user.studentGrade) {
       return (
         <div className="flex flex-col gap-1">
           <span className="text-sm font-medium text-gray-800">
-            🎓 پایه {user.studentGrade.gradeName}
+            🎓 {user.studentGrade.gradeName}
           </span>
-          {user.className && (
-            <span className="text-xs text-gray-600">
+          <span className="text-xs text-gray-600">
+            📊 سطح: {user.studentGrade.gradeLevel}
+          </span>
+          {/* نمایش نام کلاس اگر متفاوت از پایه باشد */}
+          {user.className && user.className !== user.studentGrade.gradeName && (
+            <span className="text-xs text-gray-500">
               📚 کلاس: {user.className}
             </span>
           )}
@@ -488,11 +529,11 @@ function UserTableRow({ user, onEdit, onDelete, onToggleStatus }) {
     else if (user.role === 'teacher' && user.teacherDetails) {
       const { teachingType, subject, workshopName, workshopIcon, teachingGrades } = user.teacherDetails;
       
-      if (teachingType === 'workshop') {
+      if (teachingType === 'workshop' && workshopName) {
         return (
           <div className="flex flex-col gap-1">
             <span className="text-sm font-medium text-gray-800">
-              {workshopIcon || '🎪'} {workshopName || 'کارگاه نامشخص'}
+              {workshopIcon || '🎪'} {workshopName}
             </span>
             {subject && (
               <span className="text-xs text-gray-600">
@@ -502,37 +543,53 @@ function UserTableRow({ user, onEdit, onDelete, onToggleStatus }) {
           </div>
         );
       } 
-      else if (teachingType === 'grade' && teachingGrades?.length > 0) {
-        return (
-          <div className="flex flex-col gap-1">
-            <span className="text-sm font-medium text-gray-800">
-              📚 پایه‌های تدریس:
-            </span>
-            <div className="flex flex-wrap gap-1">
-              {teachingGrades.slice(0, 3).map((grade, idx) => (
-                <span key={idx} className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
-                  {grade.gradeName}
-                </span>
-              ))}
-              {teachingGrades.length > 3 && (
-                <span className="text-xs text-gray-500">
-                  +{teachingGrades.length - 3} مورد دیگر
+      else if (teachingType === 'grade') {
+        // برای معلم پایه، نمایش پایه‌هایی که تدریس می‌کند
+        if (teachingGrades?.length > 0) {
+          return (
+            <div className="flex flex-col gap-1">
+              <span className="text-sm font-medium text-gray-800">
+                👨‍🏫 معلم پایه
+              </span>
+              <div className="flex flex-wrap gap-1">
+                {teachingGrades.slice(0, 3).map((grade, idx) => (
+                  <span key={idx} className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                    {grade.gradeName}
+                  </span>
+                ))}
+                {teachingGrades.length > 3 && (
+                  <span className="text-xs text-gray-500">
+                    +{teachingGrades.length - 3} مورد دیگر
+                  </span>
+                )}
+              </div>
+              {subject && (
+                <span className="text-xs text-gray-600">
+                  📖 {subject}
                 </span>
               )}
             </div>
-            {subject && (
-              <span className="text-xs text-gray-600">
-                📖 {subject}
+          );
+        } else {
+          return (
+            <div className="flex flex-col gap-1">
+              <span className="text-sm font-medium text-gray-800">
+                👨‍🏫 معلم پایه
               </span>
-            )}
-          </div>
-        );
+              {subject && (
+                <span className="text-xs text-gray-600">
+                  📖 {subject}
+                </span>
+              )}
+            </div>
+          );
+        }
       } 
       else {
         return (
           <div className="flex flex-col gap-1">
             <span className="text-sm text-gray-500">
-              👨‍🏫 معلم {teachingType === 'grade' ? 'پایه‌ای' : 'کارگاه'}
+              👨‍🏫 معلم
             </span>
             {subject && (
               <span className="text-xs text-gray-600">
@@ -770,15 +827,14 @@ function PhoneIcon(props) {
 function CreateUserModal({ onClose, onSuccess }) {
   const [formData, setFormData] = useState({
     firstName: '', lastName: '', nationalCode: '', phone: '', email: '', 
-    role: 'student', classId: '', password: '',
-    // فیلدهای جدید معلم
-    teachingType: '', gradeId: '', workshopId: '', subject: ''
+    role: 'student', gradeId: '', password: '',
+    // فیلدهای معلم
+    teachingType: '', workshopId: '', subject: ''
   });
   
-  const [classes, setClasses] = useState([]);
   const [grades, setGrades] = useState([]);        
   const [workshops, setWorkshops] = useState([]);  
-  const [classesLoading, setClassesLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -788,37 +844,40 @@ function CreateUserModal({ onClose, onSuccess }) {
       try {
         const token = localStorage?.getItem?.('token');
         
-        // دریافت کلاس‌ها
-        const classesRes = await fetch('/api/admin/classes', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (classesRes.ok) {
-          const classesData = await classesRes.json();
-          setClasses(Array.isArray(classesData.classes) ? classesData.classes : []);
-        }
-
-        // دریافت پایه‌ها
+        // دریافت پایه‌ها (برای دانش‌آموز و معلم پایه)
         const gradesRes = await fetch('/api/grades', {
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 'Authorization': `Bearer ${token}` },
+          credentials: 'include'
         });
         if (gradesRes.ok) {
           const gradesData = await gradesRes.json();
+          console.log('📊 Grades loaded:', gradesData);
           setGrades(Array.isArray(gradesData.grades) ? gradesData.grades : []);
+        } else {
+          console.error('Failed to load grades:', gradesRes.status);
+          setGrades([]);
         }
 
-        // دریافت کارگاه‌ها  
+        // دریافت کارگاه‌ها (برای معلم کارگاه)
         const workshopsRes = await fetch('/api/workshops', {
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 'Authorization': `Bearer ${token}` },
+          credentials: 'include'
         });
         if (workshopsRes.ok) {
           const workshopsData = await workshopsRes.json();
+          console.log('🎪 Workshops loaded:', workshopsData);
           setWorkshops(Array.isArray(workshopsData.workshops) ? workshopsData.workshops : []);
+        } else {
+          console.error('Failed to load workshops:', workshopsRes.status);
+          setWorkshops([]);
         }
 
       } catch (error) {
-        console.error('خطا در دریافت داده‌ها:', error);
+        console.error('❌ خطا در دریافت داده‌ها:', error);
+        setGrades([]);
+        setWorkshops([]);
       } finally {
-        setClassesLoading(false);
+        setLoading(false);
       }
     }
     fetchData();
@@ -836,9 +895,8 @@ function CreateUserModal({ onClose, onSuccess }) {
       ...prev,
       role: newRole,
       // ریست کردن فیلدهای مربوط به هر نقش
-      classId: '',
-      teachingType: '',
       gradeId: '',
+      teachingType: '',
       workshopId: '',
       subject: ''
     }));
@@ -859,8 +917,8 @@ function CreateUserModal({ onClose, onSuccess }) {
     setError('');
 
     // اعتبارسنجی
-    if (formData.role === 'student' && !formData.classId) {
-      setError('انتخاب کلاس برای دانش‌آموز الزامی است');
+    if (formData.role === 'student' && !formData.gradeId) {
+      setError('انتخاب پایه برای دانش‌آموز الزامی است');
       setIsLoading(false);
       return;
     }
@@ -896,11 +954,11 @@ function CreateUserModal({ onClose, onSuccess }) {
           email: formData.email || null,
           role: formData.role,
           password: formData.password,
-          // برای دانش‌آموز
-          classId: formData.role === 'student' ? Number(formData.classId) : undefined,
+          // برای دانش‌آموز و معلم پایه
+          gradeId: (formData.role === 'student' || (formData.role === 'teacher' && formData.teachingType === 'grade')) 
+            ? Number(formData.gradeId) : undefined,
           // برای معلم
           teachingType: formData.role === 'teacher' ? formData.teachingType : undefined,
-          gradeId: formData.role === 'teacher' && formData.teachingType === 'grade' ? Number(formData.gradeId) : undefined,
           workshopId: formData.role === 'teacher' && formData.teachingType === 'workshop' ? Number(formData.workshopId) : undefined,
           subject: formData.role === 'teacher' ? formData.subject : undefined
         })
@@ -990,23 +1048,36 @@ function CreateUserModal({ onClose, onSuccess }) {
 
           {/* فیلدهای مخصوص دانش‌آموز */}
           {formData.role === 'student' && (
-            <div>
-              {classesLoading ? (
-                <div className="text-sm text-gray-500">در حال بارگذاری کلاس‌ها...</div>
+            <div className="space-y-3 p-4 bg-green-50 rounded-xl border border-green-200">
+              <h3 className="font-semibold text-green-800 flex items-center gap-2">
+                <GraduationCap className="w-5 h-5" />
+                اطلاعات دانش‌آموز
+              </h3>
+              
+              {loading ? (
+                <div className="text-sm text-gray-500">در حال بارگذاری پایه‌ها...</div>
               ) : (
-                <select
-                  value={formData.classId}
-                  onChange={e => setFormData(prev => ({ ...prev, classId: e.target.value }))}
-                  className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition"
-                  required
-                >
-                  <option value="">انتخاب کلاس</option>
-                  {classes.map(c => (
-                    <option key={c.id} value={c.id}>
-                      {c.class_name} {c.class_number ? `- شماره ${c.class_number}` : ''} {c.academic_year ? `(${c.academic_year})` : ''}
-                    </option>
-                  ))}
-                </select>
+                <div>
+                  <label className="block text-sm font-bold mb-2 text-gray-700">
+                    انتخاب پایه/کلاس تحصیلی *
+                  </label>
+                  <select
+                    value={formData.gradeId}
+                    onChange={e => setFormData(prev => ({ ...prev, gradeId: e.target.value }))}
+                    className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition"
+                    required
+                  >
+                    <option value="">انتخاب پایه/کلاس...</option>
+                    {grades.map(grade => (
+                      <option key={grade.id} value={grade.id}>
+                        📚 {grade.grade_name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    💡 پایه انتخاب شده به عنوان کلاس نیز در نظر گرفته می‌شود
+                  </p>
+                </div>
               )}
             </div>
           )}
@@ -1014,7 +1085,10 @@ function CreateUserModal({ onClose, onSuccess }) {
           {/* فیلدهای مخصوص معلم */}
           {formData.role === 'teacher' && (
             <div className="space-y-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
-              <h3 className="font-semibold text-blue-800">اطلاعات معلم</h3>
+              <h3 className="font-semibold text-blue-800 flex items-center gap-2">
+                <BookOpen className="w-5 h-5" />
+                اطلاعات معلم
+              </h3>
               
               {/* نوع تدریس */}
               <div>

@@ -2,6 +2,28 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Download, Lock, ChevronLeft, ChevronRight, Calendar, Image, Trophy, BookOpen, Users, Heart, Camera, Loader2, Maximize2, X } from "lucide-react";
 
+const normalizePath = (p = '') => {
+  if (!p) return '';
+  if (/^https?:\/\//i.test(p)) return p;
+  let s = String(p).replace(/\\/g, '/').replace(/^public\//, '').replace(/^\/+/, '');
+  return s;
+};
+const getFileName = (url = '') => {
+  try {
+    const u = new URL(url, typeof window !== 'undefined' ? window.location.origin : 'http://localhost');
+    return (u.pathname || '').split('/').pop() || 'file';
+  } catch {
+    return (url.split('/').pop() || 'file');
+  }
+};
+const makeFileUrl = (url = '', disposition = 'inline') => {
+  if (!url) return '#';
+  if (/^https?:\/\//i.test(url) && !url.includes('/uploads/')) return url; // خارجی رها شود
+  const clean = normalizePath(url);
+  const name = getFileName(clean);
+  return `/api/files/download?path=${encodeURIComponent(clean)}&disposition=${disposition}&name=${encodeURIComponent(name)}`;
+};
+
 const GalleryPage = () => {
   const [categories, setCategories] = useState([]);
   const [grades, setGrades] = useState([]);
@@ -214,17 +236,15 @@ const GalleryPage = () => {
     }
   };
 
-  const handleDownload = (src, title) => {
-    const imagePath = src.startsWith('/') ? src.substring(1) : src;
-    const fullUrl = `${window.location.origin}/${imagePath}`;
-    const link = document.createElement("a");
-    link.href = fullUrl;
-    link.download = `${title || 'تصویر_گالری'}.jpg`;
-    link.target = "_blank";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+const handleDownload = (src, title) => {
+  const url = makeFileUrl(src, 'attachment');
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${title || 'تصویر_گالری'}`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
 
   const handleCategoryChange = (categoryId) => {
     setSelectedCategory(categoryId);
@@ -324,7 +344,6 @@ const GalleryPage = () => {
     );
   }
 
-  // باقی کد گالری...
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-green-50 relative overflow-hidden">
       {/* پس‌زمینه اسلایدشو */}
@@ -338,7 +357,7 @@ const GalleryPage = () => {
           >
             <div className="absolute inset-0 bg-gradient-to-br from-white/90 via-green-50/95 to-emerald-50/90 backdrop-blur-[1px]"></div>
             <img
-              src={bgImage}
+              src={makeFileUrl(bgImage, 'inline')}
               alt="Background"
               className="w-full h-full object-cover blur-xl scale-110 saturate-50"
             />
@@ -492,13 +511,14 @@ const GalleryPage = () => {
                       <div className="relative group">
                         <div className="absolute inset-0 bg-gradient-to-r from-green-400 to-emerald-500 rounded-3xl blur-2xl opacity-20 group-hover:opacity-30 transition-opacity duration-500"></div>
                         <div className="relative bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100">
-                          <div className="relative h-[400px] md:h-[500px]">
-                            <img
-                              src={filteredImages[currentImage]?.image_path}
-                              alt={filteredImages[currentImage]?.alt_text || filteredImages[currentImage]?.title}
-                              className="w-full h-full object-contain transition-all duration-500"
-                            />
-                            
+                        <div className="relative h-[400px] md:h-[500px] bg-gray-50 flex items-center justify-center">
+                          <img
+                            src={makeFileUrl(filteredImages[currentImage]?.image_path, 'inline')}
+                            alt={filteredImages[currentImage]?.alt_text || filteredImages[currentImage]?.title}
+                            className="max-w-full max-h-full object-contain transition-all duration-500"
+                            style={{ width: 'auto', height: 'auto' }}
+                          />
+                                                    
                             <div className="absolute bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg p-6 border-t border-gray-100 rounded-b-3xl">
                               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                                 <div>
@@ -593,12 +613,13 @@ const GalleryPage = () => {
                               ? "ring-2 ring-green-600 shadow-xl"
                               : "hover:shadow-xl"
                           }`}>
-                            <div className="relative aspect-[4/3]">
-                              <img
-                                src={image.image_path}
-                                alt={image.alt_text || image.title}
-                                className="w-full h-full object-cover transition-all duration-300 group-hover:scale-105"
-                              />
+                          <div className="relative aspect-[4/3] bg-gray-50 flex items-center justify-center">
+                            <img
+                              src={makeFileUrl(image.image_path, 'inline')}
+                              alt={image.alt_text || image.title}
+                              className="max-w-full max-h-full object-contain transition-all duration-300 group-hover:scale-105"
+                              style={{ width: 'auto', height: 'auto' }}
+                            />
                               <div className="absolute inset-0 bg-gradient-to-r from-green-600/60 to-emerald-400/60 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center">
                               </div>
                             </div>
@@ -631,7 +652,7 @@ const GalleryPage = () => {
             <X className="w-6 h-6" />
           </button>
           <img
-            src={filteredImages[currentImage]?.image_path}
+            src={makeFileUrl(filteredImages[currentImage]?.image_path, 'inline')}
             alt={filteredImages[currentImage]?.title}
             className="max-w-full max-h-full object-contain"
           />

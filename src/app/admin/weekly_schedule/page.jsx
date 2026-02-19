@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import { 
   Users, GraduationCap, BookOpen, BarChart3, Settings, LogOut, 
   Trash2, Edit, Calendar, Clock, Plus, Menu, Image, LayoutGrid,
@@ -330,7 +330,6 @@ const handleSpecialClassSubmit = async (e) => {
 
  return (
     <div className="min-h-screen bg-gradient-to-br mb-10 from-green-50 to-white">
-      <Toaster position="bottom-center" />
       <div className="flex flex-col md:flex-row">
 
         {/* Main Content - with margin for sidebar */}

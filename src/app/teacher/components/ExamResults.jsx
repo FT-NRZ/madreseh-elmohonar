@@ -58,6 +58,35 @@ export default function ExamResults({ examId }) {
       });
   }, [examId]);
 
+  const getFileName = (url = '') => {
+    try {
+      const u = new URL(url, typeof window !== 'undefined' ? window.location.origin : 'http://localhost');
+      return (u.pathname || '').split('/').pop() || 'file';
+    } catch {
+      return (url.split('/').pop() || 'file');
+    }
+  };
+  const isImage = (url = '') => /\.(png|jpe?g|gif|webp|svg|bmp|tiff?|ico|avif|heic|heif)$/i.test((url || '').split('?')[0]);
+const makeFileUrl = (url = '', disposition = 'inline') => {
+  if (!url) return '#';
+  // اگر URL کامل است ولی دامنه خودش است و شامل /uploads/ است → تبدیل به مسیر نسبی تا از API عبور کند
+  try {
+    if (/^https?:\/\//i.test(url)) {
+      const u = new URL(url);
+      if (u.pathname.startsWith('/uploads/')) {
+        const rawLocal = u.pathname.replace(/^\/+/, '');
+        const name = getFileName(url);
+        return `/api/files/download?path=${encodeURIComponent(rawLocal)}&disposition=${disposition}&name=${encodeURIComponent(name)}`;
+      }
+      // اگر دامنه دیگر است، همان را برگردان
+      return url;
+    }
+  } catch {}
+  const raw = url.replace(/^\/+/, '');
+  const name = getFileName(url);
+  return `/api/files/download?path=${encodeURIComponent(raw)}&disposition=${disposition}&name=${encodeURIComponent(name)}`;
+};
+
   // هندل ثبت نمره تستی
  const handleScoreSubmit = async (resultId, grade) => {
     console.log('💾 Submitting score:', { resultId, grade });
@@ -199,25 +228,6 @@ export default function ExamResults({ examId }) {
       padding: 24,
       border: `1.5px solid ${borderGreen}`
     }}>
-      {/* دکمه بازگشت */}
-      <div style={{ marginBottom: 18 }}>
-        <Link href="/teacher/dashboard">
-          <button style={{
-            background: `linear-gradient(90deg,${mainGreen},${darkGreen})`,
-            color: "#fff",
-            border: "none",
-            borderRadius: 8,
-            padding: "8px 28px",
-            fontSize: 15,
-            fontWeight: "bold",
-            cursor: "pointer",
-            boxShadow: `0 2px 12px ${mainGreen}33`,
-            transition: "0.2s"
-          }}>
-            ← بازگشت به داشبورد
-          </button>
-        </Link>
-      </div>
 
       <h2 style={{
         textAlign: "center",
@@ -229,7 +239,7 @@ export default function ExamResults({ examId }) {
         borderBottom: `1.5px solid ${borderGreen}`,
         paddingBottom: 8
       }}>
-        نتایج آزمون #{examId}
+        نتایج آزمون 
         {data.exam && (
           <div style={{ fontSize: 16, color: darkGreen, marginTop: 8 }}>
             {data.exam.title}
@@ -408,13 +418,17 @@ export default function ExamResults({ examId }) {
                 boxShadow: `0 1px 4px ${mainGreen}11`,
                 padding: 12
               }}>
+                    <div style={{ background: '#ffeb3b', padding: 8, fontSize: 11, marginBottom: 8, wordBreak: 'break-all' }}>
+                      🔍 DEBUG: file_url = {ans.file_url}
+                    </div>
                 <div style={{ fontWeight: "bold", color: mainGreen, marginBottom: 6, fontSize: 14 }}>
                   👤 {ans.students?.users ? `${ans.students.users.first_name} ${ans.students.users.last_name}` : `دانش‌آموز ${ans.student_id}`}
                 </div>
-                
-                <div style={{ marginBottom: 10 }}>
+
+                {/* دکمه‌های مشاهده و دانلود فایل - جایگزین لینک قبلی */}
+                <div style={{ marginBottom: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <a
-                    href={ans.file_url}
+                    href={makeFileUrl(ans.file_url, 'inline')}
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{
@@ -425,15 +439,41 @@ export default function ExamResults({ examId }) {
                       padding: "8px 20px",
                       fontSize: 13,
                       fontWeight: "bold",
-                      cursor: "pointer",
                       textDecoration: "none",
-                      display: "inline-block",
-                      transition: "0.2s"
+                      display: "inline-block"
                     }}
                   >
-                    📁 مشاهده فایل
+                    🔎 مشاهده در تب جدید
+                  </a>
+                  <a
+                    href={makeFileUrl(ans.file_url, 'attachment')}
+                    download={getFileName(ans.file_url)}
+                    style={{
+                      background: "#2e7d32",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: 6,
+                      padding: "8px 20px",
+                      fontSize: 13,
+                      fontWeight: "bold",
+                      textDecoration: "none",
+                      display: "inline-block"
+                    }}
+                  >
+                    ⬇️ دانلود فایل
                   </a>
                 </div>
+
+                {/* پیش‌نمایش تصویر (اختیاری) */}
+                {isImage(ans.file_url) && (
+                  <div style={{ marginBottom: 10 }}>
+                    <img
+                      src={makeFileUrl(ans.file_url, 'inline')}
+                      alt="پاسخ دانش‌آموز"
+                      style={{ maxWidth: "100%", borderRadius: 8, border: `1px solid ${borderGreen}` }}
+                    />
+                  </div>
+                )}
 
                 {/* فرم ثبت نمره و بازخورد */}
                 <form

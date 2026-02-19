@@ -1,26 +1,16 @@
 import { PrismaClient } from '@prisma/client';
 import { verifyJWT } from '../../../lib/jwt';
-
+const prisma = new PrismaClient();
 
 // بررسی احراز هویت
 async function authenticate(request) {
   const authHeader = request.headers.get('authorization');
-  
-  if (!authHeader) {
-    return { authenticated: false, status: 401, message: 'توکن ارسال نشده است' };
-  }
-  
+  if (!authHeader) return { authenticated: false, status: 401, message: 'توکن ارسال نشده است' };
   const token = authHeader.replace('Bearer ', '');
   const user = verifyJWT(token);
-  
-  if (!user) {
-    return { authenticated: false, status: 401, message: 'توکن نامعتبر است' };
-  }
-  
- if (user.role !== 'admin' && user.role !== 'student' && user.role !== 'teacher') {
-  return { authenticated: false, status: 403, message: 'دسترسی مجاز نیست' };
- }
-  
+  if (!user) return { authenticated: false, status: 401, message: 'توکن نامعتبر است' };
+  if (!['admin', 'student', 'teacher'].includes(user.role))
+    return { authenticated: false, status: 403, message: 'دسترسی مجاز نیست' };
   return { authenticated: true, user };
 }
 
@@ -74,59 +64,43 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const auth = await authenticate(request);
-    if (!auth.authenticated) {
+    if (!auth.authenticated)
       return Response.json({ success: false, message: auth.message }, { status: auth.status });
-    }
-    
+
     const body = await request.json();
-    
-    // اعتبارسنجی داده‌ها
-    if (!body.name || body.name.trim() === '') {
-      return Response.json({ 
-        success: false, 
-        message: 'نام دسته‌بندی الزامی است' 
-      }, { status: 400 });
-    }
-    
-    // بررسی تکراری نبودن نام در همان سطح
-    const existingCategory = await prisma.gallery_categories.findFirst({
+    if (!body.name || body.name.trim() === '')
+      return Response.json({ success: false, message: 'نام دسته‌بندی الزامی است' }, { status: 400 });
+
+    const exists = await prisma.gallery_categories.findFirst({
       where: {
-        name: body.name,
+        name: body.name.trim(),
         parent_id: body.parent_id ? parseInt(body.parent_id) : null
       }
     });
-    
-    if (existingCategory) {
-      return Response.json({ 
-        success: false, 
-        message: 'دسته‌بندی با این نام در این سطح قبلاً ایجاد شده است' 
-      }, { status: 400 });
-    }
-    
-    // ایجاد دسته‌بندی جدید
+    if (exists)
+      return Response.json({ success: false, message: 'این نام در همین سطح قبلاً استفاده شده' }, { status: 400 });
+
     const newCategory = await prisma.gallery_categories.create({
       data: {
-        name: body.name,
-        description: body.description || null,
+        name: body.name.trim(),
+        description: body.description?.trim() || null,
         parent_id: body.parent_id ? parseInt(body.parent_id) : null,
-        is_active: body.is_active !== undefined ? body.is_active : true,
-        sort_order: body.sort_order || 0
+        is_active: body.is_active !== undefined ? !!body.is_active : true,
+        sort_order: body.sort_order ? parseInt(body.sort_order) : 0
       }
     });
-    
-    return Response.json({ 
-      success: true, 
-      message: 'دسته‌بندی با موفقیت ایجاد شد', 
-      category: newCategory 
+
+    return Response.json({
+      success: true,
+      message: 'دسته‌بندی ایجاد شد',
+      category: newCategory
     });
-    
-  } catch (error) {
-    console.error('Gallery categories API error:', error);
-    return Response.json({ 
-      success: false, 
-      message: 'خطا در سرور', 
-      error: error.message 
-    }, { status: 500 });
+  } catch (e) {
+    if (e.code === 'P2002')
+      return Response.json({ success: false, message: 'نام دسته‌بندی تکراری است' }, { status: 400 });
+
+    console.error('Gallery categories POST error:', e);
+    return Response.json({ success: false, message: 'خطای سرور', error: e.message }, { status: 500 });
   } finally {
     await prisma.$disconnect();
   }

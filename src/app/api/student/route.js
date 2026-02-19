@@ -90,7 +90,7 @@ export async function GET(request) {
         }, { status: 400 });
       }
       const payload = verifyJWT(token);
-      if (payload && (payload.role === 'admin' || payload.role === 'teacher')) {
+      if (payload && (payload.role === 'admin' || payload.role === 'teacher' || payload.role === 'student')) { // ✅ student مجاز شد
         // بررسی انقضای توکن
         if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
           return NextResponse.json({

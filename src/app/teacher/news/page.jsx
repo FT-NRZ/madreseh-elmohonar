@@ -273,12 +273,13 @@ export default function News({ teacherId }) {
                   className="group bg-white/95 backdrop-blur-xl rounded-xl md:rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 border border-green-100 overflow-hidden hover:scale-[1.02] hover:-translate-y-1"
                 >
                   {/* عکس یا پس‌زمینه */}
-                  <div className="relative h-32 md:h-48 overflow-hidden">
+                  <div className="relative h-32 md:h-48 overflow-hidden bg-gray-50 flex items-center justify-center">
                     {item.image_url ? (
                       <img
                         src={item.image_url}
                         alt={item.title}
-                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                        className="max-w-full max-h-full object-contain transition-transform duration-300 group-hover:scale-105"
+                        style={{ width: 'auto', height: 'auto' }}
                       />
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-green-500 via-green-600 to-green-700 flex items-center justify-center relative overflow-hidden">
@@ -363,11 +364,12 @@ export default function News({ teacherId }) {
             <div className="p-4 md:p-6 space-y-4 md:space-y-6">
               {/* عکس خبر */}
               {selectedNews.image_url && (
-                <div className="w-full h-48 md:h-64 rounded-xl overflow-hidden shadow-lg">
+                <div className="w-full bg-gray-50 rounded-xl overflow-hidden shadow-lg flex items-center justify-center" style={{ minHeight: '200px' }}>
                   <img
                     src={selectedNews.image_url}
                     alt={selectedNews.title}
-                    className="w-full h-full object-cover"
+                    className="max-w-full max-h-96 object-contain"
+                    style={{ width: 'auto', height: 'auto' }}
                   />
                 </div>
               )}

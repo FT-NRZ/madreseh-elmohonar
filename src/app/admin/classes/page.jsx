@@ -51,17 +51,48 @@ export default function AdminClasses() {
 
   const fetchClasses = async () => {
     setLoading(true);
+    setError(null);
     try {
       const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('توکن یافت نشد');
+      }
+
+      console.log('🔍 درخواست لیست کلاس‌ها...');
+      
       const response = await fetch('/api/classes', {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
       });
-      if (!response.ok) throw new Error('خطا در دریافت کلاس‌ها');
+
+      console.log('📡 Response status:', response.status);
+      
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          window.location.href = '/login';
+          return;
+        }
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
       const data = await response.json();
-      if (data.success) setClasses(data.classes);
-      else throw new Error(data.message || 'خطا در دریافت کلاس‌ها');
+      console.log('📚 Classes data received:', data);
+      
+      if (data.success) {
+        setClasses(data.classes || []);
+        console.log('✅ تعداد کلاس‌های دریافت شده:', data.classes?.length);
+      } else {
+        throw new Error(data.message || 'خطا در دریافت کلاس‌ها');
+      }
     } catch (err) {
-      setError('خطا در بارگذاری کلاس‌ها');
+      console.error('❌ خطا در fetchClasses:', err);
+      setError(`خطا در بارگذاری کلاس‌ها: ${err.message}`);
+      setClasses([]);
     } finally {
       setLoading(false);
     }
@@ -237,16 +268,30 @@ export default function AdminClasses() {
 
           {/* لیست کلاس‌ها */}
           <div className="bg-white/95 backdrop-blur-xl rounded-2xl md:rounded-3xl shadow-xl border border-green-200 p-3 md:p-8">
-            <div className="flex flex-row justify-between items-center mb-4 md:mb-8 gap-2">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 md:mb-8 gap-3">
               <h1 className="text-base md:text-2xl font-bold text-gray-800">لیست کلاس‌ها ({classes.length})</h1>
-              <button
-                onClick={fetchClasses}
-                className="flex items-center px-4 py-2 md:px-6 md:py-3 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-xl md:rounded-2xl hover:from-green-700 hover:to-green-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 text-xs md:text-base"
-              >
-                <RefreshCw className="w-4 h-4 ml-2" />
-                بروزرسانی
-              </button>
+              
+              <div className="flex gap-2 w-full md:w-auto">
+                {/* دکمه افزودن کلاس */}
+                <button
+                  onClick={openModal}
+                  className="flex items-center justify-center px-3 md:px-6 py-2 md:py-3 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-xl md:rounded-2xl hover:from-blue-700 hover:to-blue-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 text-xs md:text-base flex-1 md:flex-none"
+                >
+                  <Plus className="w-4 h-4 ml-2" />
+                  افزودن کلاس
+                </button>
+                
+                {/* دکمه بروزرسانی */}
+                <button
+                  onClick={fetchClasses}
+                  className="flex items-center justify-center px-3 md:px-6 py-2 md:py-3 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-xl md:rounded-2xl hover:from-green-700 hover:to-green-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 text-xs md:text-base flex-1 md:flex-none"
+                >
+                  <RefreshCw className="w-4 h-4 ml-2" />
+                  بروزرسانی
+                </button>
+              </div>
             </div>
+            
             <ClassesList />
           </div>
 

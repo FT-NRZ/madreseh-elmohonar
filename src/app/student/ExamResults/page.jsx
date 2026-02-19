@@ -88,96 +88,83 @@ export default function ExamResultsPage() {
     }
   };
 
-  const fetchResults = async (userId) => {
-    try {
-      const token = localStorage.getItem('token');
-      
-      console.log('Fetching results for student:', userId);
-      
-      // تلاش برای endpoint های مختلف
-      const possibleEndpoints = [
-        `/api/student/exam-results?studentId=${userId}`,
-        `/api/student/${userId}/exam-results`,
-        `/api/exam-results?student_id=${userId}`,
-        `/api/exams/results?studentId=${userId}`,
-        `/api/student/results`,
-        `/api/results?student_id=${userId}`
-      ];
-      
-      let resultsData = null;
-      
-      for (const endpoint of possibleEndpoints) {
-        try {
-          console.log('Trying endpoint:', endpoint);
-          const response = await fetch(endpoint, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            }
-          });
-          
-          if (response.ok) {
-            const data = await response.json();
-            console.log('Success with endpoint:', endpoint, data);
-            
-            if (data.success && (data.results || data.examResults || data.data)) {
-              resultsData = data.results || data.examResults || data.data;
-              break;
-            }
-          } else {
-            console.log('Failed endpoint:', endpoint, response.status);
-          }
-        } catch (err) {
-          console.log('Error with endpoint:', endpoint, err.message);
-          continue;
-        }
-      }
-      
-      if (resultsData) {
-        // اطمینان از اینکه resultsData آرایه است
-        const resultsArray = Array.isArray(resultsData) ? resultsData : [resultsData];
-        
-        // پردازش داده‌ها برای اطمینان از سازگاری
-        const processedResults = resultsArray.map(result => ({
-          id: result.id,
-          exam: {
-            id: result.exam_id || result.exam?.id,
-            title: result.exam_title || result.exam?.title || result.title,
-            type: result.exam_type || result.exam?.type || result.type,
-            total_marks: result.total_marks || result.exam?.total_marks || result.max_marks
-          },
-          marks_obtained: result.marks_obtained || result.score || result.marks,
-          grade_desc: result.grade_desc || result.grade || result.result,
-          teacher_feedback: result.teacher_feedback || result.feedback || result.comment,
-          completed_at: result.completed_at || result.submitted_at || result.created_at,
-          created_at: result.created_at || result.submitted_at
-        }));
-        
-        setResults(processedResults);
-        calculateStats(processedResults);
-      } else {
-        console.log('No exam results endpoint worked, using sample data');
-      }
-      
-    } catch (error) {
-      console.error('خطا در دریافت نتایج:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const calculateStats = (resultsData) => {
-    const total = resultsData.length;
-    const completed = resultsData.filter(r => r.grade_desc).length;
-    const pending = total - completed;
+const fetchResults = async (userId) => {
+  try {
+    const token = localStorage.getItem('token');
     
-    const completedResults = resultsData.filter(r => r.marks_obtained !== null);
-    const averageScore = completedResults.length > 0 
-      ? (completedResults.reduce((sum, r) => sum + r.marks_obtained, 0) / completedResults.length).toFixed(1)
-      : 0;
+    console.log('🔍 Fetching results for student ID:', userId);
+    
+    // 🔥 اصلاح: فقط از endpoint درست استفاده می‌کنیم
+    const response = await fetch(`/api/student/${userId}/exam-results`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    console.log('📡 API Response status:', response.status);
+    
+    if (!response.ok) {
+      if (response.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/';
+        return;
+      }
+      throw new Error(`HTTP ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log('📊 API Response data:', data);
+    
+    if (data.success && data.results) {
+      console.log('✅ Results found:', data.results.length);
+      
+      // 🔥 استفاده مستقیم از داده‌های API (بدون پردازش اضافی)
+      setResults(data.results);
+      calculateStats(data.results);
+    } else {
+      console.log('❌ No results or unsuccessful response');
+      setResults([]);
+      setStats({ total: 0, completed: 0, pending: 0, averageScore: 0 });
+    }
+    
+  } catch (error) {
+    console.error('💥 خطا در دریافت نتایج:', error);
+    setResults([]);
+    setStats({ total: 0, completed: 0, pending: 0, averageScore: 0 });
+  } finally {
+    setLoading(false);
+  }
+};
 
-    setStats({ total, completed, pending, averageScore });
-  };
+const calculateStats = (resultsData) => {
+  if (!Array.isArray(resultsData)) {
+    setStats({ total: 0, completed: 0, pending: 0, averageScore: 0 });
+    return;
+  }
+
+  const total = resultsData.length;
+  const completed = resultsData.filter(r => r.grade_desc || r.marks_obtained !== null).length;
+  const pending = total - completed;
+  
+  // محاسبه میانگین برای آزمون‌های عددی
+  const numericResults = resultsData.filter(r => 
+    r.marks_obtained !== null && 
+    r.exam?.total_marks && 
+    r.exam.total_marks > 0
+  );
+  
+  const averageScore = numericResults.length > 0 
+    ? (numericResults.reduce((sum, r) => {
+        const percentage = (r.marks_obtained / r.exam.total_marks) * 100;
+        return sum + percentage;
+      }, 0) / numericResults.length).toFixed(1)
+    : 0;
+
+  console.log('📊 Stats calculated:', { total, completed, pending, averageScore });
+  setStats({ total, completed, pending, averageScore });
+};
 
   const getGradeColor = (grade) => {
     if (!grade) return 'text-gray-500';

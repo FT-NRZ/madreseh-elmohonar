@@ -1,72 +1,57 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/database';
 
-const prisma = new PrismaClient();
+function parseIntSafe(v) {
+  const n = Number(v);
+  return Number.isNaN(n) ? null : n;
+}
 
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const studentId = searchParams.get('studentId');
-    const gradeId = searchParams.get('gradeId');
+    const studentIdRaw = searchParams.get('studentId');
+    const gradeIdRaw = searchParams.get('gradeId');
     const type = searchParams.get('type');
-    
-    console.log('Fetching reminders for student:', { studentId, gradeId, type });
-    
+
+    const studentId = parseIntSafe(studentIdRaw);
+    let gradeId = parseIntSafe(gradeIdRaw);
+
     if (!studentId) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'شناسه دانش‌آموز مورد نیاز است' 
-      }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'شناسه دانش‌آموز مورد نیاز است' }, { status: 400 });
     }
-    
-    // شرایط برای دریافت یادآوری‌ها بر اساس schema واقعی
-    const whereConditions = {
-      OR: [
-        // یادآوری‌های عمومی برای همه دانش‌آموزان
-        { target_type: 'all_students' },
-        
-        // یادآوری‌های مخصوص دانش‌آموز خاص (استفاده از target_student_id که در schema موجود است)
-        { 
-          target_type: 'specific_student', 
-          target_student_id: parseInt(studentId)
-        }
-      ]
-    };
-    
-    // اگر gradeId موجود باشد، یادآوری‌های مخصوص پایه را نیز اضافه کن
-    if (gradeId && gradeId !== 'null' && gradeId !== 'undefined' && gradeId !== '') {
-      whereConditions.OR.push({
-        target_type: 'grade',  // استفاده از grade که در schema موجود است
-        target_grade_id: parseInt(gradeId)
-      });
-    }
-    
-    console.log('Where conditions:', JSON.stringify(whereConditions, null, 2));
-    
-    const reminders = await prisma.teacher_news.findMany({
-      where: whereConditions,
-      include: {
-        users: {
-          select: { 
-            first_name: true, 
-            last_name: true 
-          }
-        },
-        target_grade: {
-          select: { 
-            id: true,
-            grade_name: true 
-          }
-        },
-        target_student: {
-          include: {
-            users: {
-              select: {
-                first_name: true,
-                last_name: true
-              }
+
+    // اگر gradeId نیامده، به صورت خودکار از جدول دانش‌آموز استخراج کن
+    if (!gradeId) {
+      const studentRecord = await prisma.students.findUnique({
+        where: { id: studentId },
+        select: {
+          class_id: true,
+          classes: {
+            select: {
+              grade_id: true
             }
           }
+        }
+      });
+      gradeId = studentRecord?.classes?.grade_id || null;
+    }
+
+    const orConditions = [
+      { target_type: 'all_students' },
+      { target_type: 'specific_student', target_student_id: studentId }
+    ];
+
+    if (gradeId) {
+      orConditions.push({ target_type: 'grade', target_grade_id: gradeId });
+    }
+
+    const reminders = await prisma.teacher_news.findMany({
+      where: { OR: orConditions },
+      include: {
+        users: { select: { first_name: true, last_name: true } },
+        target_grade: { select: { id: true, grade_name: true } },
+        target_student: {
+          include: { users: { select: { first_name: true, last_name: true } } }
         }
       },
       orderBy: [
@@ -75,22 +60,11 @@ export async function GET(request) {
         { created_at: 'desc' }
       ]
     });
-    
-    console.log(`Found ${reminders.length} reminders from teacher_news table`);
-    
-    return NextResponse.json({ 
-      success: true, 
-      reminders 
-    }, { status: 200 });
-    
+
+    return NextResponse.json({ success: true, reminders });
+
   } catch (error) {
     console.error('Error fetching student reminders:', error);
-    return NextResponse.json({ 
-      success: false, 
-      error: 'خطا در دریافت یادآوری‌ها',
-      details: error.message 
-    }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
+    return NextResponse.json({ success: false, error: 'خطا در دریافت یادآوری‌ها' }, { status: 500 });
   }
 }

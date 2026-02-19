@@ -1,14 +1,15 @@
 'use client'
 
 import React, { useEffect, useState } from 'react';
-import { CalendarCheck2, CalendarX2, Clock, Loader2, Calendar, AlertCircle, Info } from 'lucide-react';
+import { CalendarCheck2, CalendarX2, Clock, Calendar, AlertCircle, Info, CheckCircle } from 'lucide-react';
 
 export default function AttendancePage() {
   const [user, setUser] = useState(null);
   const [studentId, setStudentId] = useState(null);
   const [attendances, setAttendances] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all'); // all, week, month, threeMonths
+  const [error, setError] = useState('');
+  const [filter, setFilter] = useState('all');
   const [stats, setStats] = useState({
     present: 0,
     absent: 0,
@@ -16,30 +17,38 @@ export default function AttendancePage() {
     excused: 0,
   });
 
-  // تنظیم کاربر و studentId
   useEffect(() => {
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      try {
-        const userObj = JSON.parse(userData);
-        setUser(userObj);
-        setStudentId(userObj.id);
-      } catch {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+    try {
+      const userData = localStorage.getItem('user');
+      if (!userData) {
         window.location.href = '/';
+        return;
       }
-    } else {
+
+      const userObj = JSON.parse(userData);
+      setUser(userObj);
+      
+      const sId = userObj.id || userObj.user_id || userObj.studentId;
+      if (!sId) {
+        setError('شناسه دانش‌آموز یافت نشد');
+        return;
+      }
+      
+      setStudentId(sId);
+    } catch (err) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
       window.location.href = '/';
     }
   }, []);
 
-  // دریافت اطلاعات حضور و غیاب
   useEffect(() => {
     async function fetchAttendance() {
-      if (!studentId) return; // اگر studentId نداریم، درخواست نزنیم
+      if (!studentId) return;
       
       setLoading(true);
+      setError('');
+      
       try {
         const token = localStorage.getItem('token');
         if (!token) {
@@ -53,12 +62,23 @@ export default function AttendancePage() {
           }
         });
 
+        if (res.status === 401) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          window.location.href = '/';
+          return;
+        }
+
+        if (res.status === 403) {
+          setError('دسترسی به این اطلاعات مجاز نیست');
+          return;
+        }
+
         if (!res.ok) {
           throw new Error(`خطای HTTP: ${res.status}`);
         }
 
         const data = await res.json();
-        console.log('Received data:', data);
 
         if (data.success) {
           setAttendances(data.attendances || []);
@@ -69,17 +89,10 @@ export default function AttendancePage() {
             excused: 0
           });
         } else {
-          // در صورت خطا، داده‌های نمونه نمایش داده می‌شود
-          const sampleData = getSampleAttendanceData();
-          setAttendances(sampleData.attendances);
-          setStats(sampleData.stats);
+          setError(data.message || 'خطا در دریافت اطلاعات');
         }
-      } catch (error) {
-        console.error('Error fetching attendance:', error);
-        // نمایش داده‌های نمونه در صورت خطا
-        const sampleData = getSampleAttendanceData();
-        setAttendances(sampleData.attendances);
-        setStats(sampleData.stats);
+      } catch (err) {
+        setError('خطا در ارتباط با سرور');
       } finally {
         setLoading(false);
       }
@@ -87,52 +100,6 @@ export default function AttendancePage() {
 
     fetchAttendance();
   }, [studentId, filter]);
-
-  // داده‌های نمونه برای حضور و غیاب
-  const getSampleAttendanceData = () => {
-    return {
-      attendances: [
-        {
-          id: 1,
-          date: '2024-10-15',
-          status: 'absent',
-          delay_minutes: null,
-          delay_reason: null,
-          notes: 'بیماری'
-        },
-        {
-          id: 2,
-          date: '2024-10-12',
-          status: 'late',
-          delay_minutes: 15,
-          delay_reason: 'ترافیک',
-          notes: 'تاخیر در رسیدن اتوبوس'
-        },
-        {
-          id: 3,
-          date: '2024-10-08',
-          status: 'late',
-          delay_minutes: 30,
-          delay_reason: 'قرار ملاقات پزشک',
-          notes: null
-        },
-        {
-          id: 4,
-          date: '2024-10-05',
-          status: 'absent',
-          delay_minutes: null,
-          delay_reason: null,
-          notes: 'مسافرت خانوادگی'
-        }
-      ],
-      stats: {
-        present: 18,
-        absent: 2,
-        late: 3,
-        excused: 1
-      }
-    };
-  };
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('fa-IR');
@@ -147,158 +114,167 @@ export default function AttendancePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center p-8 bg-white/90 backdrop-blur-lg rounded-3xl shadow-2xl border border-green-200">
-          <div className="w-16 h-16 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-700">در حال بارگذاری اطلاعات حضور و غیاب...</p>
+      <div className="space-y-6">
+        <div className="bg-white rounded-xl md:rounded-2xl shadow-lg p-8 border border-gray-100">
+          <div className="flex justify-center items-center py-12">
+            <div className="w-16 h-16 border-4 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+          </div>
         </div>
       </div>
     );
   }
 
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-white rounded-xl md:rounded-2xl shadow-lg p-8 border border-gray-100 text-center">
+          <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="bg-gradient-to-r from-green-400 via-green-500 to-green-600 text-white px-6 py-2 rounded-lg hover:shadow-lg transition-all"
+          >
+            تلاش مجدد
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const filteredAttendances = attendances.filter(att => 
+    att.status === 'absent' || att.status === 'late'
+  );
+
   return (
-    <div className="space-y-6 mb-5">
-      {/* پیام هشدار */}
-      <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
-        <Info className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-        <p className="text-sm text-red-800">
-          اگر غیبت یا تاخیری موجه بوده و در سایت به نام موجه ثبت نشده با مدرسه تماس گرفته و اطلاع دهید.
-        </p>
-      </div>
-
-      {/* آمار کلی */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-green-50 rounded-xl p-4 border border-green-100">
-          <div className="flex items-center justify-between">
+    <div className="space-y-6">
+      {/* هدر مینیمال مثل داشبورد */}
+      <div className="bg-gradient-to-r from-green-400 via-green-500 to-green-600 rounded-xl md:rounded-2xl shadow-lg p-4 md:p-6 text-white relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-20 h-20 md:w-32 md:h-32 bg-white/10 rounded-full -translate-y-10 md:-translate-y-16 translate-x-10 md:translate-x-16"></div>
+        <div className="absolute bottom-0 left-0 w-16 h-16 md:w-24 bg-white/10 rounded-full translate-y-8 md:translate-y-12 -translate-x-8 md:-translate-x-12"></div>
+        <div className="relative z-10">
+          <div className="flex items-center gap-2 md:gap-3">
+            <CalendarCheck2 className="w-6 h-6 md:w-8 md:h-8 text-white" />
             <div>
-              <p className="text-sm text-green-600">حضور</p>
-              <p className="text-2xl font-bold text-green-700">{stats.present || 0}</p>
+              <h2 className="text-lg md:text-2xl font-bold mb-1">حضور و غیاب</h2>
+              <p className="text-green-100 text-xs md:text-sm">آمار حضور و غیاب شما</p>
             </div>
-            <CalendarCheck2 className="w-8 h-8 text-green-500" />
-          </div>
-        </div>
-        <div className="bg-red-50 rounded-xl p-4 border border-red-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-red-600">غیبت</p>
-              <p className="text-2xl font-bold text-red-700">{stats.absent || 0}</p>
-            </div>
-            <CalendarX2 className="w-8 h-8 text-red-500" />
-          </div>
-        </div>
-        <div className="bg-yellow-50 rounded-xl p-4 border border-yellow-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-yellow-600">تاخیر</p>
-              <p className="text-2xl font-bold text-yellow-700">{stats.late || 0}</p>
-            </div>
-            <Clock className="w-8 h-8 text-yellow-500" />
-          </div>
-        </div>
-        <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-blue-600">موجه</p>
-              <p className="text-2xl font-bold text-blue-700">{stats.excused || 0}</p>
-            </div>
-            <AlertCircle className="w-8 h-8 text-blue-500" />
           </div>
         </div>
       </div>
 
-      {/* فیلتر */}
-      <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-xl">
-        <Calendar className="w-5 h-5 text-gray-500" />
-        <select
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
-        >
-          <option value="all">همه زمان‌ها</option>
-          <option value="week">هفته گذشته</option>
-          <option value="month">ماه گذشته</option>
-          <option value="threeMonths">سه ماه گذشته</option>
-        </select>
+      {/* آمار کلی - مینیمال */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+        <div className="bg-gradient-to-br from-green-50 to-white rounded-xl md:rounded-2xl p-4 md:p-6 border border-gray-100 hover:shadow-lg transition-shadow">
+          <CalendarCheck2 className="w-8 h-8 md:w-10 md:h-10 text-green-500 mb-2" />
+          <p className="text-xl md:text-3xl font-bold text-green-700">{stats.present}</p>
+          <p className="text-xs md:text-sm font-medium text-gray-600">حضور</p>
+        </div>
+        
+        <div className="bg-gradient-to-br from-red-50 to-white rounded-xl md:rounded-2xl p-4 md:p-6 border border-gray-100 hover:shadow-lg transition-shadow">
+          <CalendarX2 className="w-8 h-8 md:w-10 md:h-10 text-red-500 mb-2" />
+          <p className="text-xl md:text-3xl font-bold text-red-700">{stats.absent}</p>
+          <p className="text-xs md:text-sm font-medium text-gray-600">غیبت</p>
+        </div>
+        
+        <div className="bg-gradient-to-br from-yellow-50 to-white rounded-xl md:rounded-2xl p-4 md:p-6 border border-gray-100 hover:shadow-lg transition-shadow">
+          <Clock className="w-8 h-8 md:w-10 md:h-10 text-yellow-500 mb-2" />
+          <p className="text-xl md:text-3xl font-bold text-yellow-700">{stats.late}</p>
+          <p className="text-xs md:text-sm font-medium text-gray-600">تاخیر</p>
+        </div>
+        
+        <div className="bg-gradient-to-br from-blue-50 to-white rounded-xl md:rounded-2xl p-4 md:p-6 border border-gray-100 hover:shadow-lg transition-shadow">
+          <CheckCircle className="w-8 h-8 md:w-10 md:h-10 text-blue-500 mb-2" />
+          <p className="text-xl md:text-3xl font-bold text-blue-700">{stats.excused}</p>
+          <p className="text-xs md:text-sm font-medium text-gray-600">موجه</p>
+        </div>
       </div>
 
-      {/* جدول حضور و غیاب */}
-      {!attendances.length ? (
-        <div className="text-center py-10 text-gray-500">
-          <CalendarCheck2 className="mx-auto mb-2 w-8 h-8" />
-          هیچ حضور و غیابی ثبت نشده است.
+      {/* فیلتر - مینیمال */}
+      <div className="bg-white rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border border-gray-100">
+        <div className="flex items-center gap-3 md:gap-4">
+          <Calendar className="w-4 h-4 md:w-5 md:h-5 text-green-600" />
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="bg-white border border-gray-200 rounded-lg px-3 md:px-4 py-2 text-xs md:text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+          >
+            <option value="all">همه زمان‌ها</option>
+            <option value="week">هفته گذشته</option>
+            <option value="month">ماه گذشته</option>
+            <option value="threeMonths">سه ماه گذشته</option>
+          </select>
         </div>
-      ) : (
-        <div className="bg-white rounded-xl shadow border border-green-100 p-6">
-          <h2 className="text-lg font-bold text-green-700 mb-4 flex items-center gap-2">
-            <CalendarCheck2 className="w-6 h-6" />
+      </div>
+
+      {/* جدول - مینیمال */}
+      <div className="bg-white rounded-xl md:rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+        <div className="bg-gradient-to-r from-gray-50 to-white p-4 md:p-6 border-b border-gray-100">
+          <h2 className="text-base md:text-lg font-bold text-gray-800 flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-500"></div>
             لیست غیبت‌ها و تاخیرها
           </h2>
+        </div>
+
+        {filteredAttendances.length === 0 ? (
+          <div className="text-center py-12 p-6">
+            <CalendarCheck2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-base md:text-lg font-bold text-gray-700 mb-2">
+              {attendances.length === 0 ? 'هیچ رکوردی یافت نشد' : 'همه حضورها کامل است!'}
+            </h3>
+            <p className="text-xs md:text-sm text-gray-500">
+              {attendances.length === 0 
+                ? 'تاکنون هیچ حضور و غیابی ثبت نشده است.'
+                : 'شما هیچ غیبت یا تاخیری در این بازه زمانی نداشته‌اید.'
+              }
+            </p>
+          </div>
+        ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-green-50 text-green-700">
-                  <th className="py-3 px-4 text-right">تاریخ</th>
-                  <th className="py-3 px-4 text-right">وضعیت</th>
-                  <th className="py-3 px-4 text-right">میزان تاخیر</th>
-                  <th className="py-3 px-4 text-right">دلیل</th>
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="py-3 md:py-4 px-4 md:px-6 text-right text-xs md:text-sm font-bold text-gray-700">تاریخ</th>
+                  <th className="py-3 md:py-4 px-4 md:px-6 text-right text-xs md:text-sm font-bold text-gray-700">وضعیت</th>
+                  <th className="py-3 md:py-4 px-4 md:px-6 text-right text-xs md:text-sm font-bold text-gray-700">میزان تاخیر</th>
+                  <th className="py-3 md:py-4 px-4 md:px-6 text-right text-xs md:text-sm font-bold text-gray-700">دلیل</th>
                 </tr>
               </thead>
-              <tbody>
-                {attendances
-                  .filter(att => att.status === 'absent' || att.status === 'late')
-                  .map((attendance) => (
-                    <tr key={attendance.id} className="border-b last:border-b-0 hover:bg-gray-50">
-                      <td className="py-3 px-4">{formatDate(attendance.date)}</td>
-                      <td className="py-3 px-4">
-                        {attendance.status === 'absent' && (
-                          <span className="px-2 py-1 rounded bg-red-100 text-red-700">غیبت</span>
-                        )}
-                        {attendance.status === 'late' && (
-                          <span className="px-2 py-1 rounded bg-yellow-100 text-yellow-700">تاخیر</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4">
-                        {attendance.status === 'late' ? formatTime(attendance.delay_minutes) : '-'}
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex flex-col gap-1">
-                          {attendance.delay_reason && (
-                            <span className="text-gray-600">
-                              {attendance.delay_reason}
-                            </span>
-                          )}
-                          {attendance.notes && (
-                            <span className="text-sm text-gray-500">
-                              {attendance.notes}
-                            </span>
-                          )}
-                          {!attendance.delay_reason && !attendance.notes && '-'}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+              <tbody className="divide-y divide-gray-100">
+                {filteredAttendances.map((attendance) => (
+                  <tr key={attendance.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="py-3 md:py-4 px-4 md:px-6 text-xs md:text-sm text-gray-900">
+                      {formatDate(attendance.date)}
+                    </td>
+                    <td className="py-3 md:py-4 px-4 md:px-6">
+                      {attendance.status === 'absent' && (
+                        <span className={`inline-flex items-center gap-1 md:gap-2 px-2 md:px-3 py-1 rounded-full text-xs font-bold ${
+                          attendance.is_justified 
+                            ? 'bg-blue-100 text-blue-700' 
+                            : 'bg-red-100 text-red-700'
+                        }`}>
+                          <CalendarX2 className="w-3 h-3" />
+                          {attendance.is_justified ? 'غیبت موجه' : 'غیبت'}
+                        </span>
+                      )}
+                      {attendance.status === 'late' && (
+                        <span className="inline-flex items-center gap-1 md:gap-2 px-2 md:px-3 py-1 rounded-full bg-yellow-100 text-yellow-700 text-xs font-bold">
+                          <Clock className="w-3 h-3" />
+                          تاخیر
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-3 md:py-4 px-4 md:px-6 text-xs md:text-sm text-gray-600">
+                      {attendance.status === 'late' ? formatTime(attendance.delay_minutes) : '-'}
+                    </td>
+                    <td className="py-3 md:py-4 px-4 md:px-6 text-xs md:text-sm text-gray-600">
+                      {attendance.delay_reason || attendance.notes || '-'}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
-        </div>
-      )}
-
-      {/* راهنمای استفاده */}
-      <div className="bg-gradient-to-br from-green-50 to-white rounded-2xl p-6 border border-green-200">
-        <div className="flex items-start gap-4">
-          <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
-            <AlertCircle className="w-6 h-6 text-green-600" />
-          </div>
-          <div>
-            <h3 className="text-lg font-bold text-green-900 mb-2">راهنمای حضور و غیاب</h3>
-            <ul className="text-green-700 space-y-1 text-sm">
-              <li>• آمار کلی حضور و غیاب شما در بالا نمایش داده شده است</li>
-              <li>• فقط غیبت‌ها و تاخیرها در جدول نشان داده می‌شوند</li>
-              <li>• می‌توانید بر اساس بازه زمانی مختلف فیلتر کنید</li>
-              <li>• اگر غیبت یا تاخیری موجه است، با مدرسه تماس بگیرید</li>
-            </ul>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );

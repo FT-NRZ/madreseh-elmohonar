@@ -5,12 +5,29 @@ import { verifyJWT } from '@/lib/jwt';
 
 // تابع دریافت توکن از هدر
 function getToken(request) {
-  const auth = request.headers.get('authorization');
-  return auth?.startsWith('Bearer ') ? auth.replace('Bearer ', '') : null;
+  const auth = request.headers.get('authorization') || request.headers.get('Authorization');
+  if (auth && auth.toLowerCase().startsWith('bearer ')) {
+    const t = auth.slice(7).trim().replace(/^bearer\s+/i,'').replace(/^"+|"+$/g,'').replace(/^'+|'+$/g,'');
+    if (t && t !== 'undefined' && t !== 'null') return t;
+  }
+  const cookie = request.headers.get('cookie') || '';
+  const m = cookie.match(/(?:^|;\s*)access_token=([^;]+)/);
+  if (m?.[1]) return decodeURIComponent(m[1]);
+  return null;
+}
+
+function authorizeAdmin(request) {
+  const token = getToken(request);
+  const payload = verifyJWT(token);
+  if (!payload) return { error: NextResponse.json({ success:false, message:'توکن نامعتبر است' }, { status:401 }) };
+  if (payload.role !== 'admin') return { error: NextResponse.json({ success:false, message:'دسترسی مجاز نیست' }, { status:403 }) };
+  return { payload };
 }
 
 // دریافت اطلاعات یک کاربر (GET)
 export async function GET(request, context) {
+  const auth = authorizeAdmin(request);
+  if (auth.error) return auth.error;
   try {
     const token = getToken(request);
     const payload = verifyJWT(token);
@@ -131,6 +148,8 @@ export async function GET(request, context) {
 
 // ویرایش کاربر (PUT)
 export async function PUT(request, context) {
+  const auth = authorizeAdmin(request);
+  if (auth.error) return auth.error;
   try {
     const token = getToken(request);
     const payload = verifyJWT(token);
@@ -287,6 +306,8 @@ export async function PUT(request, context) {
 
 // حذف کاربر (DELETE)
 export async function DELETE(request, context) {
+  const auth = authorizeAdmin(request);
+  if (auth.error) return auth.error;
   try {
     const token = getToken(request);
     const payload = verifyJWT(token);

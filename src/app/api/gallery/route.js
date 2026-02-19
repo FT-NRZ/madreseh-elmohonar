@@ -1,49 +1,24 @@
 import { PrismaClient } from '@prisma/client';
 import { verifyJWT } from '../../../lib/jwt';
-import { writeFile, mkdir } from 'fs/promises';
-import { existsSync } from 'fs';
-import path from 'path';
+import { NextResponse } from 'next/server';
 
 const prisma = new PrismaClient();
-// تابع پردازش فایل آپلود شده
-async function saveFile(file, directory) {
-  try {
-    // اطمینان از وجود دایرکتوری
-    const uploadDir = path.join(process.cwd(), 'public', directory);
-    
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true });
-    }
-    
-    // خواندن فایل و ذخیره آن
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    
-    // ایجاد نام فایل منحصر به فرد
-    const timestamp = Date.now();
-    const originalName = file.name.replace(/\s+/g, '-').toLowerCase();
-    const extension = path.extname(originalName);
-    const fileName = `${timestamp}${extension}`;
-    const filePath = path.join(uploadDir, fileName);
-    
-    // ذخیره فایل
-    await writeFile(filePath, buffer);
-    
-    // برگرداندن مسیر نسبی فایل برای ذخیره در دیتابیس
-    return `/${directory}/${fileName}`;
-  } catch (error) {
-    console.error('Error saving file:', error);
-    throw new Error('خطا در ذخیره‌سازی فایل');
-  }
+
+// تابع دریافت توکن احراز هویت
+function getAuthToken(request) {
+  const bearer = request.headers.get('authorization');
+  const cookieToken = request.cookies.get('token')?.value;
+  if (bearer && bearer.startsWith('Bearer ')) return bearer.slice(7).trim();
+  return (cookieToken || '').trim();
 }
 
 // بررسی احراز هویت
 async function authenticate(request) {
-  const authHeader = request.headers.get('authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return { authenticated: false, status: 401, message: 'توکن ارسال نشده یا نامعتبر است' };
+  const token = getAuthToken(request);
+  if (!token) {
+    return { authenticated: false, status: 401, message: 'توکن ارسال نشده' };
   }
-  const token = authHeader.replace('Bearer ', '');
+  
   const user = verifyJWT(token);
   if (!user) {
     return { authenticated: false, status: 401, message: 'توکن نامعتبر است' };
@@ -56,35 +31,24 @@ export async function GET(request) {
   try {
     const auth = await authenticate(request);
     if (!auth.authenticated) {
-      return Response.json({ success: false, message: auth.message }, { status: auth.status });
+      return NextResponse.json({ success: false, message: auth.message }, { status: auth.status });
     }
 
-    // بررسی پارامترهای URL
     const url = new URL(request.url);
     const categoryId = url.searchParams.get('categoryId');
     const classId = url.searchParams.get('classId');
-    const gradeId = url.searchParams.get('gradeId'); // اینجا منتقل شود
+    const gradeId = url.searchParams.get('gradeId');
     const featured = url.searchParams.get('featured');
     const page = parseInt(url.searchParams.get('page') || '1');
     const limit = parseInt(url.searchParams.get('limit') || '20');
     const skip = (page - 1) * limit;
     
-    // ساخت شرط جستجو
     const where = {};
-    if (categoryId) {
-      where.category_id = parseInt(categoryId);
-    }
-    if (classId) {
-      where.class_id = parseInt(classId);
-    }
-    if (gradeId) { // اینجا منتقل شود
-      where.grade_id = parseInt(gradeId);
-    }
-    if (featured === 'true') {
-      where.is_featured = true;
-    }
+    if (categoryId) where.category_id = parseInt(categoryId);
+    if (classId) where.class_id = parseInt(classId);
+    if (gradeId) where.grade_id = parseInt(gradeId);
+    if (featured === 'true') where.is_featured = true;
     
-    // دریافت تصاویر با اطلاعات دسته‌بندی و کلاس
     const [images, totalCount] = await Promise.all([
       prisma.gallery_images.findMany({
         where,
@@ -103,7 +67,7 @@ export async function GET(request) {
       prisma.gallery_images.count({ where })
     ]);
     
-    return Response.json({ 
+    return NextResponse.json({ 
       success: true, 
       images,
       pagination: {
@@ -115,8 +79,8 @@ export async function GET(request) {
     });
     
   } catch (error) {
-    console.error('Gallery images API error:', error);
-    return Response.json({ 
+    console.error('💥 Gallery GET error:', error);
+    return NextResponse.json({ 
       success: false, 
       message: 'خطا در سرور', 
       error: error.message 
@@ -129,41 +93,40 @@ export async function GET(request) {
 // POST: آپلود تصویر جدید
 export async function POST(request) {
   try {
+    console.log('🔄 Gallery POST started');
+    
     const auth = await authenticate(request);
     if (!auth.authenticated) {
-      return Response.json({ success: false, message: auth.message }, { status: auth.status });
+      return NextResponse.json({ success: false, message: auth.message }, { status: auth.status });
     }
     
-    // دریافت فرم داده
     const formData = await request.formData();
     const imageFile = formData.get('image');
     
-    // اعتبارسنجی فایل تصویر
     if (!imageFile) {
-      return Response.json({ 
+      return NextResponse.json({ 
         success: false, 
         message: 'فایل تصویر الزامی است' 
       }, { status: 400 });
     }
     
     if (!imageFile.type.startsWith('image/')) {
-      return Response.json({ 
+      return NextResponse.json({ 
         success: false, 
         message: 'فقط فایل‌های تصویری مجاز هستند' 
       }, { status: 400 });
     }
     
     if (imageFile.size > 5 * 1024 * 1024) {
-      return Response.json({ 
+      return NextResponse.json({ 
         success: false, 
         message: 'حداکثر اندازه فایل 5 مگابایت است' 
       }, { status: 400 });
     }
     
-    // اعتبارسنجی دسته‌بندی
     const categoryId = formData.get('category_id');
     if (!categoryId) {
-      return Response.json({ 
+      return NextResponse.json({ 
         success: false, 
         message: 'انتخاب دسته‌بندی الزامی است' 
       }, { status: 400 });
@@ -175,11 +138,39 @@ export async function POST(request) {
     });
     
     if (!category) {
-      return Response.json({ 
+      return NextResponse.json({ 
         success: false, 
         message: 'دسته‌بندی مورد نظر یافت نشد' 
       }, { status: 404 });
     }
+    
+    // 🔥 آپلود به فضای ابری
+    const uploadFormData = new FormData();
+    uploadFormData.append('file', imageFile);
+    uploadFormData.append('folder', 'gallery');
+
+    console.log('📤 Uploading to cloud storage...');
+
+    const baseUrl = process.env.NEXTAUTH_URL || 
+                   `${request.headers.get('x-forwarded-proto') || 'https'}://${request.headers.get('host')}`;
+    
+    const uploadResponse = await fetch(`${baseUrl}/api/storage/upload`, {
+      method: 'POST',
+      body: uploadFormData
+    });
+
+    const uploadData = await uploadResponse.json();
+    console.log('📊 Upload response:', uploadData);
+
+    if (!uploadData.success || !uploadData.url) {
+      console.error('❌ Upload failed:', uploadData);
+      return NextResponse.json({ 
+        success: false, 
+        message: 'خطا در آپلود فایل: ' + (uploadData.error || 'نامشخص') 
+      }, { status: 500 });
+    }
+
+    console.log('✅ Image uploaded to cloud:', uploadData.url);
     
     // دریافت سایر فیلدها
     const title = formData.get('title') || '';
@@ -189,35 +180,33 @@ export async function POST(request) {
     const isFeatured = formData.get('is_featured') === 'true';
     const gradeId = formData.get('grade_id') || null;
     
-    // ذخیره فایل تصویر
-    const imagePath = await saveFile(imageFile, 'uploads/gallery');
-    
-    // ذخیره اطلاعات تصویر در دیتابیس
+    // ذخیره اطلاعات در دیتابیس با URL فضای ابری
     const newImage = await prisma.gallery_images.create({
       data: {
         category_id: parseInt(categoryId),
         class_id: classId ? parseInt(classId) : null,
-        grade_id: gradeId ? parseInt(gradeId) : null, // اضافه شود
+        grade_id: gradeId ? parseInt(gradeId) : null,
         title,
         description,
-        image_path: imagePath,
+        image_path: uploadData.url, // 🔥 URL فضای ابری
         alt_text: altText,
         is_featured: isFeatured
       }
     });
     
-    return Response.json({ 
+    console.log('✅ Gallery image saved to database:', newImage.id);
+    
+    return NextResponse.json({ 
       success: true, 
       message: 'تصویر با موفقیت آپلود شد', 
       image: newImage 
     });
     
   } catch (error) {
-    console.error('Gallery images API error:', error);
-    return Response.json({ 
+    console.error('💥 Gallery POST error:', error);
+    return NextResponse.json({ 
       success: false, 
-      message: 'خطا در سرور', 
-      error: error.message 
+      message: 'خطا در سرور: ' + error.message
     }, { status: 500 });
   } finally {
     await prisma.$disconnect();
@@ -227,16 +216,18 @@ export async function POST(request) {
 // PUT: بروزرسانی تصویر
 export async function PUT(request) {
   try {
+    console.log('🔄 Gallery PUT started');
+    
     const auth = await authenticate(request);
     if (!auth.authenticated) {
-      return Response.json({ success: false, message: auth.message }, { status: auth.status });
+      return NextResponse.json({ success: false, message: auth.message }, { status: auth.status });
     }
     
     const url = new URL(request.url);
     const id = url.searchParams.get('id');
     
     if (!id || isNaN(parseInt(id))) {
-      return Response.json({ 
+      return NextResponse.json({ 
         success: false, 
         message: 'شناسه تصویر معتبر نیست' 
       }, { status: 400 });
@@ -250,13 +241,12 @@ export async function PUT(request) {
     });
     
     if (!existingImage) {
-      return Response.json({ 
+      return NextResponse.json({ 
         success: false, 
         message: 'تصویر مورد نظر یافت نشد' 
       }, { status: 404 });
     }
     
-    // اگر درخواست multipart/form-data است (احتمالاً فایل جدید آپلود شده)
     const contentType = request.headers.get('content-type');
     let updateData = {};
     
@@ -264,24 +254,67 @@ export async function PUT(request) {
       const formData = await request.formData();
       const imageFile = formData.get('image');
       
-      // بروزرسانی فیلدهای متنی
+      // بررسی دسته‌بندی
       const categoryId = formData.get('category_id');
       if (categoryId) {
-        // بررسی وجود دسته‌بندی
         const category = await prisma.gallery_categories.findUnique({
           where: { id: parseInt(categoryId) }
         });
         
         if (!category) {
-          return Response.json({ 
+          return NextResponse.json({ 
             success: false, 
             message: 'دسته‌بندی مورد نظر یافت نشد' 
           }, { status: 404 });
         }
-        
         updateData.category_id = parseInt(categoryId);
       }
       
+      // اگر فایل جدید آپلود شده
+      if (imageFile && imageFile.size > 0) {
+        if (!imageFile.type.startsWith('image/')) {
+          return NextResponse.json({ 
+            success: false, 
+            message: 'فقط فایل‌های تصویری مجاز هستند' 
+          }, { status: 400 });
+        }
+        
+        if (imageFile.size > 5 * 1024 * 1024) {
+          return NextResponse.json({ 
+            success: false, 
+            message: 'حداکثر اندازه فایل 5 مگابایت است' 
+          }, { status: 400 });
+        }
+        
+        // 🔥 آپلود فایل جدید به فضای ابری
+        const uploadFormData = new FormData();
+        uploadFormData.append('file', imageFile);
+        uploadFormData.append('folder', 'gallery');
+
+        console.log('📤 Uploading new image to cloud...');
+
+        const baseUrl = process.env.NEXTAUTH_URL || 
+                       `${request.headers.get('x-forwarded-proto') || 'https'}://${request.headers.get('host')}`;
+        
+        const uploadResponse = await fetch(`${baseUrl}/api/storage/upload`, {
+          method: 'POST',
+          body: uploadFormData
+        });
+
+        const uploadData = await uploadResponse.json();
+
+        if (!uploadData.success || !uploadData.url) {
+          return NextResponse.json({ 
+            success: false, 
+            message: 'خطا در آپلود فایل جدید: ' + (uploadData.error || 'نامشخص') 
+          }, { status: 500 });
+        }
+
+        console.log('✅ New image uploaded:', uploadData.url);
+        updateData.image_path = uploadData.url; // 🔥 URL جدید فضای ابری
+      }
+      
+      // بروزرسانی سایر فیلدها
       updateData = {
         ...updateData,
         title: formData.get('title') !== undefined ? formData.get('title') : existingImage.title,
@@ -295,41 +328,17 @@ export async function PUT(request) {
           (formData.get('grade_id') ? parseInt(formData.get('grade_id')) : null) : 
           existingImage.grade_id
       };
-      
-      // اگر فایل جدید آپلود شده
-      if (imageFile && imageFile.size > 0) {
-        // اعتبارسنجی نوع فایل
-        if (!imageFile.type.startsWith('image/')) {
-          return Response.json({ 
-            success: false, 
-            message: 'فقط فایل‌های تصویری مجاز هستند' 
-          }, { status: 400 });
-        }
-        
-        // اعتبارسنجی سایز فایل
-        if (imageFile.size > 5 * 1024 * 1024) {
-          return Response.json({ 
-            success: false, 
-            message: 'حداکثر اندازه فایل 5 مگابایت است' 
-          }, { status: 400 });
-        }
-        
-        // ذخیره فایل جدید
-        const imagePath = await saveFile(imageFile, 'uploads/gallery');
-        updateData.image_path = imagePath;
-      }
     } else {
-      // اگر درخواست JSON است (فقط بروزرسانی فیلدهای متنی)
+      // درخواست JSON (فقط بروزرسانی فیلدهای متنی)
       const body = await request.json();
       
       if (body.category_id) {
-        // بررسی وجود دسته‌بندی
         const category = await prisma.gallery_categories.findUnique({
           where: { id: parseInt(body.category_id) }
         });
         
         if (!category) {
-          return Response.json({ 
+          return NextResponse.json({ 
             success: false, 
             message: 'دسته‌بندی مورد نظر یافت نشد' 
           }, { status: 404 });
@@ -337,7 +346,6 @@ export async function PUT(request) {
       }
       
       updateData = {
-        ...updateData,
         title: body.title !== undefined ? body.title : existingImage.title,
         description: body.description !== undefined ? body.description : existingImage.description,
         category_id: body.category_id !== undefined ? parseInt(body.category_id) : existingImage.category_id,
@@ -352,24 +360,25 @@ export async function PUT(request) {
       };
     }
     
-    // بروزرسانی تصویر در دیتابیس
+    // بروزرسانی در دیتابیس
     const updatedImage = await prisma.gallery_images.update({
       where: { id: imageId },
       data: updateData
     });
     
-    return Response.json({ 
+    console.log('✅ Gallery image updated:', updatedImage.id);
+    
+    return NextResponse.json({ 
       success: true, 
       message: 'تصویر با موفقیت بروزرسانی شد', 
       image: updatedImage 
     });
     
   } catch (error) {
-    console.error('Gallery images API error:', error);
-    return Response.json({ 
+    console.error('💥 Gallery PUT error:', error);
+    return NextResponse.json({ 
       success: false, 
-      message: 'خطا در سرور', 
-      error: error.message 
+      message: 'خطا در سرور: ' + error.message
     }, { status: 500 });
   } finally {
     await prisma.$disconnect();
@@ -381,14 +390,14 @@ export async function DELETE(request) {
   try {
     const auth = await authenticate(request);
     if (!auth.authenticated) {
-      return Response.json({ success: false, message: auth.message }, { status: auth.status });
+      return NextResponse.json({ success: false, message: auth.message }, { status: auth.status });
     }
     
     const url = new URL(request.url);
     const id = url.searchParams.get('id');
     
     if (!id || isNaN(parseInt(id))) {
-      return Response.json({ 
+      return NextResponse.json({ 
         success: false, 
         message: 'شناسه تصویر معتبر نیست' 
       }, { status: 400 });
@@ -402,7 +411,7 @@ export async function DELETE(request) {
     });
     
     if (!existingImage) {
-      return Response.json({ 
+      return NextResponse.json({ 
         success: false, 
         message: 'تصویر مورد نظر یافت نشد' 
       }, { status: 404 });
@@ -413,17 +422,18 @@ export async function DELETE(request) {
       where: { id: imageId }
     });
     
-    return Response.json({ 
+    console.log('✅ Gallery image deleted:', imageId);
+    
+    return NextResponse.json({ 
       success: true, 
       message: 'تصویر با موفقیت حذف شد' 
     });
     
   } catch (error) {
-    console.error('Gallery images API error:', error);
-    return Response.json({ 
+    console.error('💥 Gallery DELETE error:', error);
+    return NextResponse.json({ 
       success: false, 
-      message: 'خطا در سرور', 
-      error: error.message 
+      message: 'خطا در سرور: ' + error.message
     }, { status: 500 });
   } finally {
     await prisma.$disconnect();

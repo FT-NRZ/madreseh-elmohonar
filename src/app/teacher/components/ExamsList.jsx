@@ -40,6 +40,17 @@ export default function ExamsList() {
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [toast, setToast] = useState({ show: false, type: 'success', msg: '' });
+  const [confirmDelete, setConfirmDelete] = useState({ show: false, examId: null });
+
+  const showToast = (msg, type = 'success', timeout = 3500) => {
+    setToast({ show: true, type, msg });
+    window.clearTimeout(showToast._t);
+    showToast._t = window.setTimeout(() => setToast(t => ({ ...t, show: false })), timeout);
+  };
+  const askDelete = (id) => {
+    setConfirmDelete({ show: true, examId: id });
+  };
 
   const fixedClasses = [
     { id: 1, name: "اول ابتدایی" },
@@ -62,7 +73,7 @@ export default function ExamsList() {
     } catch (err) {
       safeLog('fetchExams error', { status: err.status, message: err.message });
       setExams([]);
-      setError(err.message || 'خطا در دریافت لیست آزمون‌ها');
+      showToast(err.message || 'خطا در دریافت لیست آزمون‌ها', 'error');
     }
   }
 
@@ -74,7 +85,6 @@ export default function ExamsList() {
       setForm(f => ({ ...f, [name]: value }));
     }
   }
-
   const handleFileUpload = async (file, fileType) => {
     if (!file) return;
     setUploading(true);
@@ -94,12 +104,13 @@ export default function ExamsList() {
         } else if (fileType === 'image') {
           setForm(f => ({ ...f, image_url: data.url }));
         }
+        showToast('فایل با موفقیت آپلود شد', 'success');
       } else {
-        setError(data.error || 'خطا در آپلود فایل');
+        showToast(data.error || 'خطا در آپلود فایل', 'error');
       }
     } catch (error) {
       safeLog('Upload error', { message: error.message });
-      setError('خطا در آپلود فایل');
+      showToast('خطا در آپلود فایل', 'error');
     } finally {
       setUploading(false);
     }
@@ -125,17 +136,16 @@ export default function ExamsList() {
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        setSuccess(true);
         setForm(initialForm);
         setShowForm(false);
         await fetchExams();
-        setTimeout(() => setSuccess(false), 3000);
+        showToast('آزمون با موفقیت ثبت شد ✓', 'success');
       } else {
-        setError(data.error || 'خطا در ثبت آزمون');
+        showToast(data.error || 'خطا در ثبت آزمون', 'error');
       }
     } catch (error) {
       safeLog('submit error', { message: error.message });
-      setError('خطا در ارتباط با سرور');
+      showToast('خطا در ارتباط با سرور', 'error');
     }
   };
 
@@ -167,17 +177,18 @@ export default function ExamsList() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('آیا مطمئن هستید که می‌خواهید این آزمون را حذف کنید؟')) return;
+    setConfirmDelete({ show: false, examId: null });
     try {
       const res = await fetch(`/api/teacher/exams/${id}`, { method: 'DELETE' });
       if (res.ok) {
         fetchExams();
+        showToast('آزمون با موفقیت حذف شد', 'success');
       } else {
-        setError('خطا در حذف آزمون');
+        showToast('خطا در حذف آزمون', 'error');
       }
     } catch (e) {
       safeLog('delete error', { id, message: e.message });
-      setError('خطا در ارتباط با سرور');
+      showToast('خطا در ارتباط با سرور', 'error');
     }
   };
 
@@ -190,12 +201,13 @@ export default function ExamsList() {
       });
       if (res.ok) {
         fetchExams();
+        showToast('وضعیت آزمون تغییر کرد', 'success');
       } else {
-        setError('خطا در تغییر وضعیت آزمون');
+        showToast('خطا در تغییر وضعیت آزمون', 'error');
       }
     } catch (e) {
       safeLog('toggle error', { id, message: e.message });
-      setError('خطا در ارتباط با سرور');
+      showToast('خطا در ارتباط با سرور', 'error');
     }
   };
 
@@ -568,7 +580,7 @@ export default function ExamsList() {
                             نتایج
                           </Link>
                           <button
-                            onClick={() => handleDelete(exam.id)}
+                            onClick={() => askDelete(exam.id)}
                             className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                           >
                             حذف
@@ -582,6 +594,95 @@ export default function ExamsList() {
             )}
           </div>
         </div>
+        {/* Toast */}
+        {toast.show && (
+          <div
+            role="status"
+            aria-live="polite"
+            style={{
+              position: 'fixed',
+              bottom: 20,
+              left: 20,
+              zIndex: 9999,
+              background: toast.type === 'success' ? '#059669' : '#dc2626',
+              color: '#fff',
+              padding: '10px 14px',
+              borderRadius: 8,
+              boxShadow: '0 6px 20px rgba(0,0,0,.15)',
+              minWidth: 220,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8
+            }}
+          >
+            <span>{toast.type === 'success' ? '✅' : '⚠️'}</span>
+            <span style={{ fontWeight: 600 }}>{toast.msg}</span>
+            <button
+              onClick={() => setToast(t => ({ ...t, show: false }))}
+              style={{ marginInlineStart: 'auto', background: 'transparent', color: '#fff', fontSize: 18, lineHeight: 1 }}
+              aria-label="Close"
+              title="بستن"
+            >×</button>
+          </div>
+        )}
+
+        {/* تأیید حذف به صورت toast روی صفحه */}
+        {confirmDelete.show && (
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            style={{
+              position: 'fixed',
+              bottom: 80,
+              left: 20,
+              zIndex: 10000,
+              background: '#fff',
+              color: '#222',
+              padding: '18px 20px',
+              borderRadius: 10,
+              boxShadow: '0 8px 32px rgba(0,0,0,.18)',
+              minWidth: 260,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              border: '2px solid #dc2626'
+            }}
+          >
+            <span style={{ fontSize: 22, color: '#dc2626' }}>⚠️</span>
+            <span style={{ fontWeight: 600, fontSize: 15 }}>
+              آیا مطمئن هستید که می‌خواهید این آزمون را حذف کنید؟
+            </span>
+            <button
+              onClick={() => handleDelete(confirmDelete.examId)}
+              style={{
+                background: '#dc2626',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 6,
+                padding: '7px 18px',
+                fontWeight: 600,
+                marginInlineStart: 8,
+                cursor: 'pointer'
+              }}
+            >
+              بله
+            </button>
+            <button
+              onClick={() => setConfirmDelete({ show: false, examId: null })}
+              style={{
+                background: '#e5e7eb',
+                color: '#222',
+                border: 'none',
+                borderRadius: 6,
+                padding: '7px 18px',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              خیر
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -4,6 +4,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Calendar, Clock, Users, BookOpen, Camera, Utensils, Award, Phone, MapPin, Mail, Star, Sparkles, ChevronUp, Filter } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
+// استفاده از تابع ساده برای نمایش عکس‌ها
+const makeImageUrl = (url) => {
+  if (!url) return null;
+  // اگر لینک کامل لیارا هست
+  if (url.startsWith('http')) return url;
+  // اگر مسیر محلی قدیمی هست
+  if (url.startsWith('/')) return url;
+  return `/${url}`;
+};
+
 const HomePage = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [currentNewsIndex, setCurrentNewsIndex] = useState(0);
@@ -15,13 +25,10 @@ const HomePage = () => {
   const [selectedClass, setSelectedClass] = useState('');
   const [weeklySchedule, setWeeklySchedule] = useState([]);
   const [foodSchedule, setFoodSchedule] = useState([]);
-  
-  // حالت‌های جدید برای paging روزها
   const [selectedScheduleDay, setSelectedScheduleDay] = useState('all');
   const [selectedMenuDay, setSelectedMenuDay] = useState('all');
   const [currentSchedulePage, setCurrentSchedulePage] = useState(0);
   const [currentMenuPage, setCurrentMenuPage] = useState(0);
-  
   const newsScrollRef = useRef(null);
   const galleryRef = useRef(null);
   const router = useRouter();
@@ -63,6 +70,14 @@ const HomePage = () => {
     ];
     return colors[classId % colors.length];
   };
+
+  const fallbackMenuItems = [
+    { day: 'saturday',   persianDay: persianDays.saturday,   breakfast: '-', lunch: '-', color: getClassColor(0) },
+    { day: 'sunday',     persianDay: persianDays.sunday,     breakfast: '-', lunch: '-', color: getClassColor(1) },
+    { day: 'monday',     persianDay: persianDays.monday,     breakfast: '-', lunch: '-', color: getClassColor(2) },
+    { day: 'tuesday',    persianDay: persianDays.tuesday,    breakfast: '-', lunch: '-', color: getClassColor(3) },
+    { day: 'wednesday',  persianDay: persianDays.wednesday,  breakfast: '-', lunch: '-', color: getClassColor(4) },
+  ];
 
   // فیلتر کردن برنامه درسی بر اساس روز انتخابی
   const getFilteredSchedule = () => {
@@ -116,7 +131,7 @@ const HomePage = () => {
     setCurrentMenuPage(0);
   }, [selectedMenuDay]);
 
-  // باقی کدهای useEffect ها... (بدون تغییر)
+  // واکشی گالری
   useEffect(() => {
     async function fetchGallery() {
       try {
@@ -129,17 +144,13 @@ const HomePage = () => {
           setGallery(
             (data.images || data.gallery || []).map((item, idx) => ({
               id: item.id ?? idx + 1,
-              image: item.image_path
-                ? `/uploads/gallery/${item.image_path.replace(/^\/uploads\/gallery\//, '')}`
-                : "/images/placeholder.jpg",
+              rawPath: item.image_path || '',
               title: item.title || "بدون عنوان",
               category: item.category || item.gallery_categories?.name || "بدون دسته‌بندی",
-              color: item.color || "bg-gradient-to-br from-[#399918] to-[#22c55e]"
+              color: "bg-gradient-to-r from-[#399918] to-[#22c55e]"
             }))
           );
-        } else {
-          setGallery([]);
-        }
+        } else setGallery([]);
       } catch {
         setGallery([]);
       }
@@ -215,37 +226,38 @@ const HomePage = () => {
     fetchWeeklySchedule();
   }, [selectedClass]);
 
+  // واکشی اخبار - تغییر اصلی
   useEffect(() => {
     const fetchNews = async () => {
       try {
         const userData = localStorage.getItem('user');
         let url = '/api/news';
-        
         if (userData) {
           const user = JSON.parse(userData);
           url += `?role=${user.role}&userId=${user.id}`;
         }
-        
         const response = await fetch(url);
         const data = await response.json();
         if (data.success) {
-          setNews(data.news);
+          setNews(
+            (data.news || []).map(n => ({
+              ...n,
+              image_url: makeImageUrl(n.image_url) // تغییر اینجا
+            }))
+          );
         }
-      } catch (error) {
-        console.error('Error fetching news:', error);
-      }
+      } catch {}
     };
-
     fetchNews();
   }, []);
 
   useEffect(() => {
+    if (!news.length) return;
     const newsTimer = setInterval(() => {
-      setCurrentNewsIndex((prev) => (prev + 1) % news.length);
+      setCurrentNewsIndex(prev => (prev + 1) % news.length);
     }, 4000);
-
     return () => clearInterval(newsTimer);
-  }, [news]);
+  }, [news.length]);
 
   useEffect(() => {
     async function fetchFoodSchedule() {
@@ -254,7 +266,6 @@ const HomePage = () => {
         if (res.ok) {
           const data = await res.json();
           if (!data.schedules || data.schedules.length === 0) {
-            setFoodSchedule(fallbackMenuItems);
             return;
           }
 
@@ -279,26 +290,13 @@ const HomePage = () => {
 
           setFoodSchedule(days.map(day => grouped[day]));
         } else {
-          setFoodSchedule(fallbackMenuItems);
         }
       } catch (error) {
-        setFoodSchedule(fallbackMenuItems);
       }
     }
     fetchFoodSchedule();
   }, []);
 
-  const scrollRight = () => {
-    if (newsScrollRef.current) {
-      newsScrollRef.current.scrollBy({ left: 320, behavior: 'smooth' });
-    }
-  };
-
-  const scrollLeft = () => {
-    if (newsScrollRef.current) {
-      newsScrollRef.current.scrollBy({ left: -320, behavior: 'smooth' });
-    }
-  };
   
   useEffect(() => {
     const galleryEl = galleryRef.current;
@@ -379,54 +377,6 @@ const HomePage = () => {
     }
   ];
 
-  const fallbackWeeklySchedule = [
-    { day: "saturday", persianDay: "شنبه", activities: ["ریاضی", "فارسی", "ورزش", "هنر"], color: "border-[#399918]" },
-    { day: "sunday", persianDay: "یکشنبه", activities: ["علوم", "انگلیسی", "ریاضی", "موسیقی"], color: "border-[#22c55e]" },
-    { day: "monday", persianDay: "دوشنبه", activities: ["فارسی", "اجتماعی", "علوم", "نقاشی"], color: "border-[#16a34a]" },
-    { day: "tuesday", persianDay: "سه‌شنبه", activities: ["انگلیسی", "ریاضی", "کار و فناوری", "ورزش"], color: "border-[#399918]" },
-    { day: "wednesday", persianDay: "چهارشنبه", activities: ["علوم", "فارسی", "هنر", "بازی"], color: "border-[#15803d]" }
-  ];
-
-  const fallbackMenuItems = [
-    { 
-      day: "saturday", 
-      persianDay: "شنبه", 
-      breakfast: "نان و پنیر و مربا", 
-      lunch: "قورمه سبزی با برنج", 
-      color: "border-[#399918]" 
-    },
-    { 
-      day: "sunday", 
-      persianDay: "یکشنبه", 
-      breakfast: "کره و عسل", 
-      lunch: "جوجه کباب با برنج", 
-      color: "border-[#22c55e]" 
-    },
-    { 
-      day: "monday", 
-      persianDay: "دوشنبه", 
-      breakfast: "نان و کره", 
-      lunch: "خورش فسنجان", 
-      color: "border-[#16a34a]" 
-    },
-    { 
-      day: "tuesday", 
-      persianDay: "سه‌شنبه", 
-      breakfast: "صبحانه انگلیسی", 
-      lunch: "کوفته برنجی", 
-      color: "border-[#399918]" 
-    },
-    { 
-      day: "wednesday", 
-      persianDay: "چهارشنبه", 
-      breakfast: "نان و جام", 
-      lunch: "خورش بامیه", 
-      color: "border-[#15803d]" 
-    }
-  ];
-
-  const displayWeeklySchedule = weeklySchedule.length > 0 ? weeklySchedule : (selectedClass ? [] : fallbackWeeklySchedule);
-  const displayMenuItems = foodSchedule.length > 0 ? foodSchedule : fallbackMenuItems;
   const particles = [
     { top: '10%', left: '15%', size: '12px', color: 'rgba(57, 153, 24, 0.1)', delay: '0s' },
     { top: '20%', left: '80%', size: '8px', color: 'rgba(57, 153, 24, 0.15)', delay: '2s' },
@@ -532,7 +482,7 @@ const HomePage = () => {
               <div className="w-16 h-16 bg-gradient-to-br from-[#399918] to-[#22c55e] rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
                 <Users className="w-8 h-8 text-white" />
               </div>
-              <h3 className="text-3xl font-bold text-gray-800 mb-2">۲۸۰</h3>
+              <h3 className="text-3xl font-bold text-gray-800 mb-2">۵۱</h3>
               <p className="text-gray-600 font-medium">دانش‌آموز</p>
             </div>
             
@@ -540,7 +490,7 @@ const HomePage = () => {
               <div className="w-16 h-16 bg-gradient-to-br from-[#16a34a] to-[#399918] rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
                 <BookOpen className="w-8 h-8 text-white" />
               </div>
-              <h3 className="text-3xl font-bold text-gray-800 mb-2">۱۲</h3>
+              <h3 className="text-3xl font-bold text-gray-800 mb-2">۴</h3>
               <p className="text-gray-600 font-medium">کلاس درس</p>
             </div>
             
@@ -556,14 +506,14 @@ const HomePage = () => {
               <div className="w-16 h-16 bg-gradient-to-br from-[#22c55e] to-[#399918] rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
                 <Clock className="w-8 h-8 text-white" />
               </div>
-              <h3 className="text-3xl font-bold text-gray-800 mb-2">۸</h3>
+              <h3 className="text-3xl font-bold text-gray-800 mb-2">۲</h3>
               <p className="text-gray-600 font-medium">سال فعالیت</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* News & Announcements - بدون تغییر */}
+      {/* News & Announcements - تغییر نحوه نمایش عکس */}
       <section className="py-16 bg-gradient-to-br from-gray-50 to-green-50 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-64 h-64 bg-gradient-to-br from-[#399918]/10 to-[#22c55e]/10 rounded-full -translate-x-32 -translate-y-32 opacity-50 animate-pulse-slow"></div>
         <div className="absolute bottom-0 right-0 w-48 h-48 bg-gradient-to-br from-[#16a34a]/10 to-[#399918]/10 rounded-full translate-x-24 translate-y-24 opacity-50 animate-pulse-slow delay-2s"></div>
@@ -582,49 +532,61 @@ const HomePage = () => {
 
           <div className="overflow-x-auto pb-6">
             <div className="flex gap-8 min-w-max">
-              {news.map((item, index) => (
-                <div
-                  key={item.id}
-                  className="flex-shrink-0 w-96 bg-white rounded-2xl shadow-lg overflow-hidden transform transition-all duration-500 hover:shadow-2xl hover:scale-[1.02]"
-                >
-                  <div className="relative w-full h-56">
-                    {item.image_url ? (
-                      <img
-                        src={item.image_url}
-                        alt={item.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-[#399918] to-[#22c55e] flex items-center justify-center">
-                        <Camera className="w-12 h-12 text-white opacity-80" />
-                      </div>
-                    )}
-                    <div className="absolute top-4 right-4">
-                      <div className="bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full shadow-sm">
-                        <div className="flex items-center text-gray-600 text-sm">
-                          <Calendar className="w-4 h-4 ml-1" />
-                          {new Date(item.created_at).toLocaleDateString("fa-IR")}
-                        </div>
+            {news.map((item) => (
+              <div key={item.id} className="flex-shrink-0 w-96 bg-white rounded-2xl shadow-lg overflow-hidden transform transition-all duration-500 hover:shadow-2xl hover:scale-[1.02]">
+                <div className="relative w-full h-56">
+                  {item.image_url ? (
+                    <img
+                      src={item.image_url}
+                      alt={item.title}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                      onError={(e) => { 
+                        e.currentTarget.style.display = 'none';
+                        // نمایش placeholder
+                        const placeholder = e.currentTarget.parentElement.querySelector('.image-placeholder');
+                        if (placeholder) {
+                          placeholder.style.display = 'flex';
+                        }
+                      }}
+                    />
+                  ) : null}
+                  
+                  {/* Placeholder */}
+                  <div 
+                    className={`image-placeholder w-full h-full bg-gradient-to-br from-[#399918] to-[#22c55e] flex items-center justify-center ${
+                      item.image_url ? 'hidden' : 'flex'
+                    }`}
+                  >
+                    <Camera className="w-12 h-12 text-white opacity-80" />
+                  </div>
+                  
+                  <div className="absolute top-4 right-4">
+                    <div className="bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full shadow-sm">
+                      <div className="flex items-center text-gray-600 text-sm">
+                        <Calendar className="w-4 h-4 ml-1" />
+                        {new Date(item.created_at).toLocaleDateString("fa-IR")}
                       </div>
                     </div>
                   </div>
-
-                  <div className="p-6">
-                    <h3 className="text-xl font-bold text-gray-800 mb-3 leading-tight">
-                      {item.title}
-                    </h3>
-                    <p className="text-gray-600 text-sm leading-relaxed mb-4 line-clamp-3">
-                      {item.content.length > 100
-                        ? `${item.content.substring(0, 100)}...`
-                        : item.content}
-                    </p>
-                    <button className="group flex items-center text-[#399918] hover:text-[#16a34a] font-medium transition-colors">
-                      ادامه مطلب
-                      <ChevronLeft className="w-4 h-4 mr-1 group-hover:translate-x-1 transition-transform" />
-                    </button>
-                  </div>
                 </div>
-              ))}
+
+                <div className="p-6">
+                  <h3 className="text-xl font-bold text-gray-800 mb-3 leading-tight">
+                    {item.title}
+                  </h3>
+                  <p className="text-gray-600 text-sm leading-relaxed mb-4 line-clamp-3">
+                    {(item.content || '').length > 100
+                      ? `${(item.content || '').substring(0, 100)}...`
+                      : (item.content || '')}
+                  </p>
+                  <button className="group flex items-center text-[#399918] hover:text-[#16a34a] font-medium transition-colors">
+                    ادامه مطلب
+                    <ChevronLeft className="w-4 h-4 mr-1 group-hover:translate-x-1 transition-transform" />
+                  </button>
+                </div>
+              </div>
+            ))}
             </div>
           </div>
           
@@ -641,7 +603,7 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* Gallery - بدون تغییر */}
+      {/* Gallery - تغییر نحوه نمایش عکس */}
       <section className="py-16 bg-white relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-[#399918]/5 via-transparent to-green-50 opacity-30"></div>
         <div className="container mx-auto px-4 relative z-10">
@@ -652,41 +614,69 @@ const HomePage = () => {
           </div>
           <div
             ref={galleryRef}
-            className="flex overflow-x-auto pb-8 -mb-8 scrollbar-hide space-x-6 space-x-reverse"
+            className="flex overflow-x-auto pb-8 -mb-8 scrollbar-hide gap-6 pr-2"
           >
-            {gallery.map((item) => (
-              <div
-                key={item.id}
-                className="flex-shrink-0 relative group overflow-hidden rounded-2xl shadow-lg w-80 h-96 transition-all duration-500 hover:shadow-2xl cursor-pointer"
-                onClick={() => router.push(`/gallery/${item.id}`)}
-              >
-                <img
-                  src={item.image}
-                  alt={item.title}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
-                 <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60 transition-opacity duration-300 group-hover:opacity-70"></div>
-                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center">
-                  <div className="text-center text-white transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
-                    <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-3 border border-white/30">
-                      <Camera className="w-6 h-6" />
+            {gallery.map((item) => {
+              const imgUrl = makeImageUrl(item.rawPath); // تغییر اینجا
+              return (
+                <div
+                  key={item.id}
+                  className="flex-shrink-0 relative group overflow-hidden rounded-2xl shadow-lg w-80 h-96 transition-all duration-500 hover:shadow-2xl cursor-pointer bg-gray-100"
+                  onClick={() => router.push(`/gallery/${item.id}`)}
+                >
+                  {imgUrl ? (
+                    <img
+                      src={imgUrl}
+                      alt={item.title}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      loading="lazy"
+                      onError={(e) => { 
+                        e.currentTarget.style.display = 'none';
+                        // نمایش placeholder
+                        const placeholder = e.currentTarget.parentElement.querySelector('.image-placeholder');
+                        if (placeholder) {
+                          placeholder.style.display = 'flex';
+                        }
+                      }}
+                    />
+                  ) : null}
+                  
+                  {/* Placeholder */}
+                  <div 
+                    className={`image-placeholder w-full h-full bg-gradient-to-br from-[#399918] to-[#22c55e] flex items-center justify-center ${
+                      imgUrl ? 'hidden' : 'flex'
+                    }`}
+                  >
+                    <Camera className="w-12 h-12 text-white opacity-80" />
+                  </div>
+                  
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60 transition-opacity duration-300 group-hover:opacity-70"></div>
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center">
+                    <div className="text-center text-white transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+                      <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-3 border border-white/30">
+                        <Camera className="w-6 h-6" />
+                      </div>
+                      <h4 className="font-bold text-lg mb-1">{item.title}</h4>
+                      <p className="text-sm text-gray-200">{item.category}</p>
                     </div>
-                    <h4 className="font-bold text-lg mb-1">{item.title}</h4>
-                    <p className="text-sm text-gray-200">{item.category}</p>
+                  </div>
+                  <div className="absolute bottom-0 left-0 right-0 p-4 transition-transform duration-300 group-hover:-translate-y-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-bold text-white text-lg drop-shadow">{item.title}</h4>
+                        <p className="text-gray-200 text-sm">{item.category}</p>
+                      </div>
+                      <div className="w-3 h-3 rounded-full bg-gradient-to-r from-[#399918] to-[#22c55e]"></div>
+                    </div>
                   </div>
                 </div>
-                <div className="absolute bottom-0 left-0 right-0 p-4 transition-transform duration-300 group-hover:-translate-y-2">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-bold text-white text-lg">{item.title}</h4>
-                      <p className="text-gray-200 text-sm">{item.category}</p>
-                    </div>
-                    <div className={`w-3 h-3 rounded-full ${item.color.replace('bg-gradient-to-br', 'bg-gradient-to-r')}`}></div>
-                  </div>
-                </div>
+              );
+            })}
+            {gallery.length === 0 && (
+              <div className="text-gray-500 flex items-center justify-center w-full py-12">
+                تصویری یافت نشد
               </div>
-            ))}
+            )}
           </div>
           <div className="text-center mt-12 animate-fade-in">
             <button
@@ -699,7 +689,7 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* Weekly Schedule & Menu با paging */}
+      {/* Weekly Schedule & Menu با paging - بدون تغییر */}
       <section className="py-16 bg-gradient-to-br from-slate-100 to-green-50 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-72 h-72 bg-gradient-to-br from-[#399918]/10 to-[#22c55e]/10 rounded-full translate-x-36 -translate-y-36 opacity-40 animate-pulse-slow"></div>
         <div className="absolute bottom-0 left-0 w-56 h-56 bg-gradient-to-br from-[#16a34a]/10 to-[#399918]/10 rounded-full -translate-x-28 translate-y-28 opacity-40 animate-pulse-slow delay-3s"></div>

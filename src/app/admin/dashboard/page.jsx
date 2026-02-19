@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';  // ✅ اضافه شده
 import { 
   Users, UserPlus, GraduationCap, BookOpen, BarChart3, Settings,
   Activity, Calendar, Clock, Crown, RefreshCw, Sparkles,
-  Edit, Trash2, CalendarCheck
+  Edit, Trash2, CalendarCheck, CheckCircle, XCircle  // ✅ اضافه شده
 } from 'lucide-react';
 
 export default function AdminDashboard() {
@@ -52,9 +53,11 @@ export default function AdminDashboard() {
         const data = await response.json();
         setUserStats(data.userStats || { students: 0, teachers: 0, admins: 0, total: 0 });
       } else {
+        console.log('Stats API failed, using defaults');
         setUserStats({ students: 25, teachers: 8, admins: 2, total: 35 });
       }
-    } catch {
+    } catch (err) {
+      console.log('Stats fetch error:', err);
       setUserStats({ students: 25, teachers: 8, admins: 2, total: 35 });
     }
   };
@@ -71,9 +74,11 @@ export default function AdminDashboard() {
         const data = await response.json();
         setUsers(data.users || []);
       } else {
+        console.log('Users API failed');
         setUsers([]);
       }
-    } catch {
+    } catch (err) {
+      console.log('Users fetch error:', err);
       setUsers([]);
     } finally {
       setLoading(false);
@@ -83,21 +88,33 @@ export default function AdminDashboard() {
   const fetchPreStats = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('/api/pre-registration', {
+      console.log('🔄 Fetching pre-registrations stats...');
+      const res = await fetch('/api/admin/pre-registrations', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      const data = await res.json();
-      if (data.success) {
-        const regs = data.preRegistrations || [];
-        setPreStats({
-          total: regs.length,
-          pending: regs.filter(r => r.status === 'pending').length,
-          approved: regs.filter(r => r.status === 'approved').length,
-          rejected: regs.filter(r => r.status === 'rejected').length,
-          last: regs.slice(0, 5)
-        });
+      
+      if (res.ok) {
+        const data = await res.json();
+        console.log('✅ Pre-registration data:', data);
+        if (data.success) {
+          const regs = data.registrations || [];
+          setPreStats({
+            total: regs.length,
+            pending: regs.filter(r => r.status === 'pending').length,
+            approved: regs.filter(r => r.status === 'approved').length,
+            rejected: regs.filter(r => r.status === 'rejected').length,
+            last: regs.slice(0, 5)
+          });
+        } else {
+          console.log('❌ Pre-registration API returned error:', data.error);
+          setPreStats({ total: 0, pending: 0, approved: 0, rejected: 0, last: [] });
+        }
+      } else {
+        console.log('❌ Pre-registration API failed with status:', res.status);
+        setPreStats({ total: 0, pending: 0, approved: 0, rejected: 0, last: [] });
       }
-    } catch {
+    } catch (err) {
+      console.log('❌ Pre-registration fetch error:', err);
       setPreStats({ total: 0, pending: 0, approved: 0, rejected: 0, last: [] });
     }
   };
@@ -142,10 +159,21 @@ export default function AdminDashboard() {
         <div className="absolute inset-0 bg-black/10"></div>
         <div className="absolute top-0 right-0 w-24 h-24 sm:w-64 sm:h-64 bg-white/10 rounded-full -translate-y-10 translate-x-10 sm:-translate-y-32 sm:translate-x-32"></div>
         <div className="relative z-10">
+          {/* هدر موبایل: لوگو سمت راست کنار نام پنل */}
+          <div className="sm:hidden mb-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-white/20 backdrop-blur-lg rounded-xl flex items-center justify-center shadow-lg">
+                <Crown className="w-5 h-5 text-white" />
+              </div>
+              <span className="text-base font-bold">پنل مدیریت</span>
+            </div>
+          </div>
+
           <div className="flex flex-col sm:flex-row justify-between gap-2 sm:gap-4">
             <div>
-              <h2 className="text-lg sm:text-4xl font-bold mb-1 sm:mb-3 bg-gradient-to-r from-white to-green-100 bg-clip-text text-transparent">
-                خوش آمدید! 🌟
+              {/* عنوان دسکتاپ */}
+              <h2 className="hidden sm:block text-4xl font-bold mb-3 bg-gradient-to-r from-white to-green-100 bg-clip-text text-transparent">
+                پنل مدیریت
               </h2>
               <p className="text-white/90 mb-2 sm:mb-6 text-xs sm:text-lg">پنل مدیریت هوشمند مدرسه علم و هنر</p>
               <div className="flex items-center gap-1 sm:gap-6 text-white/80">
@@ -159,79 +187,57 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </div>
-            <div className="w-14 hidden h-14 sm:w-32 sm:h-32 bg-white/20 backdrop-blur-lg rounded-2xl sm:rounded-3xl md:flex items-center justify-center shadow-2xl">
+
+            {/* لوگوی بزرگ فقط دسکتاپ */}
+            <div className="w-14 h-14 sm:w-32 sm:h-32 bg-white/20 backdrop-blur-lg rounded-2xl sm:rounded-3xl hidden md:flex items-center justify-center shadow-2xl">
               <Crown className="w-8 h-8 sm:w-16 sm:h-16 text-white" />
             </div>
           </div>
         </div>
       </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-6">
-        <StatsCard
-          title="دانش‌آموزان"
-          value={userStats.students}
-          icon={GraduationCap}
-          gradient="from-green-50 to-white"
-          iconGradient="from-green-600 to-green-500"
-        />
-        <StatsCard
-          title="معلمان"
-          value={userStats.teachers}
-          icon={BookOpen}
-          gradient="from-green-100 to-green-50"
-          iconGradient="from-green-600 to-green-500"
-        />
-        <StatsCard
-          title="مدیران"
-          value={userStats.admins}
-          icon={Crown}
-          gradient="from-green-50 to-white"
-          iconGradient="from-green-500 to-green-400"
-        />
-        <StatsCard
-          title="کل کاربران"
-          value={userStats.total}
-          icon={Users}
-          gradient="from-green-100 to-green-50"
-          iconGradient="from-green-600 to-green-500"
-        />
-      </div>
-
-      {/* آمار پیش‌ثبت‌نام */}
+      
+      {/* آمار پیش‌ثبت‌نام - کارت‌های کلیک‌پذیر */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-6">
-        <StatsCard
-          title="پیش‌ثبت‌نام‌ها"
-          value={preStats.total}
-          icon={UserPlus}
-          gradient="from-yellow-50 to-white"
-          iconGradient="from-yellow-400 to-yellow-300"
-        />
-        <StatsCard
-          title="در انتظار"
-          value={preStats.pending}
-          icon={Clock}
-          gradient="from-yellow-100 to-yellow-50"
-          iconGradient="from-yellow-500 to-yellow-400"
-        />
-        <StatsCard
-          title="تأیید شده"
-          value={preStats.approved}
-          icon={Crown}
-          gradient="from-blue-100 to-blue-50"
-          iconGradient="from-blue-500 to-blue-400"
-        />
-        <StatsCard
-          title="رد شده"
-          value={preStats.rejected}
-          icon={Crown}
-          gradient="from-pink-100 to-pink-50"
-          iconGradient="from-pink-500 to-pink-400"
-        />
+        <Link href="/admin/pre-registrations" className="block transform hover:scale-105 transition-all duration-300">
+          <StatsCard
+            title="کل پیش‌ثبت‌نام"
+            value={preStats.total}
+            icon={UserPlus}
+            gradient="from-blue-50 to-white"
+            iconGradient="from-blue-500 to-blue-400"
+          />
+        </Link>
+        <Link href="/admin/pre-registrations?filter=pending" className="block transform hover:scale-105 transition-all duration-300">
+          <StatsCard
+            title="در انتظار بررسی"
+            value={preStats.pending}
+            icon={Clock}
+            gradient="from-yellow-50 to-orange-50"
+            iconGradient="from-yellow-500 to-orange-400"
+          />
+        </Link>
+        <Link href="/admin/pre-registrations?filter=approved" className="block transform hover:scale-105 transition-all duration-300">
+          <StatsCard
+            title="تأیید شده"
+            value={preStats.approved}
+            icon={CheckCircle}
+            gradient="from-green-50 to-emerald-50"
+            iconGradient="from-green-500 to-emerald-400"
+          />
+        </Link>
+        <Link href="/admin/pre-registrations?filter=rejected" className="block transform hover:scale-105 transition-all duration-300">
+          <StatsCard
+            title="رد شده"
+            value={preStats.rejected}
+            icon={XCircle}
+            gradient="from-red-50 to-pink-50"
+            iconGradient="from-red-500 to-pink-400"
+          />
+        </Link>
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-6">
+      <div className="hidden sm:grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-6">
         <ActionCard
           title="افزودن کاربر جدید"
           description="ثبت دانش‌آموز، معلم یا مدیر"
@@ -258,32 +264,42 @@ export default function AdminDashboard() {
       {/* آخرین پیش‌ثبت‌نام‌ها */}
       <div className="bg-white/95 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-3 sm:p-8 shadow-xl border border-green-200">
         <h3 className="text-base sm:text-xl font-bold text-gray-800 mb-3 flex items-center">
-          <UserPlus className="w-5 h-5 text-yellow-500 ml-2" />
+          <UserPlus className="w-5 h-5 text-blue-500 ml-2" />
           آخرین پیش‌ثبت‌نام‌ها
-          <a
+          <Link
             href="/admin/pre-registrations"
-            className="ml-auto px-3 py-1 text-xs bg-green-100 text-green-700 rounded-lg hover:bg-green-200"
+            className="ml-auto px-3 mr-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
           >
             مشاهده همه
-          </a>
+          </Link>
         </h3>
         {preStats.last.length === 0 ? (
-          <div className="text-gray-400 text-xs">هیچ پیش‌ثبت‌نامی ثبت نشده</div>
+          <div className="text-center py-8">
+            <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-400 text-sm">هیچ پیش‌ثبت‌نامی ثبت نشده</p>
+          </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {preStats.last.map((reg) => (
-              <div key={reg.id} className="flex items-center justify-between bg-green-50 rounded-xl px-3 py-2 border border-green-100">
-                <div>
-                  <span className="font-bold text-gray-800">{reg.first_name} {reg.last_name}</span>
-                  <span className="mx-2 text-gray-500 text-xs">{reg.grade}</span>
-                  <span className="mx-2 text-green-700 text-xs">{reg.phone}</span>
+              <div key={reg.id} className="flex items-center justify-between bg-gradient-to-r from-green-50 to-blue-50 rounded-xl px-4 py-3 border border-green-200 hover:shadow-md transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                    {reg.first_name?.charAt(0)}{reg.last_name?.charAt(0)}
+                  </div>
+                  <div>
+                    <div className="font-bold text-gray-800">{reg.first_name} {reg.last_name}</div>
+                    <div className="text-xs text-gray-500">
+                      {reg.grade} • {reg.phone}
+                    </div>
+                  </div>
                 </div>
                 <span className={`px-3 py-1 rounded-full text-xs font-bold ${
                   reg.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                  reg.status === 'approved' ? 'bg-blue-100 text-blue-700' :
-                  'bg-pink-100 text-pink-700'
+                  reg.status === 'approved' ? 'bg-green-100 text-green-700' :
+                  'bg-red-100 text-red-700'
                 }`}>
-                  {reg.status === 'pending' ? 'در انتظار' : reg.status === 'approved' ? 'تأیید' : 'رد شده'}
+                  {reg.status === 'pending' ? 'در انتظار' : 
+                   reg.status === 'approved' ? 'تأیید شده' : 'رد شده'}
                 </span>
               </div>
             ))}
@@ -292,7 +308,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Recent Activity */}
-      <div className="bg-white/95 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-3 sm:p-8 shadow-xl border border-green-200">
+      <div className="hidden sm:block bg-white/95 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-3 sm:p-8 shadow-xl border border-green-200">
         <h3 className="text-base sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-8 flex items-center">
           <div className="w-7 h-7 sm:w-10 sm:h-10 bg-gradient-to-r from-green-600 to-green-500 rounded-2xl flex items-center justify-center ml-2 sm:ml-3">
             <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
@@ -300,7 +316,8 @@ export default function AdminDashboard() {
           فعالیت‌های اخیر
         </h3>
         <div className="space-y-2 sm:space-y-4">
-          <ActivityItem text="سیستم مدیریت راه‌اندازی شد" time="امروز" />
+          <ActivityItem text="پنل پیش‌ثبت‌نام راه‌اندازی شد" time="امروز" />
+          <ActivityItem text="سیستم مدیریت بهبود یافت" time="2 ساعت پیش" />
           <ActivityItem text="پنل ادمین آماده استفاده است" time="5 دقیقه پیش" />
         </div>
       </div>
@@ -311,12 +328,12 @@ export default function AdminDashboard() {
 // کامپوننت‌های کمکی
 function StatsCard({ title, value, icon: Icon, gradient, iconGradient }) {
   return (
-    <div className={`bg-gradient-to-br ${gradient} rounded-2xl sm:rounded-3xl p-3 sm:p-6 border border-green-200 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 backdrop-blur-lg`}>
+    <div className={`bg-gradient-to-br ${gradient} rounded-2xl sm:rounded-3xl p-3 sm:p-6 border border-gray-200 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 backdrop-blur-lg cursor-pointer`}>
       <div className="flex items-center justify-between mb-2 sm:mb-6">
         <div className={`w-8 h-8 sm:w-14 sm:h-14 bg-gradient-to-r ${iconGradient} rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg`}>
           <Icon className="w-4 h-4 sm:w-7 sm:h-7 text-white" />
         </div>
-        <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
+        <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
       </div>
       <div>
         <p className="text-lg sm:text-4xl font-bold text-gray-800 mb-0.5 sm:mb-2">{value.toLocaleString('fa-IR')}</p>

@@ -11,21 +11,21 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-// منوهای سایدبار مثل داشبورد
-const sidebarMenu = [
-  { label: 'داشبورد', icon: LayoutGrid, href: '/admin/dashboard' },
-  { label: 'مدیریت کاربران', icon: Users, href: '/admin/users' },
-  { label: 'مدیریت کلاس‌ها', icon: GraduationCap, href: '/admin/classes' },
-  { label: 'برنامه هفتگی', icon: Calendar1Icon, href: '/admin/weekly_schedule' },
-  { label: 'برنامه غذایی', icon: GalleryHorizontalEnd, href: '/admin/food-schedule' },
-  { label: 'حضور و غیاب', icon: CalendarCheck, href: '/admin/attendances' },
-  { label: 'مدیریت گالری', icon: GalleryHorizontal, href: '/admin/gallery' },
-  { label: 'مدیریت کارنامه ها', icon: BookOpen, href: '/admin/report_cards' },
-  { label: 'مدیریت اخبار', icon: NewspaperIcon, href: '/admin/news' },
-  { label: 'مدیریت بخشنامه ها', icon: FileText, href: '/admin/circular' },
-  { label: 'پیش‌ثبت‌نام', icon: UserPlus, href: '/admin/pre-registrations' },
-  { label: 'توبیخی و تشویقی', icon: Shield, href: '/admin/disciplinary' },
-];
+const getFileName = (url = '') => {
+  try {
+    const u = new URL(url, typeof window !== 'undefined' ? window.location.origin : 'http://localhost');
+    return (u.pathname || '').split('/').pop() || 'file';
+  } catch {
+    return (url.split('/').pop() || 'file');
+  }
+};
+const makeFileUrl = (url = '', disposition = 'inline') => {
+  if (!url) return '#';
+  if (/^https?:\/\//i.test(url)) return url;
+  let s = String(url).replace(/\\/g, '/').replace(/^public\//, '').replace(/^\/+/, '');
+  const name = getFileName(s);
+  return `/api/files/download?path=${encodeURIComponent(s)}&disposition=${disposition}&name=${encodeURIComponent(name)}`;
+};
 
 export default function AdminGallery() {
   const [user, setUser] = useState(null);
@@ -137,12 +137,6 @@ export default function AdminGallery() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.location.href = '/';
   };
 
   const handleDeleteImage = async (imageId) => {
@@ -367,8 +361,13 @@ export default function AdminGallery() {
                   <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
                     {filteredImages.map(image => (
                       <div key={image.id} className="bg-green-50 rounded-xl overflow-hidden shadow-sm border border-green-100 hover:shadow-md transition-all transform hover:-translate-y-1">
-                        <div className="relative aspect-[4/3] bg-gray-100">
-                          <img src={image.image_path} alt={image.title} className="w-full h-full object-cover" />
+                        <div className="relative aspect-[4/3] bg-gray-50 flex items-center justify-center">
+                          <img 
+                            src={makeFileUrl(image.image_path, 'inline')} 
+                            alt={image.title} 
+                            className="max-w-full max-h-full object-contain"
+                            style={{ width: 'auto', height: 'auto' }}
+                          />
                           <div className="absolute top-2 right-2">
                             <span className="bg-green-100 text-green-800 px-2 py-1 text-xs rounded-md">
                               {getCategoryName(image.category_id)}
@@ -1012,9 +1011,10 @@ function EditImageModal({ onClose, onSuccess, categories, grades, image }) {
             <label className="block text-sm font-bold text-green-700 mb-2">تصویر فعلی</label>
             <div className="relative">
               <img
-                src={newFile ? URL.createObjectURL(newFile) : image.image_path}
+                src={newFile ? URL.createObjectURL(newFile) : makeFileUrl(image.image_path, 'inline')}
                 alt={image.title}
-                className="w-full h-40 object-cover rounded-xl border border-green-200"
+                className="w-full max-h-40 object-contain rounded-xl border border-green-200 bg-gray-50"
+                style={{ width: 'auto', height: 'auto' }}
               />
               {newFile && (
                 <div className="absolute top-2 right-2 bg-green-100 text-green-800 px-2 py-1 rounded-lg text-xs font-medium">

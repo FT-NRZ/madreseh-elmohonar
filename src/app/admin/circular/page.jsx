@@ -20,11 +20,25 @@ import {
   UserPlus,
   Settings,
   BookOpen,
-  GalleryHorizontal
+  GalleryHorizontal,
+  Camera
 } from 'lucide-react';
 import moment from 'jalali-moment';
-import { image } from 'framer-motion/m';
 
+// تابع ساده برای نمایش عکس‌ها از فضای ابری
+const getImageUrl = (url) => {
+  if (!url) return null;
+  
+  // اگر لینک کامل هست، همونطور برگردون
+  if (url.startsWith('http')) return url;
+  
+  // اگر مسیر لیارا storage هست
+  if (url.includes('elmohonar.liara.run')) return `https://${url}`;
+  
+  // برای فایل‌های محلی قدیمی - تبدیل به مسیر API دانلود
+  const cleanPath = url.replace(/^\//, '');
+  return `/api/files/download?path=${encodeURIComponent(cleanPath)}`;
+};
 
 export default function CircularAdminPage() {
   const [user, setUser] = useState(null);
@@ -67,7 +81,6 @@ export default function CircularAdminPage() {
           day: persianMoment.jDate()
         });
       } catch (error) {
-        // حذف console.error - خطا را نمایش نده
         if (process.env.NODE_ENV === 'development') {
           console.warn('Date conversion issue');
         }
@@ -86,7 +99,6 @@ export default function CircularAdminPage() {
         return;
       }
 
-      // استفاده از endpoint موجود
       const response = await fetch('/api/users/list?role=teachers', {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -96,9 +108,8 @@ export default function CircularAdminPage() {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          // فرمت کردن داده‌ها برای نمایش
           const formattedTeachers = data.users.map(teacher => ({
-            id: teacher.user_id, // استفاده از user_id
+            id: teacher.user_id,
             name: teacher.name,
             teacher_code: teacher.teacher_code
           }));
@@ -110,7 +121,6 @@ export default function CircularAdminPage() {
         window.location.href = '/';
       }
     } catch (error) {
-      // خطا را نمایش نده - فقط لیست خالی نگه دار
       setTeachers([]);
       console.error('Error fetching teachers:', error);
     }
@@ -143,7 +153,6 @@ export default function CircularAdminPage() {
         window.location.href = '/';
       }
     } catch (error) {
-      // خطا را نمایش نده - فقط لیست خالی نگه دار
       setCirculars([]);
     } finally {
       setLoading(false);
@@ -181,7 +190,6 @@ export default function CircularAdminPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // بررسی فیلدهای مورد نیاز
     if (!form.title.trim()) {
       alert('عنوان بخشنامه الزامی است');
       return;
@@ -192,13 +200,11 @@ export default function CircularAdminPage() {
       return;
     }
 
-    // بررسی انتخاب معلم در صورت نیاز
     if (form.target_type === 'specific_teacher' && !form.target_teacher_id) {
       alert('لطفاً معلم مورد نظر را انتخاب کنید');
       return;
     }
 
-    // آماده‌سازی داده‌ها
     const submitData = {
       ...form,
       title: form.title.trim(),
@@ -296,24 +302,40 @@ export default function CircularAdminPage() {
     setShowModal(false);
   };
 
-  // آپلود عکس
+  // آپلود عکس - تغییر به فضای ابری
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+
+    // بررسی حجم فایل (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('حجم فایل نباید بیشتر از 5 مگابایت باشد');
+      return;
+    }
+
+    // بررسی نوع فایل
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      alert('فقط فایل‌های تصویری مجاز هستند');
+      return;
+    }
     
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('folder', 'circulars'); // دسته‌بندی فایل‌ها
     
     try {
-      const response = await fetch('/api/upload', {
+      const response = await fetch('/api/storage/upload', {
         method: 'POST',
         body: formData,
       });
       const data = await response.json();
+      
       if (data.success) {
         setForm({ ...form, image_url: data.url });
+        console.log('Image uploaded successfully:', data.url);
       } else {
-        alert('خطا در آپلود عکس');
+        alert(data.error || 'خطا در آپلود عکس');
       }
     } catch (error) {
       console.error('Upload error:', error);
@@ -481,19 +503,37 @@ export default function CircularAdminPage() {
                     circular.is_expired ? 'opacity-60 border-gray-300' : 'border-green-100 hover:scale-[1.02]'
                   }`}
                 >
-                  {/* عکس یا پس‌زمینه */}
-                  <div className="relative h-32 md:h-48 overflow-hidden">
-                    {circular.image_url ? (
+                  {/* عکس یا پس‌زمینه - اصلاح شده برای فضای ابری */}
+                  <div className="relative h-32 md:h-48 overflow-hidden bg-gray-50 flex items-center justify-center">
+                    {getImageUrl(circular.image_url) ? (
                       <img
-                        src={circular.image_url}
+                        src={getImageUrl(circular.image_url)}
                         alt={circular.title}
-                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        className="max-w-full max-h-full object-contain transition-transform duration-300 group-hover:scale-105"
+                        style={{ width: 'auto', height: 'auto' }}
+                        onError={(e) => { 
+                          e.currentTarget.style.display = 'none';
+                          const placeholder = e.currentTarget.parentElement.querySelector('.image-placeholder');
+                          if (placeholder) {
+                            placeholder.style.display = 'flex';
+                          }
+                        }}
                       />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center">
-                        <FileText className="w-8 h-8 md:w-16 md:h-16 text-white opacity-80" />
+                    ) : null}
+                    
+                    {/* Placeholder */}
+                    <div 
+                      className={`image-placeholder w-full h-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center ${
+                        getImageUrl(circular.image_url) ? 'hidden' : 'flex'
+                      }`}
+                    >
+                      <div className="text-center text-white">
+                        <FileText className="w-8 h-8 md:w-16 md:h-16 mx-auto mb-2 opacity-80" />
+                        <div className="text-lg md:text-2xl font-bold opacity-90">
+                          {circular.title?.[0] || "ب"}
+                        </div>
                       </div>
-                    )}
+                    </div>
                     
                     {/* برچسب‌ها */}
                     <div className="absolute top-2 md:top-3 right-2 md:right-3 flex flex-col gap-2">
@@ -674,7 +714,6 @@ export default function CircularAdminPage() {
                             onDateSelect={(date) => {
                               setSelectedDate(date);
                               setShowDatePicker(false);
-                              // تبدیل به میلادی و ذخیره در فرم
                               const gregorianDate = moment(`${date.year}/${date.month}/${date.day}`, 'jYYYY/jMM/jDD').format('YYYY-MM-DD');
                               setForm(prev => ({ ...prev, issue_date: gregorianDate }));
                             }}
@@ -743,17 +782,35 @@ export default function CircularAdminPage() {
                     </div>
                   )}
 
-                  {/* آپلود عکس */}
+                  {/* آپلود عکس - تغییر یافته برای فضای ابری */}
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">عکس بخشنامه (اختیاری)</label>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">
+                      عکس بخشنامه (اختیاری) 
+                      <span className="text-xs text-gray-500 font-normal"> - حداکثر 5 مگابایت</span>
+                    </label>
                     <input
                       type="file"
                       accept="image/*"
                       onChange={handleImageUpload}
                       className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50"
                     />
-                    {form.image_url && (
-                      <img src={form.image_url} alt="بخشنامه" className="mt-2 w-32 h-32 object-cover rounded-xl border" />
+                    {form.image_url && getImageUrl(form.image_url) && (
+                      <div className="mt-3 relative inline-block">
+                        <img 
+                          src={getImageUrl(form.image_url)} 
+                          alt="بخشنامه" 
+                          className="max-w-full max-h-32 object-contain rounded-xl border shadow-lg"
+                          style={{ width: 'auto', height: 'auto' }}
+                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setForm({ ...form, image_url: null })}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
                     )}
                   </div>
 
@@ -841,6 +898,7 @@ export default function CircularAdminPage() {
   );
 }
 
+// کامپوننت PersianDatePicker بدون تغییر باقی می‌ماند...
 function PersianDatePicker({ selectedDate, onDateSelect, onClose }) {
   const [currentYear, setCurrentYear] = useState(selectedDate?.year || moment().jYear());
   const [currentMonth, setCurrentMonth] = useState(selectedDate?.month || moment().jMonth() + 1);
@@ -860,11 +918,9 @@ function PersianDatePicker({ selectedDate, onDateSelect, onClose }) {
     return moment(`${year}/${month}/1`, 'jYYYY/jMM/jDD').day();
   };
 
-  // تولید لیست سال‌ها
   const generateYears = () => {
     const years = [];
     const currentJalaliYear = moment().jYear();
-    // 10 سال قبل تا 10 سال بعد
     for (let i = currentJalaliYear - 10; i <= currentJalaliYear + 10; i++) {
       years.push(i);
     }
@@ -876,12 +932,10 @@ function PersianDatePicker({ selectedDate, onDateSelect, onClose }) {
     const firstDayOfWeek = getFirstDayOfWeek(currentYear, currentMonth);
     const days = [];
     
-    // خانه‌های خالی برای شروع ماه
     for (let i = 0; i < (firstDayOfWeek + 1) % 7; i++) {
       days.push(<div key={`empty-${i}`} className="h-8"></div>);
     }
     
-    // روزهای ماه
     for (let day = 1; day <= daysInMonth; day++) {
       const isSelected = selectedDate && 
         selectedDate.year === currentYear && 
@@ -917,7 +971,6 @@ function PersianDatePicker({ selectedDate, onDateSelect, onClose }) {
     <div className="fixed inset-0 z-[9999] flex items-center justify-center">
       <div className="absolute inset-0 bg-transparent" onClick={onClose}></div>
       <div className="bg-white rounded-xl shadow-2xl border border-green-200 p-4 z-[9999] w-72 relative">
-        {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <button
             type="button"
@@ -971,7 +1024,6 @@ function PersianDatePicker({ selectedDate, onDateSelect, onClose }) {
           </button>
         </div>
         
-        {/* Month Picker */}
         {showMonthPicker && (
           <div className="absolute top-16 left-4 right-4 bg-white border border-green-100 rounded-lg shadow-lg p-2 grid grid-cols-3 gap-2 z-[9999]">
             {persianMonths.map((month, index) => (
@@ -993,7 +1045,6 @@ function PersianDatePicker({ selectedDate, onDateSelect, onClose }) {
           </div>
         )}
 
-        {/* Year Picker */}
         {showYearPicker && (
           <div className="absolute top-16 left-4 right-4 bg-white border border-green-100 rounded-lg shadow-lg p-2 grid grid-cols-4 gap-2 z-[9999] max-h-48 overflow-y-auto">
             {generateYears().map(year => (
@@ -1017,7 +1068,6 @@ function PersianDatePicker({ selectedDate, onDateSelect, onClose }) {
         
         {!showMonthPicker && !showYearPicker && (
           <>
-            {/* Days of week */}
             <div className="grid grid-cols-7 gap-1 mb-2">
               {['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'].map((day, index) => (
                 <div key={index} className="h-8 flex items-center justify-center text-xs font-bold text-gray-500">
@@ -1026,14 +1076,12 @@ function PersianDatePicker({ selectedDate, onDateSelect, onClose }) {
               ))}
             </div>
             
-            {/* Calendar Grid */}
             <div className="grid grid-cols-7 gap-1 mb-4">
               {renderCalendar()}
             </div>
           </>
         )}
         
-        {/* Footer */}
         <div className="flex justify-between items-center pt-2 border-t">
           <button
             type="button"

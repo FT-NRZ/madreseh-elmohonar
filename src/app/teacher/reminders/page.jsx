@@ -19,18 +19,25 @@ export default function Reminders({ teacherId }) {
   const [selectedNewsId, setSelectedNewsId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const [form, setForm] = useState({
     id: null,
     title: '',
     content: '',
     image_url: null,
-    target_type: 'grade', // grade, specific_student, all_students
+    target_type: 'grade',
     target_grade_id: null,
     target_student_id: null,
     is_important: false,
     reminder_date: '',
   });
+
+  const buildImageUrl = (url) => {
+    if (!url) return null;
+    if (/^https?:\/\//i.test(url)) return url;
+    return `${process.env.NEXT_PUBLIC_BASE_URL || ''}${url}`;
+  };
 
   // دریافت لیست دانش‌آموزان
   const fetchStudents = async () => {
@@ -53,16 +60,12 @@ export default function Reminders({ teacherId }) {
           setStudents(data.students || []);
         }
       } else if (response.status === 401 || response.status === 403) {
-        // توکن نامعتبر
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         window.location.href = '/';
       }
     } catch (error) {
       setStudents([]);
-      if (process.env.NODE_ENV === 'development') {
-        toast.error('خطا در دریافت لیست دانش‌آموزان');
-      }
     }
   };
 
@@ -87,20 +90,16 @@ export default function Reminders({ teacherId }) {
           setGrades(data.grades || []);
         }
       } else if (response.status === 401 || response.status === 403) {
-        // توکن نامعتبر
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         window.location.href = '/';
       }
     } catch (error) {
       setGrades([]);
-      if (process.env.NODE_ENV === 'development') {
-        toast.error('خطا در دریافت لیست پایه‌ها');
-      }
     }
   };
 
-// دریافت اخبار ایجاد شده توسط معلم
+  // دریافت اخبار
   const fetchTeacherNews = async () => {
     setLoading(true);
     try {
@@ -127,25 +126,16 @@ export default function Reminders({ teacherId }) {
           setNews(data.news || []);
         } else {
           setNews([]);
-          if (process.env.NODE_ENV === 'development') {
-            toast.error(data.error || 'خطا در دریافت اخبار');
-          }
         }
       } else if (response.status === 401 || response.status === 403) {
-        // توکن نامعتبر
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         window.location.href = '/';
       } else {
         setNews([]);
-        toast.error('خطا در دریافت اخبار');
       }
     } catch (error) {
-      // حذف console.error - امن شده
       setNews([]);
-      if (process.env.NODE_ENV === 'development') {
-        toast.error('ارتباط با سرور برقرار نشد');
-      }
     } finally {
       setLoading(false);
     }
@@ -263,39 +253,55 @@ export default function Reminders({ teacherId }) {
     setShowModal(false);
   };
 
-  // آپلود عکس
+  // آپلود عکس - کاملاً درست
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('حجم عکس نباید بیشتر از 5MB باشد');
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('فقط فایل‌های تصویری مجاز هستند');
+      return;
+    }
     
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('folder', 'teacher-news'); // فولدر مخصوص اخبار معلم
+    
+    setUploadingImage(true);
     
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        window.location.href = '/';
-        return;
-      }
-
-      const response = await fetch('/api/upload', {
+      // 🔥 تغییر: مستقیماً به storage/upload می‌ریم (بدون احراز هویت)
+      const response = await fetch('/api/storage/upload', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
         body: formData,
       });
       
       const data = await response.json();
-      if (data.success) {
-        setForm({ ...form, image_url: data.url });
+      
+      if (data.success && data.url) {
+        setForm(prev => ({ ...prev, image_url: data.url }));
         toast.success('عکس با موفقیت آپلود شد');
+        console.log('✅ Upload successful:', data.url);
       } else {
-        toast.error('خطا در آپلود عکس');
+        console.error('❌ Upload failed:', data);
+        toast.error(data.error || 'خطا در آپلود عکس');
       }
     } catch (error) {
-      toast.error('خطا در آپلود عکس');
+      console.error('💥 Upload error:', error);
+      toast.error('خطا در آپلود عکس: ' + error.message);
+    } finally {
+      setUploadingImage(false);
     }
+  };
+
+  // حذف عکس
+  const handleRemoveImage = () => {
+    setForm(prev => ({ ...prev, image_url: null }));
   };
 
   // فیلتر اخبار
@@ -324,24 +330,18 @@ export default function Reminders({ teacherId }) {
   };
 
   return (
-    <div className="space-y-4 mb-10 md:space-y-6">
+    <div className="space-y-4 mb-10 md:space-y-6">     
       {/* Header */}
-      <div className="bg-gradient-to-r from-green-600 via-green-500 to-green-600 rounded-xl md:rounded-2xl p-4 md:p-6 text-white shadow-xl overflow-hidden relative">
+      <div className="bg-gradient-to-r from-green-400 via-green-500 to-green-600 rounded-xl md:rounded-2xl p-4 md:p-6 text-white shadow-xl overflow-hidden relative">
         <div className="absolute top-0 right-0 w-20 h-20 md:w-32 md:h-32 bg-white/10 rounded-full -translate-y-10 md:-translate-y-16 translate-x-10 md:translate-x-16"></div>
         <div className="relative z-10">
           <div className="flex flex-row items-start md:items-center justify-between gap-4">
             <div>
-              <h2 className="text-xl md:text-3xl font-bold mb-2 md:mb-3 bg-gradient-to-r from-white to-green-100 bg-clip-text text-transparent">
-                ایجاد اخبار و یادآوری
-              </h2>
+              <h2 className="text-xl md:text-2xl font-bold mb-2">ایجاد اخبار و یادآوری</h2>
               <p className="text-white/90 text-sm md:text-base">ارسال اخبار و یادآوری برای دانش‌آموزان</p>
-              <div className="flex items-center gap-2 mt-2 md:mt-3 text-white/80">
-                <Clock className="w-3 h-3 md:w-4 md:h-4" />
-                <span className="text-xs md:text-sm font-medium">{moment().format('jYYYY/jMM/jDD')}</span>
-              </div>
             </div>
-            <div className="w-12 h-12 md:w-20 md:h-20 bg-white/20 backdrop-blur-lg rounded-xl md:rounded-2xl flex items-center justify-center shadow-2xl">
-              <Send className="w-6 h-6 md:w-10 md:h-10 text-white" />
+            <div className="w-12 h-12 md:w-16 md:h-16 bg-white/20 backdrop-blur-lg rounded-xl flex items-center justify-center">
+              <Send className="w-6 h-6 md:w-8 md:h-8 text-white" />
             </div>
           </div>
         </div>
@@ -349,25 +349,25 @@ export default function Reminders({ teacherId }) {
 
       {/* آمار سریع */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
-        <div className="bg-white/95 backdrop-blur-xl rounded-xl p-3 md:p-4 border border-green-100 shadow-lg">
+        <div className="bg-white rounded-xl p-3 md:p-4 border border-gray-100 shadow-lg">
           <div className="text-center">
             <p className="text-lg md:text-2xl font-bold text-green-700">{news.length}</p>
             <p className="text-xs md:text-sm text-gray-600">کل اخبار</p>
           </div>
         </div>
-        <div className="bg-white/95 backdrop-blur-xl rounded-xl p-3 md:p-4 border border-green-200 shadow-lg">
+        <div className="bg-white rounded-xl p-3 md:p-4 border border-gray-100 shadow-lg">
           <div className="text-center">
             <p className="text-lg md:text-2xl font-bold text-green-700">{news.filter(n => n.target_type === 'grade').length}</p>
             <p className="text-xs md:text-sm text-gray-600">برای پایه</p>
           </div>
         </div>
-        <div className="bg-white/95 backdrop-blur-xl rounded-xl p-3 md:p-4 border border-green-300 shadow-lg">
+        <div className="bg-white rounded-xl p-3 md:p-4 border border-gray-100 shadow-lg">
           <div className="text-center">
             <p className="text-lg md:text-2xl font-bold text-green-700">{news.filter(n => n.target_type === 'specific_student').length}</p>
             <p className="text-xs md:text-sm text-gray-600">شخصی</p>
           </div>
         </div>
-        <div className="bg-white/95 backdrop-blur-xl rounded-xl p-3 md:p-4 border border-green-400 shadow-lg">
+        <div className="bg-white rounded-xl p-3 md:p-4 border border-gray-100 shadow-lg">
           <div className="text-center">
             <p className="text-lg md:text-2xl font-bold text-green-700">{news.filter(n => n.is_important).length}</p>
             <p className="text-xs md:text-sm text-gray-600">مهم</p>
@@ -376,25 +376,24 @@ export default function Reminders({ teacherId }) {
       </div>
 
       {/* فیلترها و دکمه‌ها */}
-      <div className="bg-white/95 backdrop-blur-xl rounded-xl md:rounded-2xl shadow-xl border border-green-100 p-4 md:p-6">
+      <div className="bg-white rounded-xl md:rounded-2xl shadow-lg border border-gray-100 p-4 md:p-6">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex items-center gap-2 md:gap-3">
             <NewspaperIcon className="w-5 h-5 md:w-6 md:h-6 text-green-600" />
-            <h3 className="text-lg md:text-xl font-bold text-gray-800">مدیریت اخبار</h3>
-            <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-yellow-500" />
+            <h3 className="text-base md:text-lg font-bold text-gray-800">مدیریت اخبار</h3>
           </div>
           
           <div className="flex gap-2">
             <button
               onClick={fetchTeacherNews}
-              className="flex items-center gap-2 px-3 md:px-4 py-2 bg-gray-100 text-gray-700 rounded-lg md:rounded-xl hover:bg-gray-200 transition text-sm md:text-base"
+              className="flex items-center gap-2 px-3 md:px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition text-sm"
             >
               <RefreshCw className="w-4 h-4" />
               <span className="hidden md:inline">بروزرسانی</span>
             </button>
             <button
               onClick={() => setShowModal(true)}
-              className="flex items-center gap-2 px-3 md:px-4 py-2 bg-green-600 text-white rounded-lg md:rounded-xl hover:bg-green-700 transition text-sm md:text-base"
+              className="flex items-center gap-2 px-3 md:px-4 py-2 bg-gradient-to-r from-green-400 via-green-500 to-green-600 text-white rounded-lg hover:shadow-lg transition text-sm"
             >
               <Plus className="w-4 h-4" />
               خبر جدید
@@ -405,57 +404,30 @@ export default function Reminders({ teacherId }) {
         {/* جستجو و فیلتر */}
         <div className="mt-4 space-y-4">
           <div className="relative">
-            <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 md:w-5 md:h-5" />
+            <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
               placeholder="جستجو در اخبار..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pr-10 md:pr-12 pl-3 md:pl-4 py-2 md:py-3 border border-green-200 rounded-lg md:rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-green-50/50 text-sm md:text-base"
+              className="w-full pr-10 pl-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-gray-50 text-sm"
             />
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setFilterType('all')}
-              className={`px-3 md:px-4 py-2 rounded-lg md:rounded-xl font-medium transition-all text-sm md:text-base ${
-                filterType === 'all'
-                  ? 'bg-green-600 text-white shadow-lg'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              همه
-            </button>
-            <button
-              onClick={() => setFilterType('grade')}
-              className={`px-3 md:px-4 py-2 rounded-lg md:rounded-xl font-medium transition-all text-sm md:text-base ${
-                filterType === 'grade'
-                  ? 'bg-green-700 text-white shadow-lg'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              برای پایه
-            </button>
-            <button
-              onClick={() => setFilterType('student')}
-              className={`px-3 md:px-4 py-2 rounded-lg md:rounded-xl font-medium transition-all text-sm md:text-base ${
-                filterType === 'student'
-                  ? 'bg-green-800 text-white shadow-lg'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              شخصی
-            </button>
-            <button
-              onClick={() => setFilterType('important')}
-              className={`px-3 md:px-4 py-2 rounded-lg md:rounded-xl font-medium transition-all text-sm md:text-base ${
-                filterType === 'important'
-                  ? 'bg-green-500 text-white shadow-lg'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              مهم
-            </button>
+            {['all', 'grade', 'student', 'important'].map(type => (
+              <button
+                key={type}
+                onClick={() => setFilterType(type)}
+                className={`px-3 py-2 rounded-lg font-medium transition-all text-sm ${
+                  filterType === type
+                    ? 'bg-green-600 text-white shadow-lg'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {type === 'all' ? 'همه' : type === 'grade' ? 'برای پایه' : type === 'student' ? 'شخصی' : 'مهم'}
+              </button>
+            ))}
           </div>
         </div>
       </div>
@@ -463,89 +435,88 @@ export default function Reminders({ teacherId }) {
       {/* لیست اخبار */}
       <div className="space-y-4">
         {loading ? (
-          <div className="flex justify-center py-8 md:py-12">
-            <div className="w-8 h-8 md:w-12 md:h-12 border-4 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+          <div className="flex justify-center py-12">
+            <div className="w-12 h-12 border-4 border-green-600 border-t-transparent rounded-full animate-spin"></div>
           </div>
         ) : filteredNews.length === 0 ? (
-          <div className="text-center py-8 md:py-12 bg-white/95 backdrop-blur-xl rounded-xl md:rounded-2xl shadow-xl border border-green-100">
-            <NewspaperIcon className="w-12 h-12 md:w-16 md:h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-base md:text-lg font-medium text-gray-600 mb-2">خبری یافت نشد</h3>
-            <p className="text-sm md:text-base text-gray-500">هنوز خبری ایجاد نکرده‌اید</p>
+          <div className="text-center py-12 bg-white rounded-xl shadow-lg border border-gray-100">
+            <NewspaperIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-600 mb-2">خبری یافت نشد</h3>
+            <p className="text-sm text-gray-500">هنوز خبری ایجاد نکرده‌اید</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             {filteredNews.map((item) => (
-              <div
-                key={item.id}
-                className="group bg-white/95 backdrop-blur-xl rounded-xl md:rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 border border-green-100 overflow-hidden hover:scale-[1.02]"
-              >
-                {/* عکس یا پس‌زمینه */}
-                <div className="relative h-32 md:h-48 overflow-hidden">
-                  {item.image_url ? (
+              <div key={item.id} className="group bg-white rounded-xl md:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 overflow-hidden">
+                <div className="relative h-40 md:h-48 overflow-hidden bg-gray-100">
+                  {item.image_url && (
                     <img
-                      src={item.image_url}
+                      src={buildImageUrl(item.image_url)}
                       alt={item.title}
                       className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                      onError={(e) => { e.target.style.display = 'none'; }}
                     />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-green-500 via-green-600 to-green-700 flex items-center justify-center relative">
-                      <div className="text-center text-white">
-                        <NewspaperIcon className="w-8 h-8 md:w-12 md:h-12 mx-auto mb-1 md:mb-2 opacity-80" />
-                        <div className="text-xl md:text-3xl font-bold opacity-90">
-                          {item.title?.[0] || "خ"}
-                        </div>
-                      </div>
-                    </div>
                   )}
                   
+                  {/* Fallback برای عکس */}
+                  <div 
+                    className="w-full h-full bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center"
+                    style={{ display: item.image_url ? 'none' : 'flex' }}
+                  >
+                    <div className="text-center text-white">
+                      <NewspaperIcon className="w-12 h-12 mx-auto mb-2 opacity-80" />
+                      <div className="text-2xl font-bold opacity-90">
+                        {item.title?.[0] || "خ"}
+                      </div>
+                    </div>
+                  </div>
+                  
                   {/* برچسب‌ها */}
-                  <div className="absolute top-2 md:top-3 right-2 md:right-3 flex flex-col gap-1 md:gap-2">
+                  <div className="absolute top-2 right-2 flex flex-col gap-1">
                     {item.is_important && (
-                      <span className="px-2 md:px-3 py-1 text-xs rounded-full font-semibold bg-green-100 text-green-700 border border-green-200 backdrop-blur-lg">
+                      <span className="px-2 py-1 text-xs rounded-full font-semibold bg-red-100 text-red-700 border border-red-200">
                         مهم
                       </span>
                     )}
-                    <span className="px-2 md:px-3 py-1 text-xs rounded-full font-semibold bg-green-50 text-green-700 border border-green-200 backdrop-blur-lg">
+                    <span className="px-2 py-1 text-xs rounded-full font-semibold bg-white/90 text-gray-700 border border-gray-200">
                       {getTargetText(item)}
                     </span>
                   </div>
                 </div>
 
                 {/* محتوا */}
-                <div className="p-3 md:p-6">
-                  <h3 className="text-sm md:text-lg font-bold text-gray-800 mb-2 md:mb-3 line-clamp-2 group-hover:text-green-700 transition-colors">
+                <div className="p-4">
+                  <h3 className="text-base font-bold text-gray-800 mb-2 line-clamp-2">
                     {item.title}
                   </h3>
                   
-                  <p className="text-xs md:text-sm text-gray-600 mb-2 md:mb-4 line-clamp-2 md:line-clamp-3 leading-relaxed">
+                  <p className="text-sm text-gray-600 mb-3 line-clamp-2">
                     {item.content.substring(0, 100)}
                     {item.content.length > 100 && '...'}
                   </p>
 
                   {/* تاریخ */}
-                  <div className="flex items-center gap-1 md:gap-2 text-xs text-gray-500 mb-2 md:mb-4">
-                    <Calendar className="w-3 h-3 md:w-4 md:h-4" />
-                    <span>ایجاد: {moment(item.created_at).format('jYYYY/jMM/jDD')}</span>
+                  <div className="flex items-center gap-2 text-xs text-gray-500 mb-3">
+                    <Calendar className="w-3 h-3" />
+                    <span>{moment(item.created_at).format('jYYYY/jMM/jDD')}</span>
                   </div>
 
-                  {/* دکمه‌های عملیات */}
-                  <div className="flex justify-between items-center pt-2 md:pt-4 border-t border-gray-100">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEdit(item)}
-                        className="flex items-center gap-1 px-2 md:px-3 py-2 bg-green-50 hover:bg-green-100 text-green-600 rounded-lg transition-colors text-xs md:text-sm font-medium"
-                      >
-                        <Edit className="w-3 h-3 md:w-4 md:h-4" />
-                        ویرایش
-                      </button>
-                      <button
-                        onClick={() => handleDeleteClick(item.id)}
-                        className="flex items-center gap-1 px-2 md:px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-colors text-xs md:text-sm font-medium"
-                      >
-                        <Trash2 className="w-3 h-3 md:w-4 md:h-4" />
-                        حذف
-                      </button>
-                    </div>
+                  {/* دکمه‌ها */}
+                  <div className="flex gap-2 pt-3 border-t border-gray-100">
+                    <button
+                      onClick={() => handleEdit(item)}
+                      className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-green-50 hover:bg-green-100 text-green-600 rounded-lg transition-colors text-sm font-medium"
+                    >
+                      <Edit className="w-4 h-4" />
+                      ویرایش
+                    </button>
+                    <button
+                      onClick={() => handleDeleteClick(item.id)}
+                      className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-colors text-sm font-medium"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      حذف
+                    </button>
                   </div>
                 </div>
               </div>
@@ -556,39 +527,39 @@ export default function Reminders({ teacherId }) {
 
       {/* مودال ایجاد/ویرایش */}
       {showModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center px-6 py-5 bg-gradient-to-r from-green-100 to-green-50 border-b border-green-100">
-              <h2 className="text-lg font-bold text-green-700">
+            <div className="flex justify-between items-center px-6 py-4 bg-gradient-to-r from-green-50 to-white border-b border-gray-100">
+              <h2 className="text-lg font-bold text-gray-800">
                 {form.id ? 'ویرایش خبر' : 'ایجاد خبر جدید'}
               </h2>
-              <button onClick={resetForm} className="p-2 rounded-full bg-green-50 hover:bg-green-200 transition">
+              <button onClick={resetForm} className="p-2 rounded-full hover:bg-gray-100 transition">
                 <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6 px-6 py-6">
-              {/* ردیف اول */}
+            <form onSubmit={handleSubmit} className="space-y-4 px-6 py-6">
+              {/* عنوان */}
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2">عنوان خبر/یادآوری</label>
                 <input
                   type="text"
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
-                  className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 focus:ring-2 focus:ring-green-500 outline-none"
                   placeholder="عنوان خبر یا یادآوری"
                   required
                 />
               </div>
 
-              {/* نوع مخاطب */}
+              {/* مخاطب */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2">مخاطب</label>
                   <select
                     value={form.target_type}
                     onChange={(e) => setForm({ ...form, target_type: e.target.value, target_grade_id: null, target_student_id: null })}
-                    className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 focus:ring-2 focus:ring-green-500 outline-none"
                   >
                     <option value="grade">پایه تحصیلی</option>
                     <option value="specific_student">دانش‌آموز خاص</option>
@@ -596,14 +567,13 @@ export default function Reminders({ teacherId }) {
                   </select>
                 </div>
 
-                {/* انتخاب پایه یا دانش‌آموز */}
                 {form.target_type === 'grade' && (
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">انتخاب پایه</label>
                     <select
                       value={form.target_grade_id || ''}
                       onChange={(e) => setForm({ ...form, target_grade_id: parseInt(e.target.value) })}
-                      className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 focus:ring-2 focus:ring-green-500 outline-none"
                       required
                     >
                       <option value="">انتخاب کنید...</option>
@@ -622,7 +592,7 @@ export default function Reminders({ teacherId }) {
                     <select
                       value={form.target_student_id || ''}
                       onChange={(e) => setForm({ ...form, target_student_id: parseInt(e.target.value) })}
-                      className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 focus:ring-2 focus:ring-green-500 outline-none"
                       required
                     >
                       <option value="">انتخاب کنید...</option>
@@ -636,7 +606,7 @@ export default function Reminders({ teacherId }) {
                 )}
               </div>
 
-              {/* تاریخ یادآوری */}
+              {/* تاریخ و چک‌باکس */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2">تاریخ یادآوری (اختیاری)</label>
@@ -644,18 +614,18 @@ export default function Reminders({ teacherId }) {
                     type="date"
                     value={form.reminder_date}
                     onChange={(e) => setForm({ ...form, reminder_date: e.target.value })}
-                    className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 focus:ring-2 focus:ring-green-500 outline-none"
                   />
                 </div>
                 <div className="flex items-end">
-                  <label className="flex items-center gap-3">
+                  <label className="flex items-center gap-2">
                     <input
                       type="checkbox"
                       checked={form.is_important}
                       onChange={(e) => setForm({ ...form, is_important: e.target.checked })}
-                      className="w-5 h-5 text-green-600 rounded focus:ring-green-500"
+                      className="w-4 h-4 text-green-600 rounded focus:ring-green-500"
                     />
-                    <span className="text-gray-700 font-bold">خبر مهم</span>
+                    <span className="text-sm font-bold text-gray-700">خبر مهم</span>
                   </label>
                 </div>
               </div>
@@ -663,24 +633,48 @@ export default function Reminders({ teacherId }) {
               {/* آپلود عکس */}
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2">عکس (اختیاری)</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50"
-                />
-                {form.image_url && (
-                  <img src={form.image_url} alt="خبر" className="mt-2 w-32 h-32 object-cover rounded-xl border" />
+                
+                {form.image_url ? (
+                  <div className="relative">
+                    <img 
+                      src={form.image_url} 
+                      alt="پیش‌نمایش" 
+                      className="w-full h-48 object-cover rounded-lg border border-gray-200"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      className="absolute top-2 left-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      disabled={uploadingImage}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
+                    />
+                    {uploadingImage && (
+                      <div className="absolute left-2 top-1/2 -translate-y-1/2">
+                        <div className="w-5 h-5 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+                      </div>
+                    )}
+                  </div>
                 )}
+                <p className="text-xs text-gray-500 mt-1">فرمت‌های مجاز: JPG, PNG, GIF - حداکثر 5MB</p>
               </div>
 
-              {/* متن خبر */}
+              {/* متن */}
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2">متن خبر/یادآوری</label>
                 <textarea
                   value={form.content}
                   onChange={(e) => setForm({ ...form, content: e.target.value })}
-                  className="w-full px-3 py-2 border border-green-100 rounded-xl bg-green-50 focus:ring-2 focus:ring-green-400 outline-none transition h-32 resize-none"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 focus:ring-2 focus:ring-green-500 outline-none h-32 resize-none"
                   placeholder="متن کامل خبر یا یادآوری"
                   required
                 />
@@ -691,13 +685,14 @@ export default function Reminders({ teacherId }) {
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="px-6 py-2 bg-gray-100 rounded-xl text-gray-700 shadow hover:bg-gray-200 transition"
+                  className="px-6 py-2 bg-gray-100 rounded-lg text-gray-700 hover:bg-gray-200 transition"
                 >
                   انصراف
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2 bg-gradient-to-r from-green-500 to-green-600 rounded-xl text-white shadow hover:scale-105 transition font-bold"
+                  disabled={uploadingImage}
+                  className="px-6 py-2 bg-gradient-to-r from-green-400 via-green-500 to-green-600 rounded-lg text-white hover:shadow-lg transition font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {form.id ? 'ویرایش خبر' : 'ارسال خبر'}
                 </button>
@@ -709,27 +704,27 @@ export default function Reminders({ teacherId }) {
 
       {/* مودال حذف */}
       {showDeleteModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl">
-            <div className="flex justify-between items-center px-6 py-5 bg-gradient-to-r from-green-100 to-green-50 border-b border-green-100">
-              <h2 className="text-lg font-bold text-green-700">حذف خبر</h2>
-              <button onClick={() => setShowDeleteModal(false)} className="p-2 rounded-full bg-green-50 hover:bg-green-200 transition">
+            <div className="flex justify-between items-center px-6 py-4 bg-gradient-to-r from-red-50 to-white border-b border-gray-100">
+              <h2 className="text-lg font-bold text-gray-800">حذف خبر</h2>
+              <button onClick={() => setShowDeleteModal(false)} className="p-2 rounded-full hover:bg-gray-100 transition">
                 <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
             <div className="px-6 py-6 space-y-4">
               <p className="text-gray-700">آیا مطمئن هستید می‌خواهید این خبر را حذف کنید؟</p>
-              <p className="text-sm text-green-600">این عمل غیرقابل بازگشت است.</p>
+              <p className="text-sm text-red-600">این عمل غیرقابل بازگشت است.</p>
               <div className="flex justify-end gap-3 pt-4">
                 <button
                   onClick={() => setShowDeleteModal(false)}
-                  className="px-4 py-2 bg-gray-100 rounded-xl text-gray-700 shadow hover:bg-gray-200 transition"
+                  className="px-4 py-2 bg-gray-100 rounded-lg text-gray-700 hover:bg-gray-200 transition"
                 >
                   انصراف
                 </button>
                 <button
                   onClick={confirmDelete}
-                  className="px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 rounded-xl text-white font-bold shadow hover:scale-105 transition"
+                  className="px-4 py-2 bg-red-600 rounded-lg text-white font-bold hover:bg-red-700 transition"
                 >
                   حذف
                 </button>

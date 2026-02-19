@@ -9,22 +9,22 @@ datasource db {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model attendances {
-  id           Int      @id @default(autoincrement())
-  student_id   Int
-  class_id     Int
-  date         DateTime @db.Date
-  status       String   @db.VarChar(10)
-  reason       String?
-  is_justified Boolean  @default(false)
-  notes        String?
-  created_by   Int?
-  created_at   DateTime @default(now()) @db.Timestamp(6)
-  updated_at   DateTime @default(now()) @db.Timestamp(6)
-  delay_minutes Int?    // تاخیر به دقیقه
-  delay_reason  String? @db.VarChar(200) // دلیل تاخیر
-  classes      classes  @relation(fields: [class_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  users        users?   @relation(fields: [created_by], references: [id], onUpdate: NoAction)
-  students     students @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id            Int      @id @default(autoincrement())
+  student_id    Int
+  class_id      Int
+  date          DateTime @db.Date
+  status        String   @db.VarChar(10)
+  reason        String?
+  is_justified  Boolean  @default(false)
+  notes         String?
+  created_by    Int?
+  created_at    DateTime @default(now()) @db.Timestamp(6)
+  updated_at    DateTime @default(now()) @db.Timestamp(6)
+  delay_minutes Int?
+  delay_reason  String?  @db.VarChar(200)
+  classes       classes  @relation(fields: [class_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users         users?   @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  students      students @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([student_id, date], map: "uq_attendance_per_student_date")
 }
@@ -59,9 +59,9 @@ model classes {
   teachers        teachers?         @relation(fields: [teacher_id], references: [id], onUpdate: NoAction)
   exams           exams[]
   gallery_images  gallery_images[]
+  special_classes special_classes[]
   students        students[]
   weekly_schedule weekly_schedule[]
-  special_classes special_classes[]
 
   @@unique([grade_id, class_number, academic_year], map: "uq_class_number_per_grade_year")
 }
@@ -114,13 +114,13 @@ model exam_results {
   id              Int               @id @default(autoincrement())
   exam_id         Int
   student_id      Int
-  marks_obtained  Decimal?          @db.Decimal(6, 2) // نمره عددی (اختیاری)
-  grade_desc      String?           // نمره توصیفی (عالی، خیلی خوب و ...)
+  marks_obtained  Decimal?          @db.Decimal(6, 2)
   status          String?           @db.VarChar(10)
   attempt_number  Int               @default(1)
   completed_at    DateTime?         @db.Timestamp(6)
   created_at      DateTime          @default(now()) @db.Timestamp(6)
   updated_at      DateTime          @default(now()) @db.Timestamp(6)
+  grade_desc      String?
   exams           exams             @relation(fields: [exam_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   students        students          @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   student_answers student_answers[]
@@ -129,32 +129,30 @@ model exam_results {
 }
 
 model exams {
-  id                      Int                @id @default(autoincrement())
-  title                   String             @db.VarChar(200)
-  type                    String             @db.VarChar(20)
+  id                      Int                 @id @default(autoincrement())
+  title                   String              @db.VarChar(200)
+  type                    String              @db.VarChar(20)
   description             String?
-  subject                 String?            @db.VarChar(100)
+  subject                 String?             @db.VarChar(100)
   class_id                Int?
-  grade_id                Int?               // ← این خط را اضافه کن
   teacher_id              Int?
   duration_minutes        Int
-  total_marks             Decimal            @db.Decimal(6, 2)
-  start_time              DateTime?          @db.Timestamp(6)
-  end_time                DateTime?          @db.Timestamp(6)
-  is_active               Boolean            @default(true)
-  show_result_immediately Boolean            @default(true)
-  max_attempts            Int                @default(1)
-  pdf_url                 String?            @db.VarChar(255)
-  image_url               String?            @db.VarChar(255)
+  total_marks             Decimal             @db.Decimal(6, 2)
+  start_time              DateTime?           @db.Timestamp(6)
+  end_time                DateTime?           @db.Timestamp(6)
+  is_active               Boolean             @default(true)
+  show_result_immediately Boolean             @default(true)
+  max_attempts            Int                 @default(1)
+  pdf_url                 String?             @db.VarChar(255)
+  image_url               String?             @db.VarChar(255)
+  created_at              DateTime            @default(now()) @db.Timestamp(6)
+  updated_at              DateTime            @default(now()) @db.Timestamp(6)
   questions               String?
-  created_at              DateTime           @default(now()) @db.Timestamp(6)
-  updated_at              DateTime           @default(now()) @db.Timestamp(6)
+  exam_file_answers       exam_file_answers[]
   exam_questions          exam_questions[]
   exam_results            exam_results[]
-  classes                 classes?           @relation(fields: [class_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  grades                  grades?            @relation(fields: [grade_id], references: [id], onDelete: Cascade, onUpdate: NoAction) // ← این خط را اضافه کن
-  teachers                teachers?          @relation(fields: [teacher_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  exam_file_answers       exam_file_answers[]
+  classes                 classes?            @relation(fields: [class_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  teachers                teachers?           @relation(fields: [teacher_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
 model gallery_categories {
@@ -175,7 +173,6 @@ model gallery_images {
   id                 Int                @id @default(autoincrement())
   category_id        Int
   class_id           Int?
-  grade_id           Int?               // اضافه شده
   title              String?            @db.VarChar(200)
   description        String?
   image_path         String             @db.VarChar(255)
@@ -183,9 +180,10 @@ model gallery_images {
   is_featured        Boolean            @default(false)
   created_at         DateTime           @default(now()) @db.Timestamp(6)
   updated_at         DateTime           @default(now()) @db.Timestamp(6)
+  grade_id           Int?
   gallery_categories gallery_categories @relation(fields: [category_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   classes            classes?           @relation(fields: [class_id], references: [id], onUpdate: NoAction)
-  grades             grades?            @relation(fields: [grade_id], references: [id], onUpdate: NoAction) // اضافه شده
+  grades             grades?            @relation(fields: [grade_id], references: [id], onUpdate: NoAction)
 }
 
 model grades {
@@ -196,10 +194,9 @@ model grades {
   created_at        DateTime            @default(now()) @db.Timestamp(6)
   updated_at        DateTime            @default(now()) @db.Timestamp(6)
   classes           classes[]
-  pre_registrations pre_registrations[]
   gallery_images    gallery_images[]
+  pre_registrations pre_registrations[]
   teacher_news      teacher_news[]      @relation("GradeNews")
-  exams             exams[]             // ← این خط را اضافه کن
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -218,19 +215,19 @@ model meal_schedule {
 }
 
 model news_announcements {
-  id           Int       @id @default(autoincrement())
-  title        String    @db.VarChar(200)
-  content      String
-  is_published Boolean   @default(false)
-  publish_date DateTime? @db.Date
-  author_id    Int?
-  image_url    String?   @db.VarChar(255) // اضافه شده
-  target_type  String    @default("public") @db.VarChar(20) // public, teachers, students - اضافه شده
-  target_user_id Int?    // برای ارسال به کاربر خاص - اضافه شده
-  created_at   DateTime  @default(now()) @db.Timestamp(6)
-  updated_at   DateTime  @default(now()) @db.Timestamp(6)
-  users        users?    @relation(fields: [author_id], references: [id], onUpdate: NoAction)
-  target_user  users?    @relation("NewsTarget", fields: [target_user_id], references: [id], onUpdate: NoAction) // اضافه شده
+  id             Int       @id @default(autoincrement())
+  title          String    @db.VarChar(200)
+  content        String
+  is_published   Boolean   @default(false)
+  publish_date   DateTime? @db.Date
+  author_id      Int?
+  created_at     DateTime  @default(now()) @db.Timestamp(6)
+  updated_at     DateTime  @default(now()) @db.Timestamp(6)
+  image_url      String?   @db.VarChar(255)
+  target_type    String    @default("public") @db.VarChar(20)
+  target_user_id Int?
+  users          users?    @relation(fields: [author_id], references: [id], onUpdate: NoAction)
+  target_user    users?    @relation("NewsTarget", fields: [target_user_id], references: [id], onUpdate: NoAction)
 }
 
 model password_recovery {
@@ -320,37 +317,36 @@ model students {
   created_at        DateTime            @default(now()) @db.Timestamp(6)
   updated_at        DateTime            @default(now()) @db.Timestamp(6)
   attendances       attendances[]
+  exam_file_answers exam_file_answers[]
   exam_results      exam_results[]
   report_cards      report_cards[]
+  student_teacher   student_teacher[]
   classes           classes?            @relation(fields: [class_id], references: [id], onUpdate: NoAction)
   users             users               @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  exam_file_answers exam_file_answers[]
-  student_teacher   student_teacher[]
-  teacher_news      teacher_news[]      @relation("StudentNews") // اضافه شده
+  teacher_news      teacher_news[]      @relation("StudentNews")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model teachers {
-  id                   Int                      @id @default(autoincrement())
-  user_id              Int                      @unique
-  teacher_code         String                   @unique @db.VarChar(20)
-  hire_date            DateTime                 @db.Date
-  subject              String?                  @db.VarChar(100)
-  teaching_type        String                   @default("grade") @db.VarChar(20) // 🔥 اضافه شده
-  workshop_id          Int?                     // 🔥 اضافه شده
-  education_level      String?                  @db.VarChar(100)
-  status               String                   @default("active") @db.VarChar(20)
-  created_at           DateTime                 @default(now()) @db.Timestamp(6)
-  updated_at           DateTime                 @default(now()) @db.Timestamp(6)
-  
+  id                   Int                    @id @default(autoincrement())
+  user_id              Int                    @unique
+  teacher_code         String                 @unique @db.VarChar(20)
+  hire_date            DateTime               @db.Date
+  subject              String?                @db.VarChar(100)
+  education_level      String?                @db.VarChar(100)
+  status               String                 @default("active") @db.VarChar(20)
+  created_at           DateTime               @default(now()) @db.Timestamp(6)
+  updated_at           DateTime               @default(now()) @db.Timestamp(6)
+  teaching_type        String                 @default("grade") @db.VarChar(20)
+  workshop_id          Int?
   classes              classes[]
+  disciplinary_actions disciplinary_actions[]
   exams                exams[]
   report_cards         report_cards[]
-  users                users                    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  workshop             workshops?               @relation(fields: [workshop_id], references: [id]) // 🔥 اضافه شده
-  weekly_schedule      weekly_schedule[]
   student_teacher      student_teacher[]
-  disciplinary_actions disciplinary_actions[]  // اضافه شده
+  users                users                  @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  workshop             workshops?             @relation(fields: [workshop_id], references: [id])
+  weekly_schedule      weekly_schedule[]
 }
 
 model refreshTokens {
@@ -360,7 +356,7 @@ model refreshTokens {
   expires_at DateTime @db.Timestamp(6)
   created_at DateTime @default(now()) @db.Timestamp(6)
   users      users    @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  
+
   @@map("refresh_tokens")
 }
 
@@ -378,20 +374,20 @@ model users {
   created_at           DateTime               @default(now()) @db.Timestamp(6)
   updated_at           DateTime               @default(now()) @db.Timestamp(6)
   attendances          attendances[]
-  refreshTokens        refreshTokens[]
+  circular_reads       circular_reads[]       @relation("CircularReads")
+  circulars            circulars[]
+  targeted_circulars   circulars[]            @relation("CircularTarget")
   class_news           class_news[]
   comments_suggestions comments_suggestions[]
+  disciplinary_actions disciplinary_actions[]
   entrances            entrances?
   meal_schedule        meal_schedule[]
   news_announcements   news_announcements[]
-  targeted_news        news_announcements[]   @relation("NewsTarget") // اضافه شده
+  targeted_news        news_announcements[]   @relation("NewsTarget")
+  refreshTokens        refreshTokens[]
   students             students?
+  teacher_news         teacher_news[]
   teachers             teachers?
-  circulars            circulars[]            // اضافه شده
-  targeted_circulars   circulars[]            @relation("CircularTarget") // اضافه شده
-  circular_reads       circular_reads[]       @relation("CircularReads") // اضافه شده
-  disciplinary_actions disciplinary_actions[] // اضافه شده
-  teacher_news         teacher_news[]         // اضافه شده
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -417,22 +413,22 @@ model exam_file_answers {
   exam_id          Int
   student_id       Int
   file_url         String
-  grade_desc       String?  // نمره توصیفی (عالی، خیلی خوب و ...)
-  teacher_feedback String?  // توضیح معلم
   created_at       DateTime @default(now())
+  grade_desc       String?
+  teacher_feedback String?
   exams            exams    @relation(fields: [exam_id], references: [id])
   students         students @relation(fields: [student_id], references: [id], onDelete: Cascade)
 }
 
 model food_schedule {
   id         Int      @id @default(autoincrement())
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  breakfast  String?
+  lunch      String?
   week_start DateTime
   weekday    String
   date       DateTime
-  breakfast  String?
-  lunch      String?
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
 }
 
 model special_classes {
@@ -440,12 +436,11 @@ model special_classes {
   title       String
   description String?
   class_id    Int?
-  day_of_week String   // مثال: 'saturday'
-  start_time  String   // مثال: '10:00'
-  end_time    String   // مثال: '12:00'
+  day_of_week String
+  start_time  String
+  end_time    String
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
-
   classes     classes? @relation(fields: [class_id], references: [id])
 }
 
@@ -455,47 +450,44 @@ model student_teacher {
   teacher_id  Int
   assigned_at DateTime @default(now()) @db.Timestamp(6)
   created_at  DateTime @default(now()) @db.Timestamp(6)
-  
   student     students @relation(fields: [student_id], references: [id], onDelete: Cascade)
   teacher     teachers @relation(fields: [teacher_id], references: [id], onDelete: Cascade)
-  
+
   @@unique([student_id, teacher_id])
 }
 
 model workshops {
-  id           Int       @id @default(autoincrement())
-  workshop_name String   @db.VarChar(100)
-  icon         String?   @db.VarChar(10)
-  description  String?
-  is_active    Boolean   @default(true)
-  created_at   DateTime  @default(now()) @db.Timestamp(6)
-  updated_at   DateTime  @default(now()) @db.Timestamp(6)
-  
-  // رابطه با معلمان
-  teachers     teachers[]
+  id            Int        @id @default(autoincrement())
+  workshop_name String     @db.VarChar(100)
+  icon          String?    @db.VarChar(10)
+  description   String?
+  is_active     Boolean    @default(true)
+  created_at    DateTime   @default(now()) @db.Timestamp(6)
+  updated_at    DateTime   @default(now()) @db.Timestamp(6)
+  teachers      teachers[]
 }
 
 model circulars {
-  id                Int       @id @default(autoincrement())
-  title             String    @db.VarChar(200)
+  id                Int              @id @default(autoincrement())
+  title             String           @db.VarChar(200)
   content           String
-  image_url         String?   @db.VarChar(255)
-  priority          String    @default("normal") @db.VarChar(20) // urgent, high, normal, low
-  target_type       String    @default("all_teachers") @db.VarChar(20) // all_teachers, specific_teacher
-  target_teacher_id Int?      // برای معلم خاص
-  issue_date        DateTime  @db.Date
-  expiry_duration   String    @default("1_month") @db.VarChar(20) // 10_days, 1_month, 3_months, 6_months
-  expiry_date       DateTime  @db.Date
-  is_active         Boolean   @default(true)
-  is_read_required  Boolean   @default(false) // آیا خواندن اجباری است
+  image_url         String?          @db.VarChar(255)
+  priority          String           @default("normal") @db.VarChar(20)
+  target_type       String           @default("all_teachers") @db.VarChar(20)
+  target_teacher_id Int?
+  issue_date        DateTime         @db.Date
+  expiry_duration   String           @default("1_month") @db.VarChar(20)
+  expiry_date       DateTime         @db.Date
+  is_active         Boolean          @default(true)
+  is_read_required  Boolean          @default(false)
   author_id         Int?
-  circular_number   String?   @db.VarChar(50) // شماره بخشنامه
-  department        String?   @db.VarChar(100) // بخش مربوطه
-  created_at        DateTime  @default(now()) @db.Timestamp(6)
-  updated_at        DateTime  @default(now()) @db.Timestamp(6)
-  users             users?    @relation(fields: [author_id], references: [id], onUpdate: NoAction)
-  target_teacher    users?    @relation("CircularTarget", fields: [target_teacher_id], references: [id], onUpdate: NoAction)
+  circular_number   String?          @db.VarChar(50)
+  department        String?          @db.VarChar(100)
+  created_at        DateTime         @default(now()) @db.Timestamp(6)
+  updated_at        DateTime         @default(now()) @db.Timestamp(6)
   circular_reads    circular_reads[]
+  users             users?           @relation(fields: [author_id], references: [id], onUpdate: NoAction)
+  target_teacher    users?           @relation("CircularTarget", fields: [target_teacher_id], references: [id], onUpdate: NoAction)
 }
 
 model circular_reads {
@@ -505,43 +497,50 @@ model circular_reads {
   read_at     DateTime  @default(now()) @db.Timestamp(6)
   circulars   circulars @relation(fields: [circular_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   users       users     @relation("CircularReads", fields: [teacher_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  
+
   @@unique([circular_id, teacher_id])
 }
 
 model disciplinary_actions {
   id          Int      @id @default(autoincrement())
   teacher_id  Int
-  type        String   @db.VarChar(20) // reward, warning
-  severity    String   @default("normal") @db.VarChar(20) // mild, normal, severe (برای توبیخ)
-  level       String   @default("normal") @db.VarChar(20) // normal, high, excellent (برای تشویق)
+  type        String   @db.VarChar(20)
+  severity    String   @default("normal") @db.VarChar(20)
+  level       String   @default("normal") @db.VarChar(20)
   title       String   @db.VarChar(200)
   description String?
   date        DateTime @db.Date
-  author_id   Int?     // کسی که ثبت کرده
+  author_id   Int?
   is_active   Boolean  @default(true)
   created_at  DateTime @default(now()) @db.Timestamp(6)
   updated_at  DateTime @default(now()) @db.Timestamp(6)
-  teachers    teachers @relation(fields: [teacher_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   users       users?   @relation(fields: [author_id], references: [id], onUpdate: NoAction)
+  teachers    teachers @relation(fields: [teacher_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
 model teacher_news {
-  id               Int      @id @default(autoincrement())
-  title            String   @db.VarChar(200)
-  content          String
-  image_url        String?  @db.VarChar(255)
-  target_type      String   @db.VarChar(20) // grade, specific_student, all_students
-  target_grade_id  Int?
+  id                Int       @id @default(autoincrement())
+  title             String    @db.VarChar(200)
+  content           String
+  image_url         String?   @db.VarChar(255)
+  target_type       String    @db.VarChar(20)
+  target_grade_id   Int?
   target_student_id Int?
-  is_important     Boolean  @default(false)
-  reminder_date    DateTime? @db.Date
-  author_id        Int      // معلم سازنده
-  created_at       DateTime @default(now()) @db.Timestamp(6)
-  updated_at       DateTime @default(now()) @db.Timestamp(6)
-  
-  // روابط
-  users            users    @relation(fields: [author_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  target_grade     grades?  @relation("GradeNews", fields: [target_grade_id], references: [id], onUpdate: NoAction)
-  target_student   students? @relation("StudentNews", fields: [target_student_id], references: [id], onUpdate: NoAction)
+  is_important      Boolean   @default(false)
+  reminder_date     DateTime? @db.Date
+  author_id         Int
+  created_at        DateTime  @default(now()) @db.Timestamp(6)
+  updated_at        DateTime  @default(now()) @db.Timestamp(6)
+  users             users     @relation(fields: [author_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  target_grade      grades?   @relation("GradeNews", fields: [target_grade_id], references: [id], onUpdate: NoAction)
+  target_student    students? @relation("StudentNews", fields: [target_student_id], references: [id], onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model spatial_ref_sys {
+  srid      Int     @id
+  auth_name String? @db.VarChar(256)
+  auth_srid Int?
+  srtext    String? @db.VarChar(2048)
+  proj4text String? @db.VarChar(2048)
 }

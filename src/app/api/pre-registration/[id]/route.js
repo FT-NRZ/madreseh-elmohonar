@@ -174,38 +174,14 @@ export async function PUT(request, { params }) {
     });
 
   } catch (error) {
-    toast.error('💥 Update pre-registration error details:');
-    toast.error('- Error message:', error.message);
-    toast.error('- Error code:', error.code);
-    toast.error('- Error detail:', error.detail);
-    toast.error('- Full error:', error);
-
-    // بررسی انواع خطا
+    console.log('Update pre-registration error:', error.message);
     if (error.code === '23514') {
-      // خطای check constraint
-      return NextResponse.json({ 
-        success: false, 
-        error: `مقدار وضعیت "${status}" با قوانین دیتابیس سازگار نیست. مقادیر مجاز را بررسی کنید.` 
-      }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'وضعیت نامعتبر بر اساس محدودیت دیتابیس' }, { status: 400 });
     }
-    
     if (error.code === '23505') {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'تداخل در داده‌ها' 
-      }, { status: 409 });
+      return NextResponse.json({ success: false, error: 'تداخل داده‌ها' }, { status: 409 });
     }
-
-    return NextResponse.json({ 
-      success: false, 
-      error: 'خطای سرور: ' + error.message 
-    }, { status: 500 });
-    
-  } finally {
-    if (client) {
-      console.log('🔌 Releasing database connection');
-      client.release();
-    }
+    return NextResponse.json({ success: false, error: 'خطای سرور: ' + error.message }, { status: 500 });
   }
 }
 
@@ -268,8 +244,8 @@ export async function GET(request, { params }) {
     });
 
   } catch (error) {
-    toast.error('💥 Get pre-registration error:', error.message);
-    toast.error('Full error:', error);
+    console.log('💥 Get pre-registration error:', error.message);
+    console.log('Full error:', error);
     return NextResponse.json({ 
       success: false, 
       error: 'خطای سرور داخلی: ' + error.message 
@@ -349,8 +325,8 @@ export async function DELETE(request, { params }) {
     });
 
   } catch (error) {
-    toast.error('💥 Delete pre-registration error:', error.message);
-    toast.error('Full error:', error);
+    console.log('💥 Delete pre-registration error:', error.message);
+    console.log('Full error:', error);
     return NextResponse.json({ 
       success: false, 
       error: 'خطای سرور: ' + error.message 
@@ -361,4 +337,9 @@ export async function DELETE(request, { params }) {
       client.release();
     }
   }
+}
+
+export async function PATCH(request, { params }) {
+  console.log('🔄 PATCH redirecting to PUT');
+  return PUT(request, { params });
 }

@@ -247,13 +247,15 @@ export default function NewsPage() {
                   {/* News Content */}
                   <div className="p-6">
                     {item.image_url && (
-                      <div className="mb-4">
+                      <div className="mb-4 bg-gray-50 rounded-xl overflow-hidden flex items-center justify-center" style={{ minHeight: '200px' }}>
                         <img 
                           src={item.image_url} 
                           alt={item.title}
-                          className="w-full h-48 object-cover rounded-xl shadow-md"
+                          className="max-w-full max-h-full object-contain"
+                          style={{ width: 'auto', height: 'auto' }}
                           onError={(e) => {
                             e.target.style.display = 'none';
+                            e.target.parentElement.style.display = 'none';
                           }}
                         />
                       </div>

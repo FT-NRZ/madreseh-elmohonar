@@ -10,22 +10,8 @@ import {
   Calendar1Icon,
   GalleryHorizontal
 } from 'lucide-react';
-import { toast, Toaster } from 'react-hot-toast';
+import { toast } from 'react-hot-toast';
 
-const sidebarMenu = [
-  { label: 'داشبورد', icon: LayoutGrid, href: '/admin/dashboard' },
-  { label: 'مدیریت کاربران', icon: Users, href: '/admin/users' },
-  { label: 'مدیریت کلاس‌ها', icon: GraduationCap, href: '/admin/classes' },
-  { label: 'برنامه هفتگی', icon: Calendar1Icon, href: '/admin/weekly_schedule' },
-  { label: 'برنامه غذایی', icon: GalleryHorizontalEnd, href: '/admin/food-schedule' },
-  { label: 'حضور و غیاب', icon: CalendarCheck, href: '/admin/attendances' },
-  { label: 'مدیریت گالری', icon: GalleryHorizontal, href: '/admin/gallery' },
-  { label: 'مدیریت کارنامه ها', icon: BookOpen, href: '/admin/report_cards' },
-  { label: 'مدیریت اخبار', icon: NewspaperIcon, href: '/admin/news' },
-  { label: 'مدیریت بخشنامه ها', icon: FileText, href: '/admin/circular' },
-  { label: 'پیش‌ثبت‌نام', icon: UserPlus, href: '/admin/pre-registrations' },
-  { label: 'توبیخی و تشویقی', icon: Shield, href: '/admin/disciplinary' },
-];
 
 export default function ReportCardsPage() {
   const [user, setUser] = useState(null);
@@ -550,23 +536,6 @@ export default function ReportCardsPage() {
 
  return (
     <div className="min-h-screen bg-gradient-to-br mb-10 from-green-50 to-white">
-      <Toaster
-        position="top-center"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: '#fff',
-            color: '#374151',
-            fontSize: '14px',
-            fontWeight: '500',
-            padding: '12px 16px',
-            borderRadius: '12px',
-            border: '1px solid #e5e7eb',
-            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
-          }
-        }}
-      />
-
       <div className="flex flex-col sm:flex-row">
         {/* Main Content */}
         <main className="flex-1 pb-16 sm:pb-0 p-2 sm:p-6 space-y-3 sm:space-y-8 mt-2 sm:mt-0 max-w-6xl mx-auto">

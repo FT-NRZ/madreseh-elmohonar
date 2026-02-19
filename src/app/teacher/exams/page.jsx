@@ -49,6 +49,12 @@ export default function TeacherExamsPage() {
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(true);
   const [grades, setGrades] = useState([]);
+  const [toast, setToast] = useState({ show: false, type: 'success', msg: '' });
+  const showToast = (msg, type = 'success', timeout = 3000) => {
+    setToast({ show: true, type, msg });
+    window.clearTimeout(showToast._t);
+    showToast._t = window.setTimeout(() => setToast(t => ({ ...t, show: false })), timeout);
+  };
 
   useEffect(() => {
     // بررسی احراز هویت و دریافت اطلاعات معلم
@@ -79,11 +85,13 @@ export default function TeacherExamsPage() {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
+      const xUserId = getLocalUserId();
       const res = await fetch('/api/teacher/exams', { 
         cache: 'no-store',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'X-User-Id': xUserId ? String(xUserId) : ''
         }
       });
       
@@ -99,6 +107,15 @@ export default function TeacherExamsPage() {
     } finally {
       setLoading(false);
     }
+  };
+  
+  const getLocalUserId = () => {
+    try {
+      const raw = localStorage.getItem('user');
+      if (!raw) return null;
+      const u = JSON.parse(raw);
+      return Number(u?.id ?? u?.userId ?? u?.user_id) || null;
+    } catch { return null; }
   };
 
 const fetchGrades = async () => {
@@ -172,32 +189,46 @@ useEffect(() => {
   const handleFileUpload = async (file, fileType) => {
     if (!file) return;
     setUploading(true);
+    
     try {
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('folder', `teacher-exams/${fileType}`); // فولدر مخصوص فایل‌های آزمون
 
-      const res = await fetch('/api/upload', {
+      console.log(`🚀 Uploading ${fileType} file:`, file.name);
+
+      // 🔥 تغییر: مستقیماً به storage/upload می‌ریم
+      const response = await fetch('/api/storage/upload', {
         method: 'POST',
         body: formData
       });
 
-      const data = await res.json();
-      if (data.url) {
+      const data = await response.json();
+      console.log(`📊 Upload response for ${fileType}:`, data);
+
+      if (data.success && data.url) {
         if (fileType === 'pdf') {
           setForm(f => ({ ...f, pdf_url: data.url }));
+          showToast('فایل PDF با موفقیت آپلود شد', 'success');
         } else if (fileType === 'image') {
           setForm(f => ({ ...f, image_url: data.url }));
+          showToast('تصویر با موفقیت آپلود شد', 'success');
         }
+        console.log(`✅ ${fileType.toUpperCase()} uploaded successfully:`, data.url);
       } else {
-        setError(data.error || 'خطا در آپلود فایل');
+        console.error(`❌ Upload failed for ${fileType}:`, data);
+        setError(data.error || `خطا در آپلود ${fileType === 'pdf' ? 'فایل PDF' : 'تصویر'}`);
+        showToast(`خطا در آپلود ${fileType === 'pdf' ? 'فایل PDF' : 'تصویر'}`, 'error');
       }
     } catch (error) {
-      safeLog('Upload error', { message: error.message });
-      setError('خطا در آپلود فایل');
+      console.error(`💥 Upload error for ${fileType}:`, error);
+      setError(`خطا در آپلود ${fileType === 'pdf' ? 'فایل PDF' : 'تصویر'}: ` + error.message);
+      showToast('خطا در ارتباط با سرور', 'error');
     } finally {
       setUploading(false);
     }
   };
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -235,16 +266,13 @@ useEffect(() => {
 
     try {
       const token = localStorage.getItem('token');
-      if (!token) {
-        setError('لطفاً مجدداً وارد شوید');
-        return;
-      }
-
+      const xUserId = getLocalUserId();
       const res = await fetch('/api/teacher/exams', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'X-User-Id': xUserId ? String(xUserId) : ''
         },
         body: JSON.stringify(examData)
       });
@@ -300,20 +328,26 @@ useEffect(() => {
     if (!window.confirm('آیا مطمئن هستید که می‌خواهید این آزمون را حذف کنید؟')) return;
     try {
       const token = localStorage.getItem('token');
+      const xUserId = getLocalUserId();
       const res = await fetch(`/api/teacher/exams/${id}`, { 
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'X-User-Id': xUserId ? String(xUserId) : ''
         }
       });
       if (res.ok) {
+        showToast('آزمون با موفقیت حذف شد', 'success');
         fetchExams();
       } else {
+        const msg = `خطا در حذف آزمون (کد ${res.status})`;
+        showToast(msg, 'error');
         setError('خطا در حذف آزمون');
       }
     } catch (e) {
       safeLog('delete error', { id, message: e.message });
+      showToast('خطا در ارتباط با سرور', 'error');
       setError('خطا در ارتباط با سرور');
     }
   };
@@ -321,11 +355,13 @@ useEffect(() => {
   const handleToggleActive = async (id, currentStatus) => {
     try {
       const token = localStorage.getItem('token');
+      const xUserId = getLocalUserId();
       const res = await fetch(`/api/teacher/exams/${id}`, {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'X-User-Id': xUserId ? String(xUserId) : ''
         },
         body: JSON.stringify({ is_active: !currentStatus })
       });
@@ -340,9 +376,18 @@ useEffect(() => {
     }
   };
 
-const getGradeName = (gradeId) => {
-  const grade = grades.find(g => g.id === Number(gradeId));
-  return grade ? `پایه ${grade.grade_name}` : `شناسه: ${gradeId}`;
+const getGradeName = (exam) => {
+  // اگر exam دارای اطلاعات grade است
+  if (exam.grade_name) {
+    return `پایه ${exam.grade_name}`;
+  }
+  // اگر فقط grade_id دارد
+  if (exam.grade_id) {
+    const grade = grades.find(g => g.id === Number(exam.grade_id));
+    return grade ? `پایه ${grade.grade_name}` : `شناسه: ${exam.grade_id}`;
+  }
+  // fallback
+  return 'نامشخص';
 };
 
   const getTypeIcon = (type) => {
@@ -559,45 +604,70 @@ const getGradeName = (gradeId) => {
               </div>
             </div>
 
-            {(form.type === 'pdf' || form.type === 'image') && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-                {form.type === 'pdf' && (
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700">
-                      آپلود فایل PDF
-                    </label>
-                    <input
-                      type="file"
-                      accept="application/pdf"
-                      onChange={e => handleFileUpload(e.target.files[0], 'pdf')}
-                      className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-300 rounded-lg file:ml-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 text-sm md:text-base"
-                    />
-                    {form.pdf_url && (
-                      <p className="text-sm text-green-600 flex items-center gap-1">
-                        <CheckCircle className="w-4 h-4" />
-                        فایل با موفقیت آپلود شد
-                      </p>
-                    )}
+
+            {form.type === 'pdf' && (
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  آپلود فایل PDF
+                </label>
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={e => handleFileUpload(e.target.files[0], 'pdf')}
+                  className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-300 rounded-lg file:ml-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 text-sm md:text-base"
+                />
+                {form.pdf_url && (
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <p className="text-sm text-green-600 flex items-center gap-2 mb-2">
+                      <CheckCircle className="w-4 h-4" />
+                      فایل PDF با موفقیت آپلود شد
+                    </p>
+                    <a 
+                      href={form.pdf_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-600 hover:text-blue-800 underline flex items-center gap-1"
+                    >
+                      <FileText className="w-4 h-4" />
+                      مشاهده فایل آپلود شده
+                    </a>
                   </div>
                 )}
+              </div>
+            )}
 
-                {form.type === 'image' && (
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700">
-                      آپلود تصویر
-                    </label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={e => handleFileUpload(e.target.files[0], 'image')}
-                      className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-300 rounded-lg file:ml-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 text-sm md:text-base"
-                    />
-                    {form.image_url && (
-                      <p className="text-sm text-green-600 flex items-center gap-1">
-                        <CheckCircle className="w-4 h-4" />
-                        تصویر با موفقیت آپلود شد
-                      </p>
-                    )}
+            {form.type === 'image' && (
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  آپلود تصویر
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={e => handleFileUpload(e.target.files[0], 'image')}
+                  className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-300 rounded-lg file:ml-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 text-sm md:text-base"
+                />
+                {form.image_url && (
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <p className="text-sm text-green-600 flex items-center gap-2 mb-3">
+                      <CheckCircle className="w-4 h-4" />
+                      تصویر با موفقیت آپلود شد
+                    </p>
+                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                      <img 
+                        src={form.image_url} 
+                        alt="Preview" 
+                        className="w-full h-32 object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          const errorDiv = e.currentTarget.parentElement.querySelector('.image-error');
+                          if (errorDiv) errorDiv.style.display = 'block';
+                        }}
+                      />
+                      <div className="image-error hidden p-4 text-center text-gray-500 text-sm">
+                        خطا در نمایش تصویر
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -804,7 +874,7 @@ const getGradeName = (gradeId) => {
                     
                     <td className="px-2 md:px-4 py-4 md:py-6 text-center">
                       <span className="text-xs md:text-sm text-gray-700">
-                        {getGradeName(exam.grade_id)}
+                        {getGradeName(exam)}
                       </span>
                     </td>
                     
@@ -849,6 +919,39 @@ const getGradeName = (gradeId) => {
           )}
         </div>
       </div>
+      {/* Toast */}
+      {toast.show && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: 'fixed',
+            bottom: 20,
+            left: 20,
+            zIndex: 9999,
+            background: toast.type === 'success' ? '#059669' : '#dc2626',
+            color: '#fff',
+            padding: '10px 14px',
+            borderRadius: 8,
+            boxShadow: '0 6px 20px rgba(0,0,0,.15)',
+            minWidth: 220,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8
+          }}
+        >
+          <span>{toast.type === 'success' ? '✅' : '⚠️'}</span>
+          <span style={{ fontWeight: 600 }}>{toast.msg}</span>
+          <button
+            onClick={() => setToast(t => ({ ...t, show: false }))}
+            style={{ marginInlineStart: 'auto', background: 'transparent', color: '#fff', fontSize: 18, lineHeight: 1 }}
+            aria-label="Close"
+            title="بستن"
+          >
+            ×
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,13 +1,15 @@
 import jwt from 'jsonwebtoken';
 export const runtime = 'nodejs';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-fallback-secret-key-madreseh-elmohonar-2024';
+// یکسان‌سازی secret با لاگین
+const JWT_SECRET = (process.env.JWT_SECRET?.trim?.() || 'dev-secret');
 
 // ایجاد JWT Token
-export function verifyJWT(token) {
+export function verifyJWT(token, options = {}) {
   try {
     if (!token) return null;
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // استفاده از secret واحد + الگوریتم مشخص
+    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'], ...options });
     return decoded;
   } catch (error) {
     console.error('JWT verification error:', error.message);
@@ -15,9 +17,9 @@ export function verifyJWT(token) {
   }
 }
 
-export function signJWT(payload) {
+export function signJWT(payload, options = {}) {
   try {
-    return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
+    return jwt.sign(payload, JWT_SECRET, { algorithm: 'HS256', expiresIn: '7d', ...options });
   } catch (error) {
     console.error('JWT signing error:', error.message);
     return null;
