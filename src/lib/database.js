@@ -18,3 +18,22 @@ export const prisma = globalForPrisma.prisma || new PrismaClient({
 });
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+
+// 🔥 اضافه کن
+export async function testDatabaseConnection() {
+  try {
+    const result = await prisma.$queryRaw`SELECT NOW()`;
+    return { 
+      ok: true, 
+      timestamp: result[0]?.now || new Date(),
+      message: 'اتصال به دیتابیس موفق'
+    };
+  } catch (error) {
+    console.error('❌ خطا در تست اتصال:', error.message);
+    return { 
+      ok: false, 
+      error: error.message,
+      message: 'اتصال به دیتابیس ناموفق'
+    };
+  }
+}
