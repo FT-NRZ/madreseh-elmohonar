@@ -33,9 +33,8 @@ export default function ContactPage() {
                 <p className="text-gray-700 leading-relaxed text-sm md:text-base">
                   خراسان شمالی، بجنورد
                   <br />
-                  خیابان نواب صفوی، نواب ۱۸
+                  ابتدای ملاصدرا، نواب صفوی ۸
                   <br />
-                  <span className="font-semibold text-[#399918]">پلاک ۱۲</span>
                 </p>
                 <button 
                   onClick={() => window.open('https://maps.google.com/?q=بجنورد+نواب+صفوی+نواب+18+پلاک+12', '_blank')}

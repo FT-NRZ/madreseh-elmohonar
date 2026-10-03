@@ -11,9 +11,14 @@ export function middleware(request) {
     '/api/auth/login',
     '/api/auth/test',
     '/api/auth/seed',
+    '/api/files/download',
     '/_next',
     '/favicon.ico'
   ];
+
+  if ((pathname === '/api/gallery' || pathname === '/api/news' || pathname === '/api/gallery_categories') && request.method === 'GET') {
+    return NextResponse.next();
+  }
   
   // اگر مسیر عمومی است، اجازه ادامه بده
   if (publicPaths.some(path => pathname.startsWith(path))) {
@@ -23,6 +28,7 @@ export function middleware(request) {
   // بررسی token در هدر Authorization
   const authHeader = request.headers.get('authorization');
   const token = authHeader?.replace('Bearer ', '') || 
+                request.cookies.get('access_token')?.value ||
                 request.cookies.get('token')?.value;
 
   if (!token) {
@@ -66,9 +72,11 @@ export function middleware(request) {
 
   // اضافه کردن اطلاعات کاربر به headers برای استفاده در API
   const requestHeaders = new Headers(request.headers);
-  requestHeaders.set('x-user-id', payload.userId.toString());
+  const userId = payload.userId ?? payload.user_id ?? payload.uid;
+  const nationalCode = payload.nationalCode ?? payload.nc;
+  requestHeaders.set('x-user-id', String(userId));
   requestHeaders.set('x-user-role', payload.role);
-  requestHeaders.set('x-national-code', payload.nationalCode);
+  requestHeaders.set('x-national-code', String(nationalCode ?? ''));
 
   return NextResponse.next({
     request: {

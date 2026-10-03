@@ -1,43 +1,81 @@
 import { PrismaClient } from '@prisma/client';
+import { GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { s3 } from '@/lib/s3';
+import { verifyJWT } from '@/lib/jwt';
 
 const prisma = new PrismaClient();
+
+function storageKey(imagePath) {
+  try {
+    const parsed = new URL(String(imagePath || ''));
+    const bucket = process.env.LIARA_BUCKET_NAME || '';
+    const path = parsed.pathname.replace(/^\/+/, '');
+    return path.startsWith(`${bucket}/`) ? path.slice(bucket.length + 1) : path;
+  } catch {
+    return String(imagePath || '').replace(/^\/+/, '');
+  }
+}
+
+async function withDisplayImage(newsItem) {
+  if (!newsItem?.image_url) return newsItem;
+  try {
+    const image_url = await getSignedUrl(
+      s3,
+      new GetObjectCommand({
+        Bucket: process.env.LIARA_BUCKET_NAME,
+        Key: storageKey(newsItem.image_url)
+      }),
+      { expiresIn: 3600 }
+    );
+    return { ...newsItem, image_url };
+  } catch (error) {
+    console.error('News image URL signing failed:', error.message);
+    return newsItem;
+  }
+}
 
 // دریافت تمام اخبار
 export async function GET(request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const userRole = searchParams.get('role');
-    const userId = searchParams.get('userId');
-    
-    let whereClause = {};
-    
-    if (!userRole || userRole === 'admin') {
-      whereClause = {};
-    } else if (userRole === 'teacher') {
-      whereClause = {
-        OR: [
-          { target_type: 'public' },
-          { target_type: 'teachers' },
-          { target_type: 'specific_teacher', target_user_id: parseInt(userId) }
-        ]
-      };
-    } else if (userRole === 'student') {
-      whereClause = {
-        OR: [
-          { target_type: 'public' },
-          { target_type: 'students' },
-          { target_type: 'specific_student', target_user_id: parseInt(userId) }
-        ]
-      };
-    } else {
-      whereClause = { target_type: 'public' };
+    const authorization = request.headers.get('authorization') || '';
+    const cookieToken = request.cookies.get('access_token')?.value || request.cookies.get('token')?.value;
+    const token = authorization.toLowerCase().startsWith('bearer ')
+      ? authorization.slice(7).trim()
+      : cookieToken;
+    let payload = null;
+    try { payload = token ? verifyJWT(token) : null; } catch {}
+
+    const userRole = payload?.role;
+    const userId = Number(payload?.user_id ?? payload?.uid ?? payload?.userId ?? payload?.id ?? payload?.sub);
+    let audience = [{ target_type: 'public' }, { target_type: 'students' }];
+
+    if (userRole === 'teacher' && Number.isInteger(userId) && userId > 0) {
+      audience = [
+        { target_type: 'public' },
+        { target_type: 'teachers' },
+        { target_type: 'specific_teacher', target_user_id: userId }
+      ];
+    } else if (userRole === 'student' && Number.isInteger(userId) && userId > 0) {
+      audience = [
+        { target_type: 'public' },
+        { target_type: 'students' },
+        { target_type: 'specific_student', target_user_id: userId }
+      ];
     }
+
+    const where = userRole === 'admin'
+      ? {}
+      : {
+          is_published: true,
+          AND: [
+            { OR: audience },
+            { OR: [{ publish_date: null }, { publish_date: { lte: new Date() } }] }
+          ]
+        };
     
     const news = await prisma.news_announcements.findMany({
-      where: {
-        ...(userRole && userRole !== 'admin' ? { is_published: true } : {}),
-        ...whereClause
-      },
+      where,
       include: {
         // users relation حذف شد
         target_user: {
@@ -47,7 +85,7 @@ export async function GET(request) {
       orderBy: { created_at: 'desc' }
     });
     
-    return Response.json({ success: true, news }, { status: 200 });
+    return Response.json({ success: true, news: await Promise.all(news.map(withDisplayImage)) }, { status: 200 });
   } catch (error) {
     console.error('Error fetching news:', error);
     return Response.json({ 

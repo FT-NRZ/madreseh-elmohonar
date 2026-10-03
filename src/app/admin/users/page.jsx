@@ -114,7 +114,7 @@ const filteredUsers = users.filter(u => {
   
   // اگر نقش دانش‌آموز انتخاب شده و فیلتر پایه هم تنظیم شده
   if (filterRole === 'student' && filterGrade !== 'all') {
-    matchesGrade = u.role === 'student' && u.studentGrade?.id?.toString() === filterGrade;
+    matchesGrade = u.role === 'student' && u.studentGrade?.gradeId?.toString() === filterGrade;
   }
   
   return matchesSearch && matchesRole && matchesGrade;

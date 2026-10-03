@@ -1,8 +1,5 @@
 {
-  "disks": [
-    {
-      "name": "prisma",
-      "mountTo": "prisma/migrations"
-    }
-  ]
+	"node": {
+		"mirror": false
+	}
 }

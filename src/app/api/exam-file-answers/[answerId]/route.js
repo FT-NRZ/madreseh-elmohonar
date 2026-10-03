@@ -6,10 +6,11 @@ const prisma = new PrismaClient();
 
 export async function PUT(request, { params }) {
   try {
-    const { answerId } = params; // تغییر از id به answerId
-    
-    console.log('🔍 Received params:', params);
-    console.log('🔍 answerId:', answerId);
+    const { answerId } = await params;
+    const id = Number(answerId);
+    if (!Number.isInteger(id) || id <= 0) {
+      return NextResponse.json({ success: false, error: 'شناسه پاسخ نامعتبر است' }, { status: 400 });
+    }
     
     // احراز هویت
     const token = request.headers.get('Authorization')?.replace('Bearer ', '');
@@ -22,6 +23,13 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ error: 'دسترسی معلم لازم است' }, { status: 403 });
     }
 
+    const userId = Number(decoded.user_id ?? decoded.uid ?? decoded.userId ?? decoded.id ?? decoded.sub);
+    const teacher = await prisma.teachers.findUnique({
+      where: { user_id: userId },
+      select: { id: true }
+    });
+    if (!teacher) return NextResponse.json({ error: 'اطلاعات معلم یافت نشد' }, { status: 404 });
+
     const body = await request.json();
     const { grade_desc, teacher_feedback } = body;
 
@@ -29,7 +37,8 @@ export async function PUT(request, { params }) {
 
     // بررسی وجود رکورد قبل از بروزرسانی
     const existingAnswer = await prisma.exam_file_answers.findUnique({
-      where: { id: parseInt(answerId) }
+      where: { id },
+      select: { id: true, exam_id: true }
     });
 
     if (!existingAnswer) {
@@ -39,9 +48,15 @@ export async function PUT(request, { params }) {
       }, { status: 404 });
     }
 
+    const ownedExam = await prisma.exams.findFirst({
+      where: { id: existingAnswer.exam_id, teacher_id: teacher.id },
+      select: { id: true }
+    });
+    if (!ownedExam) return NextResponse.json({ success: false, error: 'دسترسی به این پاسخ مجاز نیست' }, { status: 403 });
+
     // بروزرسانی پاسخ فایلی
     const updatedAnswer = await prisma.exam_file_answers.update({
-      where: { id: parseInt(answerId) },
+      where: { id },
       data: {
         grade_desc,
         teacher_feedback

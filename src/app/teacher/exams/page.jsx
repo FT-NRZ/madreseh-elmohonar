@@ -27,6 +27,15 @@ const safeLog = (message, data = null) => {
   }
 };
 
+const makeFileUrl = (url, disposition = 'inline') => {
+  if (!url) return '';
+  if (/^https?:\/\//i.test(url)) {
+    const name = url.split('/').pop()?.split('?')[0] || 'exam-file';
+    return `/api/files/download?path=${encodeURIComponent(url)}&disposition=${disposition}&name=${encodeURIComponent(name)}`;
+  }
+  return url;
+};
+
 const initialForm = {
   title: '',
   type: 'pdf',
@@ -623,7 +632,7 @@ const getGradeName = (exam) => {
                       فایل PDF با موفقیت آپلود شد
                     </p>
                     <a 
-                      href={form.pdf_url} 
+                      href={makeFileUrl(form.pdf_url, 'inline')}
                       target="_blank" 
                       rel="noopener noreferrer"
                       className="text-sm text-blue-600 hover:text-blue-800 underline flex items-center gap-1"
@@ -655,7 +664,7 @@ const getGradeName = (exam) => {
                     </p>
                     <div className="border border-gray-200 rounded-lg overflow-hidden">
                       <img 
-                        src={form.image_url} 
+                        src={makeFileUrl(form.image_url)}
                         alt="Preview" 
                         className="w-full h-32 object-cover"
                         onError={(e) => {

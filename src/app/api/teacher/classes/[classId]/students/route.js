@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/database'
 
 export async function GET(req, { params }) {
-  const { classId } = params
+  const { classId } = await params
   try {
     const students = await prisma.students.findMany({
       where: { class_id: Number(classId) },

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react';
-import { Utensils, AlertTriangle, Calendar, ChefHat, Apple, Coffee } from 'lucide-react';
+import { Utensils, AlertTriangle } from 'lucide-react';
 import jalaali from 'jalaali-js';
 
 function toJalali(dateStr) {
@@ -38,6 +38,7 @@ export default function MealSchedulePage() {
   const [meals, setMeals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [receiptMeal, setReceiptMeal] = useState(null);
 
   // تنظیم کاربر و studentId
   useEffect(() => {
@@ -69,81 +70,70 @@ export default function MealSchedulePage() {
       console.log('Fetching meals...');
       setLoading(true);
       setError(null);
-      
+
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/admin/food-schedule`, {
+      const res = await fetch(`/api/student/${studentId}/meals`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
-      
+
       console.log('Response status:', res.status);
-      
+
       if (!res.ok) {
-        // در صورت خطای API، برنامه غذایی نمونه نمایش داده می‌شود
         throw new Error(`HTTP error! status: ${res.status}`);
       }
-      
+
       const data = await res.json();
       console.log('Fetched data:', data);
-      
+
       if (data.success) {
-        setMeals(data.schedules || []);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const items = (data.meals || []).filter(meal => {
+          const mealDate = new Date(meal.date);
+          mealDate.setHours(0, 0, 0, 0);
+          return mealDate >= today;
+        });
+        setMeals(items);
       } else {
         throw new Error(data.message || 'خطا در دریافت اطلاعات');
       }
     } catch (error) {
       console.error('Error fetching meals:', error);
       setError('خطا در دریافت برنامه غذایی');
-      
-      // برنامه غذایی نمونه در صورت خطا
-      setMeals(getSampleMeals());
+      setMeals([]);
     } finally {
       setLoading(false);
     }
   }
 
-  // برنامه غذایی نمونه
-  const getSampleMeals = () => {
-    return [
-      {
-        id: 1,
-        weekday: 'saturday',
-        date: '2024-10-17',
-        breakfast: 'نان، پنیر، گردو، چای',
-        lunch: 'برنج، خورشت قیمه، سالاد شیرازی'
-      },
-      {
-        id: 2,
-        weekday: 'sunday',
-        date: '2024-10-18',
-        breakfast: 'نان، کره، مربا، شیر',
-        lunch: 'برنج، خورشت غیمه نثار، ماست'
-      },
-      {
-        id: 3,
-        weekday: 'monday',
-        date: '2024-10-19',
-        breakfast: 'نان، تخم مرغ، پنیر، چای',
-        lunch: 'برنج، خورشت بادمجان، سالاد فصل'
-      },
-      {
-        id: 4,
-        weekday: 'tuesday',
-        date: '2024-10-20',
-        breakfast: 'نان، عسل، گردو، شیر',
-        lunch: 'برنج، کباب کوبیده، سالاد'
-      },
-      {
-        id: 5,
-        weekday: 'wednesday',
-        date: '2024-10-21',
-        breakfast: 'نان، پنیر، خیار، چای',
-        lunch: 'برنج، خورشت فسنجان، ماست و خیار'
+  async function toggleBreakfast(meal) {
+    if (meal.breakfastStatus === 'expired') return;
+    try {
+      const token = localStorage.getItem('token');
+      const method = meal.breakfastStatus === 'reserved' ? 'DELETE' : 'POST';
+      const response = await fetch(`/api/student/${studentId}/meals`, {
+        method,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ scheduleId: meal.id })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'عملیات رزرو انجام نشد');
+      if (method === 'POST') {
+        setReceiptMeal({ ...meal, breakfastStatus: 'reserved' });
+      } else if (receiptMeal?.id === meal.id) {
+        setReceiptMeal(null);
       }
-    ];
-  };
+      await fetchMeals();
+    } catch (err) {
+      setError(err.message || 'خطا در تغییر وضعیت رزرو');
+    }
+  }
 
   if (loading) {
     return (
@@ -195,7 +185,6 @@ export default function MealSchedulePage() {
   if (!meals.length) {
     return (
       <div className="space-y-6">
-        {/* Header */}
         <div className="bg-gradient-to-r from-green-600 to-green-500 rounded-3xl p-8 text-white shadow-2xl overflow-hidden relative">
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16 opacity-50"></div>
           <div className="relative z-10">
@@ -292,7 +281,7 @@ export default function MealSchedulePage() {
               <tr className="bg-green-50 text-green-700">
                 <th className="py-3 px-4 text-right border-b font-bold">روز</th>
                 <th className="py-3 px-4 text-right border-b font-bold">تاریخ</th>
-                <th className="py-3 px-4 text-right border-b font-bold">صبحانه</th>
+                <th className="py-3 px-4 text-right border-b font-bold">صبحانه و رزرو</th>
                 <th className="py-3 px-4 text-right border-b font-bold">ناهار</th>
               </tr>
             </thead>
@@ -305,14 +294,35 @@ export default function MealSchedulePage() {
                   <td className="py-3 px-4 text-gray-600">
                     {toJalali(m.date)}
                   </td>
-                  <td className="py-3 px-4">
-                    {m.breakfast ? (
-                      <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-xs font-medium">
-                        {m.breakfast}
-                      </span>
-                    ) : (
-                      <span className="text-gray-400">-</span>
-                    )}
+                  <td className="py-3 px-4 space-y-2">
+                    <div className="bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-xs font-medium inline-block">
+                      {m.breakfast || '-'}
+                    </div>
+                    <div>
+                      <button
+                        onClick={() => toggleBreakfast(m)}
+                        disabled={!m.breakfast || m.breakfastStatus === 'expired'}
+                        className={`px-3 py-1 rounded-lg text-xs font-bold disabled:cursor-not-allowed ${
+                          m.breakfastStatus === 'reserved'
+                            ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                            : m.breakfastStatus === 'expired'
+                              ? 'bg-gray-200 text-gray-500'
+                              : 'bg-green-100 text-green-700 hover:bg-green-200'
+                        }`}
+                      >
+                        {m.breakfastStatus === 'reserved' ? 'رزرو شده؛ لغو رزرو' :
+                          m.breakfastStatus === 'expired' ? 'منقضی شده' : 'رزرو صبحانه'}
+                      </button>
+                      {m.breakfastStatus === 'reserved' && (
+                        <button
+                          type="button"
+                          onClick={() => setReceiptMeal(receiptMeal?.id === m.id ? null : m)}
+                          className="mr-2 px-3 py-1 rounded-lg text-xs font-bold bg-blue-100 text-blue-700 hover:bg-blue-200"
+                        >
+                          مشاهده رسید
+                        </button>
+                      )}
+                    </div>
                   </td>
                   <td className="py-3 px-4">
                     {m.lunch ? (
@@ -328,6 +338,28 @@ export default function MealSchedulePage() {
             </tbody>
           </table>
         </div>
+
+        {receiptMeal && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 shadow-sm" dir="rtl">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <h3 className="text-lg font-bold text-blue-800">جزئیات رسید رزرو</h3>
+              <button
+                type="button"
+                onClick={() => setReceiptMeal(null)}
+                className="text-sm text-blue-700 hover:text-blue-900 font-bold"
+              >
+                بستن
+              </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-700">
+              <p><span className="font-bold">روز:</span> {weekDaysFa[receiptMeal.weekday] || receiptMeal.weekday}</p>
+              <p><span className="font-bold">تاریخ:</span> {toJalali(receiptMeal.date)}</p>
+              <p><span className="font-bold">وعده:</span> صبحانه</p>
+              <p><span className="font-bold">غذا:</span> {receiptMeal.breakfast || '-'}</p>
+              <p className="sm:col-span-2 text-green-700 font-bold">وضعیت: رزرو شده</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

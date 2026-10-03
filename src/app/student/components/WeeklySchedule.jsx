@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react';
-import { CalendarDays, Clock, BookOpen, User, MapPin, AlertCircle, Star, Target, Sparkles } from 'lucide-react';
+import { CalendarDays, Clock, BookOpen, AlertCircle, Star, Target, Sparkles } from 'lucide-react';
 
 export default function WeeklySchedule({ studentId }) {
   const [schedule, setSchedule] = useState([]);
@@ -217,18 +217,6 @@ export default function WeeklySchedule({ studentId }) {
                             <div className="flex items-center gap-1">
                               <Clock className="w-3 h-3 md:w-4 md:h-4" />
                               <span className="text-xs md:text-sm font-medium">{item.time}</span>
-                            </div>
-                          )}
-                          {item.teacher && item.teacher !== 'کلاس فوق‌العاده' && (
-                            <div className="flex items-center gap-1">
-                              <User className="w-3 h-3 md:w-4 md:h-4" />
-                              <span className="text-xs md:text-sm font-medium">{item.teacher}</span>
-                            </div>
-                          )}
-                          {item.room && (
-                            <div className="flex items-center gap-1">
-                              <MapPin className="w-3 h-3 md:w-4 md:h-4" />
-                              <span className="text-xs md:text-sm font-medium">{item.room}</span>
                             </div>
                           )}
                         </div>

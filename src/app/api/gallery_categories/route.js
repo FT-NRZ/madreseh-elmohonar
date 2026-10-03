@@ -17,11 +17,6 @@ async function authenticate(request) {
 // GET: دریافت همه دسته‌بندی‌ها
 export async function GET(request) {
   try {
-    const auth = await authenticate(request);
-    if (!auth.authenticated) {
-      return Response.json({ success: false, message: auth.message }, { status: auth.status });
-    }
-    
     // بررسی پارامترهای URL
     const url = new URL(request.url);
     const parentId = url.searchParams.get('parentId');

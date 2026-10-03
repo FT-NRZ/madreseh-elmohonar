@@ -56,10 +56,7 @@ export default function TeacherLayout({ children }) {
       setLoading(false);
       
       // دریافت آمار معلم
-      const nationalCode = userObj?.nationalCode;
-      if (nationalCode) {
-        fetchTeacherStats(nationalCode);
-      }
+      fetchTeacherStats();
     } catch (error) {
       console.error('Error parsing user data:', error);
       window.location.href = '/';
@@ -69,9 +66,13 @@ export default function TeacherLayout({ children }) {
     setCurrentPath(window.location.pathname);
   }, []);
 
-  const fetchTeacherStats = async (nationalCode) => {
+  const fetchTeacherStats = async () => {
     try {
-      const res = await fetch(`/api/teacher/stats?nationalCode=${nationalCode}`);
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/teacher/stats', {
+        headers: { 'Authorization': `Bearer ${token}` },
+        cache: 'no-store'
+      });
       if (res.ok) {
         const data = await res.json();
         setTeacherStats(data.stats || { classes: 0, students: 0, exams: 0 });

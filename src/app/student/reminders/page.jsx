@@ -19,7 +19,10 @@ export default function RemindersPage() {
 
   const buildImageUrl = (url) => {
     if (!url) return null;
-    if (/^https?:\/\//i.test(url)) return url;
+    if (/^https?:\/\//i.test(url)) {
+      const name = url.split('/').pop()?.split('?')[0] || 'reminder-image';
+      return `/api/files/download?path=${encodeURIComponent(url)}&disposition=inline&name=${encodeURIComponent(name)}`;
+    }
     return `${process.env.NEXT_PUBLIC_BASE_URL || ''}${url}`;
   };
   useEffect(() => {

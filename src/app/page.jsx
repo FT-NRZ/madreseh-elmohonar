@@ -7,8 +7,10 @@ import { useRouter } from 'next/navigation';
 // استفاده از تابع ساده برای نمایش عکس‌ها
 const makeImageUrl = (url) => {
   if (!url) return null;
-  // اگر لینک کامل لیارا هست
-  if (url.startsWith('http')) return url;
+  if (url.startsWith('http')) {
+    const name = url.split('/').pop()?.split('?')[0] || 'image';
+    return `/api/files/download?path=${encodeURIComponent(url)}&disposition=inline&name=${encodeURIComponent(name)}`;
+  }
   // اگر مسیر محلی قدیمی هست
   if (url.startsWith('/')) return url;
   return `/${url}`;
@@ -20,6 +22,7 @@ const HomePage = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [gallery, setGallery] = useState([]);
+  const [galleryRequiresLogin, setGalleryRequiresLogin] = useState(false);
   const [classes, setClasses] = useState([]);
   const [news, setNews] = useState([]);
   const [selectedClass, setSelectedClass] = useState('');
@@ -140,6 +143,7 @@ const HomePage = () => {
           headers: token ? { 'Authorization': `Bearer ${token}` } : undefined
         });
         if (res.ok) {
+          setGalleryRequiresLogin(false);
           const data = await res.json();
           setGallery(
             (data.images || data.gallery || []).map((item, idx) => ({
@@ -150,7 +154,10 @@ const HomePage = () => {
               color: "bg-gradient-to-r from-[#399918] to-[#22c55e]"
             }))
           );
-        } else setGallery([]);
+        } else {
+          setGallery([]);
+          setGalleryRequiresLogin(res.status === 401);
+        }
       } catch {
         setGallery([]);
       }
@@ -236,11 +243,14 @@ const HomePage = () => {
           const user = JSON.parse(userData);
           url += `?role=${user.role}&userId=${user.id}`;
         }
-        const response = await fetch(url);
+        const token = localStorage.getItem('token');
+        const response = await fetch(url, {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : undefined
+        });
         const data = await response.json();
         if (data.success) {
           setNews(
-            (data.news || []).map(n => ({
+            (data.news || []).filter(n => n.target_type !== 'specific_student').map(n => ({
               ...n,
               image_url: makeImageUrl(n.image_url) // تغییر اینجا
             }))
@@ -358,22 +368,19 @@ const HomePage = () => {
 
   const heroSlides = [
     {
-      image: "/api/placeholder/800/400",
       title: "مدرسه پیشرو در آموزش نوین",
       subtitle: "با روش‌های مدرن تعلیم و تربیت",
-      gradient: "from-[#399918] via-[#4ade80] to-[#22c55e]"
+      icon: BookOpen
     },
     {
-      image: "/api/placeholder/800/400",
       title: "محیطی امن و دوستانه",
       subtitle: "برای رشد فکری و جسمی کودکان",
-      gradient: "from-[#399918] via-[#16a34a] to-[#15803d]"
+      icon: Users
     },
     {
-      image: "/api/placeholder/800/400",
       title: "کادر مجرب و متخصص",
       subtitle: "همراه با فعالیت‌های فوق برنامه",
-      gradient: "from-[#15803d] via-[#399918] to-[#22c55e]"
+      icon: Award
     }
   ];
 
@@ -390,61 +397,42 @@ const HomePage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-green-50">
-      {/* Hero Section - بدون تغییر */}
-      <section className={`relative h-[500px] md:h-[600px] overflow-hidden transition-all duration-1000`}>
-        {heroSlides.map((slide, index) => (
-          <div 
-            key={index}
-            className={`absolute inset-0 transition-all duration-1000 ease-in-out ${
-              index === currentSlide 
-                ? 'opacity-100 z-10' 
-                : 'opacity-0 z-0'
-            }`}
-          >
-            <div className={`absolute inset-0 bg-gradient-to-br ${slide.gradient} transition-all duration-[10000ms] ${
-              index === currentSlide ? 'scale-100' : 'scale-110'
-            }`}>
-              <div className="absolute inset-0 overflow-hidden">
-                <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full animate-pulse"></div>
-                <div className="absolute top-20 right-20 w-20 h-20 bg-white/10 rounded-full animate-bounce delay-300"></div>
-                <div className="absolute bottom-20 left-20 w-32 h-32 bg-white/10 rounded-full animate-pulse delay-700"></div>
-                <div className="absolute -bottom-5 -left-5 w-24 h-24 bg-white/10 rounded-full animate-bounce"></div>
-              </div>
-              
-              <div className="absolute inset-0 bg-[#399918]/20"></div>
-            </div>
-            
-            <div className="container mx-auto px-4 h-full flex items-center justify-center relative z-10">
-              <div className="text-center text-white max-w-3xl">
-                <div className="w-24 h-24 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-8 border border-white/30 shadow-2xl animate-fade-in">
-                  <BookOpen className="w-12 h-12 text-white" />
-                </div>
-                <h1 className="text-4xl md:text-5xl font-bold mb-6 leading-tight drop-shadow-lg animate-fade-in-up delay-100">
+      {/* Hero Banner */}
+      <section className="relative h-[500px] md:h-[600px] overflow-hidden">
+        <picture className="absolute inset-0 block h-full w-full">
+          <source media="(max-width: 767px)" srcSet="/photos/banner-phone.png" />
+          <img
+            src="/photos/banner-desktop.png"
+            alt="بنر مدرسه"
+            className="h-full w-full object-cover object-center"
+          />
+        </picture>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent" />
+
+        <div className="absolute bottom-4 left-1/2 z-10 -translate-x-1/2 sm:bottom-8 sm:left-auto sm:right-[clamp(24px,16.56vw,212px)] sm:translate-x-0">
+          <div className="flex flex-row-reverse items-start gap-2 sm:gap-5">
+            {heroSlides.map((slide, index) => (
+              <button
+                key={slide.title}
+                type="button"
+                aria-label={`${slide.title}: ${slide.subtitle}`}
+                aria-pressed={index === currentSlide}
+                onClick={() => setCurrentSlide(index)}
+                className="group flex w-[68px] flex-col items-center gap-1.5 text-center sm:w-24 sm:gap-2"
+              >
+                <span className={`flex h-11 w-11 items-center justify-center rounded-full border shadow-lg backdrop-blur-md transition-all duration-300 group-hover:scale-110 sm:h-20 sm:w-20 ${
+                  index === currentSlide
+                    ? 'border-white bg-white text-green-700 ring-2 ring-white/50'
+                    : 'border-white/70 bg-black/35 text-white group-hover:bg-black/55'
+                }`}
+              >
+                  <slide.icon className="h-5 w-5 sm:h-6 sm:w-6" />
+                </span>
+                <span className="line-clamp-2 w-full text-[10px] font-bold leading-4 text-white [text-shadow:0_1px_4px_rgb(0_0_0_/_90%)] sm:text-xs sm:leading-5">
                   {slide.title}
-                </h1>
-                <p className="text-xl mb-8 text-white/90 leading-relaxed animate-fade-in-up delay-200">
-                  {slide.subtitle}
-                </p>
-              </div>
-            </div>
-          </div>
-        ))}
-        
-        <div className="absolute bottom-8 left-0 right-0 z-20">
-          <div className="container mx-auto px-4">
-            <div className="flex justify-center space-x-3 space-x-reverse">
-              {heroSlides.map((_, index) => (
-                <button
-                  key={index}
-                  className={`transition-all duration-300 ${
-                    index === currentSlide 
-                      ? 'w-8 h-2 bg-white rounded-full' 
-                      : 'w-2 h-2 bg-white/50 rounded-full hover:bg-white/75'
-                  }`}
-                  onClick={() => setCurrentSlide(index)}
-                />
-              ))}
-            </div>
+                </span>
+              </button>
+            ))}
           </div>
         </div>
       </section>
@@ -482,7 +470,7 @@ const HomePage = () => {
               <div className="w-16 h-16 bg-gradient-to-br from-[#399918] to-[#22c55e] rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
                 <Users className="w-8 h-8 text-white" />
               </div>
-              <h3 className="text-3xl font-bold text-gray-800 mb-2">۵۱</h3>
+              <h3 className="text-3xl font-bold text-gray-800 mb-2">۵۴</h3>
               <p className="text-gray-600 font-medium">دانش‌آموز</p>
             </div>
             
@@ -490,7 +478,7 @@ const HomePage = () => {
               <div className="w-16 h-16 bg-gradient-to-br from-[#16a34a] to-[#399918] rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
                 <BookOpen className="w-8 h-8 text-white" />
               </div>
-              <h3 className="text-3xl font-bold text-gray-800 mb-2">۴</h3>
+              <h3 className="text-3xl font-bold text-gray-800 mb-2">۵</h3>
               <p className="text-gray-600 font-medium">کلاس درس</p>
             </div>
             
@@ -506,7 +494,7 @@ const HomePage = () => {
               <div className="w-16 h-16 bg-gradient-to-br from-[#22c55e] to-[#399918] rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
                 <Clock className="w-8 h-8 text-white" />
               </div>
-              <h3 className="text-3xl font-bold text-gray-800 mb-2">۲</h3>
+              <h3 className="text-3xl font-bold text-gray-800 mb-2">۳</h3>
               <p className="text-gray-600 font-medium">سال فعالیت</p>
             </div>
           </div>
@@ -537,7 +525,7 @@ const HomePage = () => {
                 <div className="relative w-full h-56">
                   {item.image_url ? (
                     <img
-                      src={item.image_url}
+                      src={makeImageUrl(item.image_url)}
                       alt={item.title}
                       className="w-full h-full object-cover"
                       loading="lazy"
@@ -580,7 +568,10 @@ const HomePage = () => {
                       ? `${(item.content || '').substring(0, 100)}...`
                       : (item.content || '')}
                   </p>
-                  <button className="group flex items-center text-[#399918] hover:text-[#16a34a] font-medium transition-colors">
+                  <button
+                    onClick={() => router.push(`/News?newsId=${item.id}`)}
+                    className="group flex items-center text-[#399918] hover:text-[#16a34a] font-medium transition-colors"
+                  >
                     ادامه مطلب
                     <ChevronLeft className="w-4 h-4 mr-1 group-hover:translate-x-1 transition-transform" />
                   </button>
@@ -622,7 +613,7 @@ const HomePage = () => {
                 <div
                   key={item.id}
                   className="flex-shrink-0 relative group overflow-hidden rounded-2xl shadow-lg w-80 h-96 transition-all duration-500 hover:shadow-2xl cursor-pointer bg-gray-100"
-                  onClick={() => router.push(`/gallery/${item.id}`)}
+                  onClick={() => router.push(`/gallery?imageId=${item.id}`)}
                 >
                   {imgUrl ? (
                     <img
@@ -674,7 +665,7 @@ const HomePage = () => {
             })}
             {gallery.length === 0 && (
               <div className="text-gray-500 flex items-center justify-center w-full py-12">
-                تصویری یافت نشد
+                {galleryRequiresLogin ? 'برای مشاهده عکس‌ها وارد حساب کاربری خود شوید.' : 'تصویری یافت نشد'}
               </div>
             )}
           </div>

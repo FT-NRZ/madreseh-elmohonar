@@ -288,9 +288,12 @@ function TodayReminders({ teacherId }) {
   const fetchTodayReminders = async () => {
     try {
       const userData = JSON.parse(localStorage.getItem('user') || '{}');
+      const token = localStorage.getItem('token');
       
       // دریافت آخرین 2 یادآوری که معلم ایجاد کرده
-      const response = await fetch(`/api/teacher/news?teacherId=${userData.id}&limit=2`);
+      const response = await fetch(`/api/teacher/news?teacherId=${userData.id}&limit=2`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       const data = await response.json();
       
       if (data.success) {
@@ -314,8 +317,10 @@ function TodayReminders({ teacherId }) {
   const handleDelete = async (id) => {
     if (confirm('آیا مطمئن هستید که می‌خواهید این یادآوری را حذف کنید؟')) {
       try {
+        const token = localStorage.getItem('token');
         const response = await fetch(`/api/teacher/news?id=${id}`, {
           method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
         });
         
         const result = await response.json();
@@ -426,9 +431,12 @@ function WeeklyStats({ teacherId }) {
   const fetchRecentActivities = async () => {
     try {
       const userData = JSON.parse(localStorage.getItem('user') || '{}');
+      const token = localStorage.getItem('token');
       
       // دریافت آخرین 2 یادآوری ایجاد شده
-      const newsResponse = await fetch(`/api/teacher/news?teacherId=${userData.id}&limit=2`);
+      const newsResponse = await fetch(`/api/teacher/news?teacherId=${userData.id}&limit=2`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       const newsData = await newsResponse.json();
       
       let activities = [];

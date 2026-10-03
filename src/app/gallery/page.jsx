@@ -18,7 +18,10 @@ const getFileName = (url = '') => {
 };
 const makeFileUrl = (url = '', disposition = 'inline') => {
   if (!url) return '#';
-  if (/^https?:\/\//i.test(url) && !url.includes('/uploads/')) return url; // خارجی رها شود
+  if (/^https?:\/\//i.test(url)) {
+    const name = getFileName(url);
+    return `/api/files/download?path=${encodeURIComponent(url)}&disposition=${disposition}&name=${encodeURIComponent(name)}`;
+  }
   const clean = normalizePath(url);
   const name = getFileName(clean);
   return `/api/files/download?path=${encodeURIComponent(clean)}&disposition=${disposition}&name=${encodeURIComponent(name)}`;
@@ -39,12 +42,12 @@ const GalleryPage = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const slideInterval = useRef(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [requestedImageId, setRequestedImageId] = useState(0);
 
   // همه useEffect ها باید قبل از شرطی return باشند
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const user = localStorage.getItem('user');
-    setIsLoggedIn(!!token && !!user);
+    setRequestedImageId(Number(new URLSearchParams(window.location.search).get('imageId')) || 0);
+    setIsLoggedIn(Boolean(localStorage.getItem('token')));
   }, []);
 
   // دریافت دسته‌بندی‌ها
@@ -138,7 +141,10 @@ const GalleryPage = () => {
         if (data.success) {
           setImages(data.images);
           setFilteredImages(data.images);
-          setCurrentImage(0);
+          const requestedIndex = requestedImageId
+            ? data.images.findIndex(image => image.id === requestedImageId)
+            : -1;
+          setCurrentImage(requestedIndex >= 0 ? requestedIndex : 0);
           if (data.images.length > 0) {
             const shuffled = [...data.images].sort(() => 0.5 - Math.random());
             setBackgroundImages(shuffled.slice(0, 5).map(img => img.image_path));
@@ -159,7 +165,7 @@ const GalleryPage = () => {
     if (selectedCategory !== null && isLoggedIn) {
       fetchImages();
     }
-  }, [selectedCategory, selectedGrade, isLoggedIn]);
+  }, [selectedCategory, selectedGrade, isLoggedIn, requestedImageId]);
 
   // تغییر خودکار اسلاید پس‌زمینه
   useEffect(() => {
@@ -297,7 +303,7 @@ const handleDownload = (src, title) => {
               </div>
               <h2 className="text-3xl font-bold text-amber-800 mb-4">دسترسی محدود</h2>
               <p className="text-lg text-amber-700 font-medium mb-8 leading-relaxed">
-                برای مشاهده گالری تصاویر و دسته‌بندی‌ها، ابتدا وارد حساب کاربری خود شوید.
+                برای مشاهده عکس‌ها وارد حساب کاربری خود شوید.
               </p>
               <div className="space-y-4">
                 <button

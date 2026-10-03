@@ -1,7 +1,7 @@
 'use client'
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { GraduationCap, ArrowLeft, ChevronUp, Star, Users, Clock } from 'lucide-react';
+import { GraduationCap, ArrowLeft, ChevronUp, Star } from 'lucide-react';
 
 export default function WorkshopsPage() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -29,8 +29,6 @@ export default function WorkshopsPage() {
       name: 'ورزش',
       description: 'تقویت آمادگی جسمانی، چابکی و روحیه تیمی',
       icon: '🏃‍♂️',
-      participants: '45',
-      duration: '90 دقیقه',
       color: 'from-green-500 to-green-700'
     },
     {
@@ -38,8 +36,6 @@ export default function WorkshopsPage() {
       name: 'کامپیوتر',
       description: 'آموزش برنامه‌نویسی و کار با رایانه',
       icon: '💻',
-      participants: '30',
-      duration: '75 دقیقه',
       color: 'from-green-600 to-green-500'
     },
     {
@@ -47,8 +43,6 @@ export default function WorkshopsPage() {
       name: 'هنر',
       description: 'نقاشی، کاردستی و بیان خلاقیت',
       icon: '🎨',
-      participants: '35',
-      duration: '60 دقیقه',
       color: 'from-green-600 to-green-400'
     },
     {
@@ -56,8 +50,6 @@ export default function WorkshopsPage() {
       name: 'آشپزی',
       description: 'یادگیری آشپزی و تغذیه سالم',
       icon: '👨‍🍳',
-      participants: '20',
-      duration: '90 دقیقه',
       color: 'from-green-500 to-green-600'
     },
     {
@@ -65,8 +57,6 @@ export default function WorkshopsPage() {
       name: 'تئاتر',
       description: 'آموزش بازیگری و اعتماد به نفس',
       icon: '🎭',
-      participants: '25',
-      duration: '75 دقیقه',
       color: 'from-green-500 to-green-600'
     },
     {
@@ -74,9 +64,14 @@ export default function WorkshopsPage() {
       name: 'خوشنویسی',
       description: 'یادگیری هنر خوشنویسی و تقویت دست‌خط',
       icon: '✍️',
-      participants: '40',
-      duration: '60 دقیقه',
       color: 'from-green-600 to-green-400'
+    },
+    {
+      id: 7,
+      name: 'شاهنامه‌خوانی',
+      description: 'آموزش هنر زیبای شاهنامه‌خوانی',
+      icon: '📜',
+      color: 'from-green-700 to-green-500'
     }
   ];
 
@@ -189,18 +184,6 @@ export default function WorkshopsPage() {
                   <p className="text-gray-600 text-sm leading-relaxed mb-4">
                     {workshop.description}
                   </p>
-
-                  {/* Stats */}
-                  <div className="flex items-center justify-between mb-4 text-xs text-gray-500">
-                    <div className="flex items-center">
-                      <Users className="w-4 h-4 ml-1" />
-                      {workshop.participants} شرکت‌کننده
-                    </div>
-                    <div className="flex items-center">
-                      <Clock className="w-4 h-4 ml-1" />
-                      {workshop.duration}
-                    </div>
-                  </div>
 
                   {/* دکمه زیبا */}
                   <Link

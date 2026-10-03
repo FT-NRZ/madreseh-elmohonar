@@ -20,6 +20,7 @@ const secureLogger = (message, data) => {
 
 export async function GET(request, { params }) {
   try {
+    const { studentId } = await params;
     const authHeader = request.headers.get('authorization');
     const token = authHeader?.replace('Bearer ', '').trim();
     const payload = await verifyJWT(token);
@@ -30,7 +31,7 @@ export async function GET(request, { params }) {
     
     if (payload.role === 'student' && payload.student_id) {
       // چک کن که studentId برابر با student_id کاربر باشه
-      if (parseInt(params.studentId) !== payload.student_id) {
+      if (parseInt(studentId) !== payload.student_id) {
         return NextResponse.json({ 
           success: false, 
           message: 'شما فقط می‌توانید کارنامه خود را مشاهده کنید' 
@@ -38,7 +39,6 @@ export async function GET(request, { params }) {
       }
     }
 
-    const { studentId } = params;
     secureLogger('Fetching report card for student', { studentId });
 
     // پیدا کردن student_id از جدول students

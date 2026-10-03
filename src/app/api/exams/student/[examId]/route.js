@@ -77,11 +77,19 @@ export async function POST(request, context) {
 
     let payload;
     try { payload = verifyJWT(token); } catch { return NextResponse.json({ success: false, error: 'توکن نامعتبر است' }, { status: 401 }); }
+    if (!payload || payload.role !== 'student') {
+      return NextResponse.json({ success: false, error: 'فقط دانش‌آموز می‌تواند پاسخ ارسال کند' }, { status: 403 });
+    }
+
+    const userId = Number(payload.user_id ?? payload.uid ?? payload.userId ?? payload.id ?? payload.sub);
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return NextResponse.json({ success: false, error: 'شناسه کاربر در توکن معتبر نیست' }, { status: 401 });
+    }
 
     const body = await request.json().catch(() => null);
     if (!body) return NextResponse.json({ success: false, error: 'داده‌های ارسالی نامعتبر است' }, { status: 400 });
 
-    const { student_id, answers, file_url } = body;
+    const { answers, file_url } = body;
 
     const exam = await prisma.exams.findUnique({
       where: { id },
@@ -91,8 +99,8 @@ export async function POST(request, context) {
     if (!exam.is_active) return NextResponse.json({ success: false, error: 'آزمون غیرفعال است' }, { status: 403 });
 
     // پیدا کردن دانش‌آموز با هر دو حالت user_id یا id
-    let student = await prisma.students.findFirst({
-      where: { OR: [{ user_id: Number(student_id) }, { id: Number(student_id) }] },
+    const student = await prisma.students.findFirst({
+      where: { user_id: userId },
       select: { id: true, user_id: true }
     });
     if (!student) return NextResponse.json({ success: false, error: 'دانش‌آموز پیدا نشد' }, { status: 404 });

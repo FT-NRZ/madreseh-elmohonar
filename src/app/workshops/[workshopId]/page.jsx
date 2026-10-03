@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { 
   ArrowRight, Calendar, Clock, BookOpen, Target, CheckCircle2,
-  Users, Star, ChevronUp, Award, MapPin
+  Star, ChevronUp, Award, MapPin
 } from 'lucide-react';
 
 export default function WorkshopDetailPage() {
@@ -34,8 +34,6 @@ export default function WorkshopDetailPage() {
       name: 'ورزش',
       icon: '🏃‍♂️',
       description: 'کارگاه ورزش برای تقویت آمادگی جسمانی',
-      participants: '45',
-      duration: '90 دقیقه',
       color: 'from-green-500 to-emerald-500',
       location: 'سالن ورزشی'
     },
@@ -44,8 +42,6 @@ export default function WorkshopDetailPage() {
       name: 'کامپیوتر', 
       icon: '💻',
       description: 'آموزش کامپیوتر و برنامه‌نویسی',
-      participants: '30',
-      duration: '75 دقیقه',
       color: 'from-green-600 to-green-500',
       location: 'آزمایشگاه کامپیوتر'
     },
@@ -54,8 +50,6 @@ export default function WorkshopDetailPage() {
       name: 'هنر',
       icon: '🎨', 
       description: 'کارگاه هنر و خلاقیت',
-      participants: '35',
-      duration: '60 دقیقه',
       color: 'from-emerald-600 to-green-500',
       location: 'اتاق هنر'
     },
@@ -64,8 +58,6 @@ export default function WorkshopDetailPage() {
       name: 'آشپزی',
       icon: '👨‍🍳', 
       description: 'کارگاه آشپزی و تغذیه سالم',
-      participants: '20',
-      duration: '90 دقیقه',
       color: 'from-green-500 to-green-600',
       location: 'آشپزخانه آموزشی'
     },
@@ -74,8 +66,6 @@ export default function WorkshopDetailPage() {
       name: 'تئاتر',
       icon: '🎭', 
       description: 'آموزش بازیگری و بیان از طریق تئاتر',
-      participants: '25',
-      duration: '75 دقیقه',
       color: 'from-emerald-500 to-green-600',
       location: 'سالن تئاتر'
     },
@@ -84,10 +74,16 @@ export default function WorkshopDetailPage() {
       name: 'خوشنویسی',
       icon: '✍️', 
       description: 'یادگیری هنر خوشنویسی و تقویت دست‌خط',
-      participants: '40',
-      duration: '60 دقیقه',
       color: 'from-green-600 to-emerald-600',
       location: 'کلاس خوشنویسی'
+    },
+    '7': {
+      id: 7,
+      name: 'شاهنامه‌خوانی',
+      icon: '📜',
+      description: 'آموزش هنر زیبای شاهنامه‌خوانی',
+      color: 'from-green-700 to-green-500',
+      location: 'کلاس ادبیات'
     }
   };
 
@@ -150,12 +146,6 @@ export default function WorkshopDetailPage() {
               
               {/* Quick Stats */}
               <div className="flex flex-wrap justify-center md:justify-start gap-4">
-                <div className="bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 border border-white/30">
-                  <span className="text-sm font-medium">{workshop.participants} شرکت‌کننده</span>
-                </div>
-                <div className="bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 border border-white/30">
-                  <span className="text-sm font-medium">{workshop.duration}</span>
-                </div>
                 <div className="bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 border border-white/30">
                   <span className="text-sm font-medium">{workshop.location}</span>
                 </div>
@@ -232,13 +222,6 @@ export default function WorkshopDetailPage() {
                   </div>
                   <div className="bg-white/15 rounded-xl p-4 border border-white/20">
                     <div className="flex items-center gap-3 mb-2">
-                      <Users className="w-4 h-4" />
-                      <span className="text-sm font-medium">ظرفیت</span>
-                    </div>
-                    <p className="font-bold">{workshop.participants} نفر</p>
-                  </div>
-                  <div className="bg-white/15 rounded-xl p-4 border border-white/20">
-                    <div className="flex items-center gap-3 mb-2">
                       <MapPin className="w-4 h-4" />
                       <span className="text-sm font-medium">مکان برگزاری</span>
                     </div>
@@ -279,7 +262,9 @@ function getWorkshopFullDescription(name) {
     
     'تئاتر': 'کارگاه تئاتر به تقویت اعتماد به نفس، بیان کلامی و بازیگری کمک می‌کند. دانش‌آموزان یاد می‌گیرند چگونه احساسات خود را از طریق بازی نقش بیان کنند و مهارت‌های ارتباطی خود را تقویت کنند.',
     
-    'خوشنویسی': 'در کارگاه خوشنویسی، دانش‌آموزان با اصول و تکنیک‌های خوشنویسی آشنا می‌شوند. این کارگاه تمرکز، دقت، صبر و زیبایی نوشتار را تقویت می‌کند و حس نظم و توجه به جزئیات را پرورش می‌دهد.'
+    'خوشنویسی': 'در کارگاه خوشنویسی، دانش‌آموزان با اصول و تکنیک‌های خوشنویسی آشنا می‌شوند. این کارگاه تمرکز، دقت، صبر و زیبایی نوشتار را تقویت می‌کند و حس نظم و توجه به جزئیات را پرورش می‌دهد.',
+    
+    'شاهنامه‌خوانی': 'کارگاه شاهنامه‌خوانی دانش‌آموزان را با زیبایی زبان فارسی و داستان‌های حماسی شاهنامه فردوسی آشنا می‌کند. این کارگاه شیوه صحیح خواندن اشعار، آشنایی با فرهنگ و ادب ایران، و تقویت اعتماد به نفس در بیان مقابل جمع را به دانش‌آموزان می‌آموزد.'
   };
   return descriptions[name] || 'توضیحات کارگاه';
 }
@@ -321,6 +306,12 @@ function getWorkshopLearnings(name) {
       'تقویت دقت و تمرکز',
       'بهبود زیبایی دست‌خط',
       'تقویت حس نظم'
+    ],
+    'شاهنامه‌خوانی': [
+      'آشنایی با داستان‌های شاهنامه فردوسی',
+      'تقویت زیبایی زبان فارسی',
+      'آشنایی با فرهنگ و ادب ایران',
+      'تقویت اعتماد به نفس در بیان مقابل جمع'
     ]
   };
   return learnings[name] || ['مهارت‌های عملی'];

@@ -18,8 +18,10 @@ import moment from 'jalali-moment';
 // تابع نمایش عکس از Liara Storage
 const getImageUrl = (url) => {
   if (!url) return null;
-  // اگر لینک کامل هست، همونطور برگردون
-  if (url.startsWith('http')) return url;
+  if (url.startsWith('http')) {
+    const name = url.split('/').pop()?.split('?')[0] || 'image';
+    return `/api/files/download?path=${encodeURIComponent(url)}&disposition=inline&name=${encodeURIComponent(name)}`;
+  }
   // برای فایل‌های قدیمی محلی
   return url.startsWith('/') ? url : `/${url}`;
 };
@@ -146,7 +148,10 @@ export default function NewsAdminPage() {
       const method = form.id ? 'PUT' : 'POST';
       const res = await fetch('/api/news', {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+        },
         body: JSON.stringify(form),
       });
       const data = await res.json();
@@ -194,7 +199,10 @@ export default function NewsAdminPage() {
 
   const confirmDelete = async () => {
     try {
-      const res = await fetch(`/api/news?id=${selectedNewsId}`, { method: 'DELETE' });
+      const res = await fetch(`/api/news?id=${selectedNewsId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token') || ''}` }
+      });
       const data = await res.json();
       if (data.success) {
         fetchNews();
@@ -444,6 +452,9 @@ export default function NewsAdminPage() {
                           // 🔥 مستقیماً به storage/upload میریم
                           const response = await fetch('/api/storage/upload', {
                             method: 'POST',
+                            headers: {
+                              'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+                            },
                             body: formData
                           });
 

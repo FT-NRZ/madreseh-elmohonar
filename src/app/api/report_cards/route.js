@@ -43,17 +43,53 @@ export async function POST(request) {
     // جایگزینی console.log با logger ایمن
     secureLogger('Received data', { student_id, subjects, semester, academic_year });
 
-    if (!student_id || !subjects || !Array.isArray(subjects) || subjects.length === 0) {
+    const studentId = Number(student_id);
+    if (!Number.isInteger(studentId) || studentId <= 0 || !Array.isArray(subjects) || subjects.length === 0) {
       return NextResponse.json({ 
         success: false, 
         message: 'اطلاعات ناقص یا نامعتبر است' 
       }, { status: 400 });
     }
 
-    // پیدا کردن student_id از جدول students
-    const student = await prisma.students.findFirst({
-      where: { user_id: parseInt(student_id) }
+    const normalizedSubjects = subjects.map(subject => ({
+      name: typeof subject?.name === 'string' ? subject.name.trim() : '',
+      grade: typeof subject?.grade === 'string' ? subject.grade.trim() : ''
+    }));
+    if (normalizedSubjects.some(subject => !subject.name || subject.name.length > 100 || !subject.grade || subject.grade.length > 5)) {
+      return NextResponse.json({
+        success: false,
+        message: 'نام درس یا نمره نامعتبر است'
+      }, { status: 400 });
+    }
+
+    const semesterValue = String(semester || 'first');
+    const academicYearValue = String(academic_year || new Date().getFullYear());
+    if (!['first', 'second'].includes(semesterValue) || academicYearValue.length > 10) {
+      return NextResponse.json({
+        success: false,
+        message: 'نیمسال یا سال تحصیلی نامعتبر است'
+      }, { status: 400 });
+    }
+
+    const subjectNames = normalizedSubjects.map(subject => subject.name);
+    if (new Set(subjectNames).size !== subjectNames.length) {
+      return NextResponse.json({
+        success: false,
+        message: 'یک درس در فهرست بیش از یک بار وارد شده است'
+      }, { status: 409 });
+    }
+
+    // The form normally sends users.id; accept students.id too for older client data.
+    let student = await prisma.students.findUnique({
+      where: { user_id: studentId },
+      select: { id: true }
     });
+    if (!student) {
+      student = await prisma.students.findUnique({
+        where: { id: studentId },
+        select: { id: true }
+      });
+    }
 
     if (!student) {
       return NextResponse.json({ 
@@ -65,21 +101,36 @@ export async function POST(request) {
     // جایگزینی console.log با logger ایمن
     secureLogger('Found student', { id: '[HIDDEN]' });
 
-    // ثبت کارنامه‌ها یکی یکی
-    const reportCards = [];
-    for (const subject of subjects) {
-      const reportCard = await prisma.report_cards.create({
+    const existingReports = await prisma.report_cards.findMany({
+      where: {
+        student_id: student.id,
+        semester: semesterValue,
+        academic_year: academicYearValue,
+        subject: { in: subjectNames }
+      },
+      select: { subject: true }
+    });
+
+    if (existingReports.length > 0) {
+      const existingSubjects = existingReports.map(report => report.subject).join('، ');
+      return NextResponse.json({
+        success: false,
+        message: `برای این دانش‌آموز در این نیمسال و سال، قبلاً برای این درس‌ها کارنامه ثبت شده است: ${existingSubjects}`
+      }, { status: 409 });
+    }
+
+    const reportCards = await prisma.$transaction(
+      normalizedSubjects.map(subject => prisma.report_cards.create({
         data: {
           student_id: student.id,
           subject: subject.name,
           grade: subject.grade,
-          semester: semester || 'first',
-          academic_year: academic_year || new Date().getFullYear().toString(),
+          semester: semesterValue,
+          academic_year: academicYearValue,
           teacher_id: null
         }
-      });
-      reportCards.push(reportCard);
-    }
+      }))
+    );
 
     return NextResponse.json({ 
       success: true, 
@@ -88,6 +139,13 @@ export async function POST(request) {
     });
 
   } catch (error) {
+    if (error?.code === 'P2002') {
+      return NextResponse.json({
+        success: false,
+        message: 'برای یکی از این درس‌ها در این نیمسال و سال، کارنامه‌ای از قبل ثبت شده است'
+      }, { status: 409 });
+    }
+
     // لاگ خطا بدون افشای جزئیات حساس
     const errorId = `err_${Date.now().toString(36)}`;
     secureLogger(`Error creating report card [${errorId}]`, { message: error.message });

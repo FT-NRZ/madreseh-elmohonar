@@ -20,6 +20,7 @@ export default function Reminders({ teacherId }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [reminderDateText, setReminderDateText] = useState('');
 
   const [form, setForm] = useState({
     id: null,
@@ -35,7 +36,10 @@ export default function Reminders({ teacherId }) {
 
   const buildImageUrl = (url) => {
     if (!url) return null;
-    if (/^https?:\/\//i.test(url)) return url;
+    if (/^https?:\/\//i.test(url)) {
+      const name = url.split('/').pop()?.split('?')[0] || 'reminder-image';
+      return `/api/files/download?path=${encodeURIComponent(url)}&disposition=inline&name=${encodeURIComponent(name)}`;
+    }
     return `${process.env.NEXT_PUBLIC_BASE_URL || ''}${url}`;
   };
 
@@ -161,6 +165,17 @@ export default function Reminders({ teacherId }) {
 
       const userObj = JSON.parse(userData);
       const method = form.id ? 'PUT' : 'POST';
+      const normalizedReminderDate = reminderDateText
+        .replace(/[۰-۹]/g, digit => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+        .replace(/[٠-٩]/g, digit => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)));
+      const parsedReminderDate = reminderDateText
+        ? moment(normalizedReminderDate, 'jYYYY/jMM/jDD', true)
+        : null;
+
+      if (reminderDateText && !parsedReminderDate.isValid()) {
+        toast.error('تاریخ را به شکل سال/ماه/روز شمسی وارد کنید');
+        return;
+      }
       
       const response = await fetch('/api/teacher/news', {
         method,
@@ -170,7 +185,8 @@ export default function Reminders({ teacherId }) {
         },
         body: JSON.stringify({
           ...form,
-          author_id: userObj.id
+          author_id: userObj.id,
+          reminder_date: parsedReminderDate?.format('YYYY-MM-DD') || null
         }),
       });
       
@@ -200,6 +216,7 @@ export default function Reminders({ teacherId }) {
       is_important: item.is_important,
       reminder_date: item.reminder_date ? item.reminder_date.split('T')[0] : '',
     });
+    setReminderDateText(item.reminder_date ? moment(item.reminder_date).format('jYYYY/jMM/jDD') : '');
     setShowModal(true);
   };
 
@@ -250,6 +267,7 @@ export default function Reminders({ teacherId }) {
       is_important: false,
       reminder_date: '',
     });
+    setReminderDateText('');
     setShowModal(false);
   };
 
@@ -611,9 +629,11 @@ export default function Reminders({ teacherId }) {
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2">تاریخ یادآوری (اختیاری)</label>
                   <input
-                    type="date"
-                    value={form.reminder_date}
-                    onChange={(e) => setForm({ ...form, reminder_date: e.target.value })}
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="۱۴۰۵/۰۱/۰۱"
+                    value={reminderDateText}
+                    onChange={(e) => setReminderDateText(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 focus:ring-2 focus:ring-green-500 outline-none"
                   />
                 </div>
@@ -637,7 +657,7 @@ export default function Reminders({ teacherId }) {
                 {form.image_url ? (
                   <div className="relative">
                     <img 
-                      src={form.image_url} 
+                      src={buildImageUrl(form.image_url)}
                       alt="پیش‌نمایش" 
                       className="w-full h-48 object-cover rounded-lg border border-gray-200"
                     />

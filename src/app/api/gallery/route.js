@@ -1,13 +1,48 @@
 import { PrismaClient } from '@prisma/client';
+import { GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { verifyJWT } from '../../../lib/jwt';
+import { s3 } from '../../../lib/s3';
 import { NextResponse } from 'next/server';
 
 const prisma = new PrismaClient();
 
+function storageKey(imagePath) {
+  const value = String(imagePath || '');
+  try {
+    const parsed = new URL(value);
+    const bucket = process.env.LIARA_BUCKET_NAME || '';
+    const path = parsed.pathname.replace(/^\/+/, '');
+    return path.startsWith(`${bucket}/`) ? path.slice(bucket.length + 1) : path;
+  } catch {
+    return value.replace(/^\/+/, '');
+  }
+}
+
+async function withDisplayUrl(image) {
+  if (!image?.image_path) return image;
+
+  try {
+    const url = await getSignedUrl(
+      s3,
+      new GetObjectCommand({
+        Bucket: process.env.LIARA_BUCKET_NAME,
+        Key: storageKey(image.image_path)
+      }),
+      { expiresIn: 3600 }
+    );
+    return { ...image, image_path: url };
+  } catch (error) {
+    console.error('Gallery image URL signing failed:', error.message);
+    return image;
+  }
+}
+
 // تابع دریافت توکن احراز هویت
 function getAuthToken(request) {
   const bearer = request.headers.get('authorization');
-  const cookieToken = request.cookies.get('token')?.value;
+  const cookieToken = request.cookies.get('access_token')?.value ||
+    request.cookies.get('token')?.value;
   if (bearer && bearer.startsWith('Bearer ')) return bearer.slice(7).trim();
   return (cookieToken || '').trim();
 }
@@ -31,7 +66,11 @@ export async function GET(request) {
   try {
     const auth = await authenticate(request);
     if (!auth.authenticated) {
-      return NextResponse.json({ success: false, message: auth.message }, { status: auth.status });
+      return NextResponse.json({
+        success: false,
+        requiresLogin: true,
+        message: 'برای مشاهده عکس‌ها وارد حساب کاربری خود شوید'
+      }, { status: auth.status });
     }
 
     const url = new URL(request.url);
@@ -67,9 +106,11 @@ export async function GET(request) {
       prisma.gallery_images.count({ where })
     ]);
     
+    const displayImages = await Promise.all(images.map(withDisplayUrl));
+
     return NextResponse.json({ 
       success: true, 
-      images,
+      images: displayImages,
       pagination: {
         page,
         limit,

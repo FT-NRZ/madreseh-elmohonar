@@ -1,137 +1,58 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/database';
+import { verifyJWT } from '@/lib/jwt';
 
-const prisma = new PrismaClient();
+function getToken(request) {
+  const authorization = request.headers.get('authorization') || '';
+  if (authorization.toLowerCase().startsWith('bearer ')) {
+    return authorization.slice(7).trim();
+  }
+  return request.cookies.get('access_token')?.value || request.cookies.get('token')?.value || '';
+}
 
 export async function GET(request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const nationalCode = searchParams.get('nationalCode');
-
-    console.log('🔍 Looking for teacher with national code:', nationalCode);
-
-    if (!nationalCode) {
-      console.error('❌ No nationalCode provided');
-      return NextResponse.json({ 
-        success: false, 
-        error: 'کد ملی ارسال نشده است' 
-      }, { status: 400 });
+    const payload = verifyJWT(getToken(request));
+    if (!payload || payload.role !== 'teacher') {
+      return NextResponse.json({ success: false, error: 'دسترسی مجاز نیست' }, { status: 403 });
     }
 
-    // پیدا کردن معلم با کوئری ساده مرحله به مرحله
-    console.log('🔍 Step 1: Finding entrance...');
-    const entrance = await prisma.entrances.findFirst({
-      where: {
-        national_code: nationalCode,
-        role: 'teacher'
-      }
-    });
-
-    console.log('🔍 Entrance found:', entrance);
-
-    if (!entrance) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'ورودی معلم یافت نشد',
-        teacherId: null 
-      }, { status: 404 });
+    const userId = Number(payload.user_id ?? payload.uid ?? payload.userId ?? payload.id ?? payload.sub);
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return NextResponse.json({ success: false, error: 'توکن نامعتبر است' }, { status: 401 });
     }
 
-    console.log('🔍 Step 2: Finding user with user_id:', entrance.user_id);
-    const user = await prisma.users.findFirst({
-      where: {
-        id: entrance.user_id
-      }
+    const teacher = await prisma.teachers.findUnique({
+      where: { user_id: userId },
+      select: { id: true, teaching_type: true }
     });
-
-    console.log('🔍 User found:', user);
-
-    if (!user) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'کاربر یافت نشد',
-        teacherId: null 
-      }, { status: 404 });
-    }
-
-    console.log('🔍 Step 3: Finding teacher with user_id:', user.id);
-    const teacher = await prisma.teachers.findFirst({
-      where: {
-        user_id: user.id
-      }
-    });
-
-    console.log('🔍 Teacher found:', teacher);
-
     if (!teacher) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'رکورد معلم یافت نشد',
-        teacherId: null 
-      }, { status: 404 });
+      return NextResponse.json({ success: false, error: 'اطلاعات معلم یافت نشد' }, { status: 404 });
     }
 
-    const teacherId = teacher.id;
-    console.log('✅ SUCCESS! Teacher ID:', teacherId);
+    const classWhere = teacher.teaching_type === 'workshop' ? {} : { teacher_id: teacher.id };
+    const classes = await prisma.classes.findMany({
+      where: classWhere,
+      select: { id: true }
+    });
+    const classIds = classes.map(item => item.id);
 
-    // واکشی آمار معلم
-    try {
-      const classesCount = await prisma.classes.count({
-        where: { teacher_id: teacherId }
-      });
+    const [students, exams] = await Promise.all([
+      classIds.length
+        ? prisma.students.count({
+            where: { class_id: { in: classIds }, status: 'active' }
+          })
+        : Promise.resolve(0),
+      prisma.exams.count({ where: { teacher_id: teacher.id } })
+    ]);
 
-      const studentCount = await prisma.students.count({
-        where: {
-          classes: {  // ✅ اصلاح شد - از class به classes
-            teacher_id: teacherId
-          },
-          status: 'active'  // ✅ فقط دانش‌آموزان فعال
-        }
-      });
-
-      // تلاش برای شمارش آزمون‌ها (اگر جدول وجود داشته باشد)
-      let examsCount = 0;
-      try {
-        examsCount = await prisma.exams.count({
-          where: { teacher_id: teacherId }
-        });
-      } catch (examError) {
-        console.log('ℹ️ Exams table not found, setting count to 0');
-        examsCount = 0;
-      }
-
-      console.log('📊 Stats calculated:', { classes: classesCount, students: studentCount, exams: examsCount });
-
-      return NextResponse.json({
-        success: true,
-        teacherId: teacherId,
-        stats: {
-          classes: classesCount,
-          students: studentCount,
-          exams: examsCount
-        }
-      });
-
-    } catch (statsError) {
-      console.error('⚠️ Error calculating stats:', statsError);
-      // حتی اگر آمار نگیریم، teacherId را برگردان
-      return NextResponse.json({
-        success: true,
-        teacherId: teacherId,
-        stats: {
-          classes: 0,
-          students: 0,
-          exams: 0
-        }
-      });
-    }
-
+    return NextResponse.json({
+      success: true,
+      teacherId: teacher.id,
+      stats: { classes: classIds.length, students, exams }
+    });
   } catch (error) {
-    console.error('💥 Critical error in /api/teacher/stats:', error);
-    return NextResponse.json({ 
-      success: false, 
-      error: 'خطای سرور: ' + error.message,
-      teacherId: null
-    }, { status: 500 });
+    console.error('Teacher stats error:', error);
+    return NextResponse.json({ success: false, error: 'خطا در دریافت آمار معلم' }, { status: 500 });
   }
 }

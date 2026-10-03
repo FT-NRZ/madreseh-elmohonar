@@ -3,6 +3,9 @@ export const runtime = 'nodejs';
 import { NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { s3 } from '@/lib/s3';
 
 function mimeByExt(ext) {
   const m = {
@@ -58,9 +61,20 @@ export async function GET(request) {
           relPath = u.pathname;
           console.log('🔄 Converted full URL to local path:', relPath);
         } else {
-          // پروکسی خارجی واقعی
-          console.log('🌐 Remote fetch proxy:', relPath);
-          const r = await fetch(relPath);
+          // Liara objects may be private; sign their storage key before proxying.
+          let remoteUrl = relPath;
+          const bucket = process.env.LIARA_BUCKET_NAME;
+          if (bucket && u.pathname.startsWith(`/${bucket}/`)) {
+            const key = decodeURIComponent(u.pathname.slice(bucket.length + 2));
+            remoteUrl = await getSignedUrl(
+              s3,
+              new GetObjectCommand({ Bucket: bucket, Key: key }),
+              { expiresIn: 300 }
+            );
+          }
+
+          console.log('🌐 Remote fetch proxy:', u.origin);
+          const r = await fetch(remoteUrl);
             if (!r.ok) return NextResponse.json({ error: 'فایل یافت نشد (remote)' }, { status: 404 });
             const arrayBuf = await r.arrayBuffer();
             const fileName = nameParam || relPath.split('/').pop() || 'file';

@@ -67,10 +67,55 @@ function FoodScheduleAdmin() {
   );
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [reservationDate, setReservationDate] = useState('');
+  const [reservationGregorianDate, setReservationGregorianDate] = useState('');
+  const [reservationGradeId, setReservationGradeId] = useState('');
+  const [classes, setClasses] = useState([]);
+  const [reservationStudents, setReservationStudents] = useState([]);
+  const [reservationInfo, setReservationInfo] = useState(null);
+  const [reservationLoading, setReservationLoading] = useState(false);
 
   useEffect(() => {
     fetchSchedules();
+    fetchClasses();
   }, []);
+
+  const fetchClasses = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/classes', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      const data = await response.json();
+      if (response.ok) setClasses(data.classes || []);
+    } catch {}
+  };
+
+  const fetchReservations = async () => {
+    if (!reservationGregorianDate) {
+      toast('ابتدا تاریخ را انتخاب کنید', { icon: '📅' });
+      return;
+    }
+    setReservationLoading(true);
+    try {
+      const params = new URLSearchParams({ date: reservationGregorianDate });
+      if (reservationGradeId) params.set('gradeId', reservationGradeId);
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/admin/food-reservations?${params}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) throw new Error(data.message || 'خطا در دریافت وضعیت رزرو');
+      setReservationStudents((data.students || []).filter(student => student.status === 'reserved'));
+      setReservationInfo(data);
+    } catch (error) {
+      setReservationStudents([]);
+      setReservationInfo(null);
+      toast.error(error.message || 'خطا در دریافت وضعیت رزرو');
+    } finally {
+      setReservationLoading(false);
+    }
+  };
 
   const fetchSchedules = async () => {
     setLoading(true);
@@ -375,6 +420,108 @@ function FoodScheduleAdmin() {
                 ))}
               </div>
             </>
+          )}
+        </div>
+
+        <div className="bg-white rounded-xl shadow-lg p-3 sm:p-6 mt-4 sm:mt-6">
+          <h2 className="text-lg sm:text-xl font-bold text-green-700 mb-4">وضعیت رزرو صبحانه دانش‌آموزان</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+            <DatePicker
+              value={reservationDate ? reservationDate : null}
+              onChange={dateObj => {
+                if (dateObj) {
+                  const formattedDate = dateObj.format("YYYY/MM/DD");
+                  setReservationDate(formattedDate);
+                  setReservationGregorianDate(jalaliToGregorian(formattedDate));
+                  setReservationStudents([]);
+                  setReservationInfo(null);
+                } else {
+                  setReservationDate('');
+                  setReservationGregorianDate('');
+                  setReservationStudents([]);
+                  setReservationInfo(null);
+                }
+              }}
+              calendar={persian}
+              locale={persian_fa}
+              calendarPosition="bottom-right"
+              inputClass="w-full border border-green-300 rounded-lg px-3 py-2 text-sm"
+              placeholder="تاریخ (شمسی)"
+              format="YYYY/MM/DD"
+            />
+            <select
+              value={reservationGradeId}
+              onChange={event => {
+                setReservationGradeId(event.target.value);
+                setReservationStudents([]);
+                setReservationInfo(null);
+              }}
+              className="border border-green-300 rounded-lg px-3 py-2"
+            >
+              <option value="">انتخاب پایه</option>
+              {[...new Map(classes.map(classItem => [classItem.grade_id, classItem.grade_name])).entries()]
+                .filter(([gradeId]) => gradeId)
+                .map(([gradeId, gradeName]) => (
+                  <option key={gradeId} value={gradeId}>{gradeName}</option>
+                ))}
+            </select>
+            <button
+              onClick={fetchReservations}
+              disabled={reservationLoading || !reservationGregorianDate || !reservationGradeId}
+              className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg px-4 py-2 font-bold"
+            >
+              {reservationLoading ? 'در حال دریافت...' : 'مشاهده رزروی‌ها'}
+            </button>
+          </div>
+
+          {reservationInfo && (
+            <div className="mb-4 rounded-lg bg-green-50 border border-green-200 p-3 text-sm text-green-800">
+              صبحانه: {reservationInfo.schedule?.breakfast || '-'} | ناهار ثابت: {reservationInfo.schedule?.lunch || '-'}
+              {' | '}
+              وضعیت: {reservationInfo.breakfastStatus === 'expired' ? 'منقضی شده' : reservationInfo.breakfastStatus === 'open' ? 'قابل رزرو' : 'ثبت نشده'}
+            </div>
+          )}
+
+          {reservationGregorianDate && reservationGradeId && !reservationLoading && reservationStudents.length === 0 && (
+            <div className="rounded-lg bg-yellow-50 border border-yellow-200 p-4 text-sm text-yellow-800">
+              برای این تاریخ و پایه، رزروی ثبت نشده است.
+            </div>
+          )}
+
+          {reservationStudents.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border border-green-200">
+                <thead className="bg-green-50 text-green-700">
+                  <tr>
+                    <th className="p-2 border">نام دانش‌آموز</th>
+                    <th className="p-2 border">کد ملی</th>
+                    <th className="p-2 border">کلاس</th>
+                    <th className="p-2 border">وضعیت صبحانه</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reservationStudents.map(student => (
+                    <tr key={student.id} className="border-b">
+                      <td className="p-2 border">{student.firstName} {student.lastName}</td>
+                      <td className="p-2 border">{student.nationalCode || '-'}</td>
+                      <td className="p-2 border">{student.className}</td>
+                      <td className="p-2 border">
+                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                          student.status === 'reserved' ? 'bg-green-100 text-green-700' :
+                          student.status === 'expired' ? 'bg-gray-200 text-gray-600' :
+                          student.status === 'unavailable' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-red-100 text-red-700'
+                        }`}>
+                          {student.status === 'reserved' ? 'رزرو شده' :
+                            student.status === 'expired' ? 'منقضی شده' :
+                            student.status === 'unavailable' ? 'صبحانه ثبت نشده' : 'رزرو نشده'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </div>

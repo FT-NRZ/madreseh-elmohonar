@@ -42,7 +42,7 @@ export async function PATCH(request, { params }) {
   }
 
   try {
-    const { id } = params;
+    const { id } = await params;
     console.log('🔄 Updating status for ID:', id);
     
     if (!id || isNaN(parseInt(id))) {
@@ -139,7 +139,7 @@ export async function DELETE(request, { params }) {
   }
 
   try {
-    const { id } = params;
+    const { id } = await params;
     console.log('🗑️ Deleting registration with ID:', id);
 
     if (!id || isNaN(parseInt(id))) {

@@ -36,6 +36,15 @@ export async function GET(request, context) {
       return NextResponse.json({ error: 'آزمون پیدا نشد' }, { status: 404 });
     }
 
+    const teacherUserId = Number(decoded.user_id ?? decoded.uid ?? decoded.userId ?? decoded.id ?? decoded.sub);
+    const teacher = await prisma.teachers.findUnique({
+      where: { user_id: teacherUserId },
+      select: { id: true }
+    });
+    if (!teacher || exam.teacher_id !== teacher.id) {
+      return NextResponse.json({ error: 'دسترسی به پاسخ‌های این آزمون مجاز نیست' }, { status: 403 });
+    }
+
     // ✅ دریافت همه پاسخ‌های تستی برای این آزمون
     const quizAnswers = await prisma.exam_results.findMany({
       where: { 

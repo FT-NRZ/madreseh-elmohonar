@@ -30,7 +30,8 @@ export async function GET(request) {
     }
 
     // اعتبارسنجی payload
-    if (!payload.userId || typeof payload.userId !== 'number') {
+    const tokenUserId = Number(payload.user_id ?? payload.uid ?? payload.userId ?? payload.id);
+    if (!Number.isInteger(tokenUserId) || tokenUserId <= 0) {
       return NextResponse.json({ 
         success: false, 
         message: 'توکن نامعتبر است',
@@ -70,14 +71,17 @@ export async function GET(request) {
     const safeAdmins = Math.max(0, admins || 0);
     const safeTotalUsers = Math.max(0, totalUsers || 0);
 
+    const userStats = {
+      students: safeStudents,
+      teachers: safeTeachers,
+      admins: safeAdmins,
+      total: safeTotalUsers
+    };
+
     return NextResponse.json({
       success: true,
-      userStats: { 
-        students: safeStudents, 
-        teachers: safeTeachers, 
-        admins: safeAdmins, 
-        total: safeTotalUsers 
-      }
+      userStats,
+      stats: userStats
     });
 
   } catch (error) {

@@ -81,6 +81,34 @@ function getDayKeyFromString(dayString) {
   return dayMap[dayString?.toLowerCase()] || 'unknown';
 }
 
+function formatTime(value) {
+  let hours;
+  let minutes;
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    hours = value.getUTCHours();
+    minutes = value.getUTCMinutes();
+  } else {
+    const match = String(value ?? '').match(/(?:T|^)(\d{2}):(\d{2})/);
+    if (!match) return '';
+    hours = Number(match[1]);
+    minutes = Number(match[2]);
+  }
+
+  return new Intl.DateTimeFormat('fa-IR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'UTC'
+  }).format(new Date(Date.UTC(2000, 0, 1, hours, minutes)));
+}
+
+function formatTimeRange(startTime, endTime) {
+  const start = formatTime(startTime);
+  const end = formatTime(endTime);
+  return start && end ? `${start} - ${end}` : '';
+}
+
 export async function GET(request, { params }) {
   const ip = getClientIP(request);
   
@@ -111,7 +139,7 @@ export async function GET(request, { params }) {
       }, { status: 401 });
     }
 
-    const { studentId } = params || {};
+    const { studentId } = await params;
     if (!studentId || isNaN(parseInt(studentId))) {
       return NextResponse.json({ 
         success: false, 
@@ -178,16 +206,6 @@ export async function GET(request, { params }) {
             class_name: true,
             grade_id: true
           }
-        },
-        teachers: {
-          include: {
-            users: {
-              select: {
-                first_name: true,
-                last_name: true
-              }
-            }
-          }
         }
       },
       orderBy: [
@@ -198,38 +216,18 @@ export async function GET(request, { params }) {
 
     // فرمت کردن برنامه عادی
     const formattedSchedules = schedules.map(schedule => {
-      // فرمت زمان
-      let time = '';
-      try {
-        if (schedule.start_time && schedule.end_time) {
-          const start = new Date(`1970-01-01T${schedule.start_time}`);
-          const end = new Date(`1970-01-01T${schedule.end_time}`);
-          time = `${start.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit', hour12: false })} - ${end.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
-        }
-      } catch (e) {
-        time = `${schedule.start_time || ''} - ${schedule.end_time || ''}`;
-      }
-
-      // نام معلم
-      const teacherName = schedule.teachers?.users
-        ? `${schedule.teachers.users.first_name} ${schedule.teachers.users.last_name}`
-        : 'نامشخص';
-
       return {
         id: schedule.id,
         dayKey: getDayKeyFromString(schedule.day_of_week),
         subject: schedule.subject || 'نامشخص',
-        time,
-        teacher: teacherName,
-        room: schedule.room_number || '',
+        time: formatTimeRange(schedule.start_time, schedule.end_time),
         isSpecial: false
       };
     });
 
     // 🔥 دریافت کلاس‌های فوق‌العاده
     const specialClasses = await prisma.$queryRaw`
-      SELECT sc.id, sc.title, sc.description, sc.day_of_week, sc.start_time, sc.end_time, 
-             c.class_name, c.grade_id
+      SELECT sc.id, sc.title, sc.day_of_week, sc.start_time, sc.end_time, c.grade_id
       FROM special_classes sc
       LEFT JOIN classes c ON sc.class_id = c.id
       WHERE (c.grade_id = ${student.classes?.grade_id} OR sc.class_id = ${student.class_id})
@@ -240,25 +238,11 @@ export async function GET(request, { params }) {
 
     // فرمت کردن کلاس‌های فوق‌العاده
     const formattedSpecials = (specialClasses || []).map(sc => {
-      // فرمت زمان برای کلاس فوق‌العاده
-      let time = '';
-      try {
-        if (sc.start_time && sc.end_time) {
-          const start = new Date(`1970-01-01T${sc.start_time}`);
-          const end = new Date(`1970-01-01T${sc.end_time}`);
-          time = `${start.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit', hour12: false })} - ${end.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
-        }
-      } catch (e) {
-        time = `${sc.start_time || ''} - ${sc.end_time || ''}`;
-      }
-
       return {
         id: `special-${sc.id}`,
         dayKey: getDayKeyFromString(sc.day_of_week),
         subject: sc.title || 'کلاس فوق‌العاده',
-        time,
-        teacher: 'کلاس فوق‌العاده',
-        room: sc.description || '',
+        time: formatTimeRange(sc.start_time, sc.end_time),
         isSpecial: true
       };
     });

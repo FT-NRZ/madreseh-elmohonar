@@ -21,7 +21,10 @@ const getFileName = (url = '') => {
 };
 const makeFileUrl = (url = '', disposition = 'inline') => {
   if (!url) return '#';
-  if (/^https?:\/\//i.test(url)) return url;
+  if (/^https?:\/\//i.test(url)) {
+    const name = getFileName(url);
+    return `/api/files/download?path=${encodeURIComponent(url)}&disposition=${disposition}&name=${encodeURIComponent(name)}`;
+  }
   let s = String(url).replace(/\\/g, '/').replace(/^public\//, '').replace(/^\/+/, '');
   const name = getFileName(s);
   return `/api/files/download?path=${encodeURIComponent(s)}&disposition=${disposition}&name=${encodeURIComponent(name)}`;

@@ -34,7 +34,7 @@ export default function SchoolFooter() {
           {/* Subtitle */}
           <div className="inline-flex items-center bg-white/95 backdrop-blur-md rounded-full px-6 py-2 mb-3 shadow-lg border border-white/50">
             <BookOpen className="w-4 h-4 ml-2 text-[#399918]" />
-            <span className="text-gray-800 font-bold text-sm">دوره اول دبستان - اول تا چهارم</span>
+            <span className="text-gray-800 font-bold text-sm">دوره اول دبستان - اول تا پنجم</span>
           </div>
 
           {/* Award Badge */}
@@ -74,7 +74,7 @@ export default function SchoolFooter() {
                         <Phone className="w-4 h-4 text-[#399918] ml-2" />
                         <p className="text-xs text-gray-600 font-semibold">شماره تماس</p>
                       </div>
-                      <p className="text-base font-black text-gray-800 direction-ltr">۰۹۰۳۵۲۵۹۳۹۷</p>
+                      <p className="text-base font-black text-gray-800 direction-ltr">09035259397</p>
                     </div>
                     
                     <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 border-r-4 border-blue-500 hover:shadow-sm transition-all duration-300 hover:translate-x-1">
@@ -92,7 +92,7 @@ export default function SchoolFooter() {
                       </div>
                       <p className="text-sm font-bold text-gray-800 leading-6">
                         خراسان شمالی، بجنورد<br />
-                        خیابان نواب صفوی، نواب ۱۸، پلاک ۱۲
+                        ابتدای ملاصدرا ، نواب صفوی ۸
                       </p>
                     </div>
                   </div>

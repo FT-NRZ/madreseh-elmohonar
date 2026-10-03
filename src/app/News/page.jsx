@@ -12,10 +12,27 @@ import { useRouter } from 'next/navigation';
 // تابع برای نمایش عکس‌ها - اصلاح شده برای Liara Storage
 const getImageUrl = (url) => {
   if (!url) return null;
-  // اگر لینک کامل Liara Storage هست
-  if (url.startsWith('http')) return url;
+  if (url.startsWith('http')) {
+    const name = url.split('/').pop()?.split('?')[0] || 'image';
+    return `/api/files/download?path=${encodeURIComponent(url)}&disposition=inline&name=${encodeURIComponent(name)}`;
+  }
   // اگر فایل محلی قدیمی هست (سازگاری)
   return url.startsWith('/') ? url : `/${url}`;
+};
+
+const getAudienceInfo = (targetType) => {
+  switch (targetType) {
+    case 'public':
+      return { label: 'عمومی', className: 'bg-green-100 text-green-700 border border-green-200' };
+    case 'students':
+      return { label: 'دانش‌آموزان', className: 'bg-blue-100 text-blue-700 border border-blue-200' };
+    case 'teachers':
+      return { label: 'معلمان', className: 'bg-amber-100 text-amber-800 border border-amber-200' };
+    case 'specific_teacher':
+      return { label: 'ویژه معلم', className: 'bg-orange-100 text-orange-800 border border-orange-200' };
+    default:
+      return { label: 'مخاطب', className: 'bg-gray-100 text-gray-700 border border-gray-200' };
+  }
 };
 
 const NewsPage = () => {
@@ -34,16 +51,14 @@ const NewsPage = () => {
     const fetchPublicNews = async () => {
       setLoading(true);
       try {
-        const response = await fetch('/api/news');
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/news', {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : undefined
+        });
         const data = await response.json();
         
         if (data.success) {
-          // فیلتر اخبار فقط عمومی و برای همه دانش‌آموزان
-          const publicNews = data.news.filter(item => 
-            item.target_type === 'public' || 
-            item.target_type === 'students'
-          );
-          setNews(publicNews);
+          setNews((data.news || []).filter(item => item.target_type !== 'specific_student'));
         }
       } catch (error) {
         console.error('Error fetching news:', error);
@@ -55,6 +70,14 @@ const NewsPage = () => {
 
     fetchPublicNews();
   }, []);
+
+  useEffect(() => {
+    const newsId = Number(new URLSearchParams(window.location.search).get('newsId'));
+    if (newsId && news.length) {
+      const item = news.find(newsItem => newsItem.id === newsId);
+      if (item) openNewsModal(item);
+    }
+  }, [news]);
 
   // فیلتر اخبار بر اساس جستجو
   const filteredNews = news.filter(item =>
@@ -304,12 +327,8 @@ const NewsPage = () => {
 
                     {/* Target Type Badge */}
                     <div className="absolute top-4 left-4">
-                      <div className={`px-3 py-1 rounded-full text-xs font-bold shadow-sm ${
-                        item.target_type === 'public' 
-                          ? 'bg-green-100 text-green-700 border border-green-200'
-                          : 'bg-blue-100 text-blue-700 border border-blue-200'
-                      }`}>
-                        {item.target_type === 'public' ? 'عمومی' : 'دانش‌آموزان'}
+                      <div className={`px-3 py-1 rounded-full text-xs font-bold shadow-sm ${getAudienceInfo(item.target_type).className}`}>
+                        {getAudienceInfo(item.target_type).label}
                       </div>
                     </div>
                   </div>
@@ -364,7 +383,7 @@ const NewsPage = () => {
                 <div>
                   <h3 className="text-lg font-bold">جزئیات کامل خبر</h3>
                   <p className="text-sm opacity-90">
-                    {selectedNews.target_type === 'public' ? 'عمومی' : 'دانش‌آموزان'}
+                    {getAudienceInfo(selectedNews.target_type).label}
                   </p>
                 </div>
               </div>
@@ -404,7 +423,7 @@ const NewsPage = () => {
                 </div>
                 <div className="flex items-center">
                   <Users className="w-4 h-4 ml-1" />
-                  {selectedNews.target_type === 'public' ? 'همه افراد' : 'همه دانش‌آموزان'}
+                  {getAudienceInfo(selectedNews.target_type).label}
                 </div>
               </div>
 

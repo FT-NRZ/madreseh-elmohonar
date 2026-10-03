@@ -94,9 +94,9 @@ export default function StudentExamPage() {
   const makeFileUrl = (url, disposition = 'attachment') => {
     if (!url) return null;
 
-    // اگر URL کامل است، مستقیم استفاده کن
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      return url;
+    if (/^https?:\/\//i.test(url)) {
+      const name = getFileName(url);
+      return `/api/files/download?path=${encodeURIComponent(url)}&disposition=${disposition}&name=${encodeURIComponent(name)}`;
     }
 
     // هر مسیر نسبی یا نام فایل را از API دانلود بده

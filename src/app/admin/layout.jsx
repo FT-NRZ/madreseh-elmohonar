@@ -83,12 +83,13 @@ export default function AdminLayout({ children }) {
       if (response.ok) {
         const data = await response.json();
         
-        if (data.success && data.stats) {
+        const stats = data.userStats || data.stats;
+        if (data.success && stats) {
           setUserStats({
-            students: data.stats.students || 0,
-            teachers: data.stats.teachers || 0,
-            admins: data.stats.admins || 0,
-            total: (data.stats.students || 0) + (data.stats.teachers || 0) + (data.stats.admins || 0)
+            students: stats.students || 0,
+            teachers: stats.teachers || 0,
+            admins: stats.admins || 0,
+            total: stats.total || ((stats.students || 0) + (stats.teachers || 0) + (stats.admins || 0))
           });
         } else {
           // اگه فرمت دیتا اشتباه بود

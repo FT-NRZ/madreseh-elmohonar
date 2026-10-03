@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/database';
+import { verifyJWT } from '@/lib/jwt';
 
 function parseIntSafe(v) {
   const n = Number(v);
@@ -8,33 +9,36 @@ function parseIntSafe(v) {
 
 export async function GET(request) {
   try {
+    const authorization = request.headers.get('authorization') || '';
+    const cookieToken = request.cookies.get('access_token')?.value || request.cookies.get('token')?.value;
+    const token = authorization.toLowerCase().startsWith('bearer ')
+      ? authorization.slice(7).trim()
+      : cookieToken;
+    const payload = verifyJWT(token);
+    if (!payload || payload.role !== 'student') {
+      return NextResponse.json({ success: false, error: 'دسترسی دانش‌آموز لازم است' }, { status: 403 });
+    }
+
+    const userId = Number(payload.user_id ?? payload.uid ?? payload.userId ?? payload.id ?? payload.sub);
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return NextResponse.json({ success: false, error: 'شناسه کاربر نامعتبر است' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
-    const studentIdRaw = searchParams.get('studentId');
-    const gradeIdRaw = searchParams.get('gradeId');
-    const type = searchParams.get('type');
-
-    const studentId = parseIntSafe(studentIdRaw);
-    let gradeId = parseIntSafe(gradeIdRaw);
-
-    if (!studentId) {
-      return NextResponse.json({ success: false, error: 'شناسه دانش‌آموز مورد نیاز است' }, { status: 400 });
+    const requestedStudentId = parseIntSafe(searchParams.get('studentId'));
+    const student = await prisma.students.findUnique({
+      where: { user_id: userId },
+      select: {
+        id: true,
+        classes: { select: { grade_id: true } }
+      }
+    });
+    if (!student) return NextResponse.json({ success: false, error: 'دانش‌آموز یافت نشد' }, { status: 404 });
+    if (requestedStudentId && requestedStudentId !== userId && requestedStudentId !== student.id) {
+      return NextResponse.json({ success: false, error: 'دسترسی به این دانش‌آموز مجاز نیست' }, { status: 403 });
     }
-
-    // اگر gradeId نیامده، به صورت خودکار از جدول دانش‌آموز استخراج کن
-    if (!gradeId) {
-      const studentRecord = await prisma.students.findUnique({
-        where: { id: studentId },
-        select: {
-          class_id: true,
-          classes: {
-            select: {
-              grade_id: true
-            }
-          }
-        }
-      });
-      gradeId = studentRecord?.classes?.grade_id || null;
-    }
+    const studentId = student.id;
+    const gradeId = student.classes?.grade_id || null;
 
     const orConditions = [
       { target_type: 'all_students' },

@@ -331,12 +331,17 @@ function ClassModal({ onClose, onSubmit, editMode, selectedClass }) {
 
   const fetchGrades = async () => {
     try {
-      const response = await fetch('/api/grades');
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/grades', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
       if (!response.ok) throw new Error('خطا در دریافت پایه‌ها');
       const data = await response.json();
       if (data.success) setGrades(data.grades);
       else throw new Error(data.message || 'خطا در دریافت پایه‌ها');
-    } catch {}
+    } catch (err) {
+      setError(err.message || 'خطا در دریافت پایه‌ها');
+    }
   };
 
   useEffect(() => {

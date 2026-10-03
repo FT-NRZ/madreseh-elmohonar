@@ -81,6 +81,17 @@ export async function POST(request) {
       }
     });
 
+    console.log('[login] lookup', {
+      usernameLength: username.length,
+      userType,
+      found: Boolean(entrance),
+      matchedNationalCode: entrance?.national_code,
+      matchedRole: entrance?.role,
+      entranceActive: entrance?.is_active,
+      userActive: entrance?.users?.is_active,
+      hashLength: entrance?.password_hash?.length
+    });
+
     if (!entrance) {
       return NextResponse.json({ success: false, message: 'نام کاربری یا رمز عبور اشتباه است' }, { status: 401 });
     }
@@ -89,14 +100,15 @@ export async function POST(request) {
     }
 
     const ok = await bcrypt.compare(password, entrance.password_hash);
+  console.log('[login] password verification', { ok });
     if (!ok) {
       return NextResponse.json({ success: false, message: 'نام کاربری یا رمز عبور اشتباه است' }, { status: 401 });
     }
 
     // 3) ساخت توکن و پاسخ
   const token = signJWT({
-    user_id: entrance.user_id,    // ✅ اضافه شد
-    uid: entrance.user_id,        // ✅ سازگاری با کلاینت فعلی
+    user_id: entrance.user_id,    
+    uid: entrance.user_id,     
     role: entrance.role,
     nc: entrance.national_code
   });

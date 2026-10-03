@@ -29,8 +29,10 @@ import moment from 'jalali-moment';
 const getImageUrl = (url) => {
   if (!url) return null;
   
-  // اگر لینک کامل هست، همونطور برگردون
-  if (url.startsWith('http')) return url;
+  if (url.startsWith('http')) {
+    const name = url.split('/').pop()?.split('?')[0] || 'circular-image';
+    return `/api/files/download?path=${encodeURIComponent(url)}&disposition=inline&name=${encodeURIComponent(name)}`;
+  }
   
   // اگر مسیر لیارا storage هست
   if (url.includes('elmohonar.liara.run')) return `https://${url}`;

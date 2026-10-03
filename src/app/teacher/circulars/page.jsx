@@ -9,8 +9,10 @@ import moment from 'jalali-moment';
 // تابع ساده برای نمایش عکس‌ها از فضای ابری
 const getImageUrl = (url) => {
   if (!url) return null;
-  // اگر لینک کامل Liara هست
-  if (url.startsWith('http')) return url;
+  if (url.startsWith('http')) {
+    const name = url.split('/').pop()?.split('?')[0] || 'circular-image';
+    return `/api/files/download?path=${encodeURIComponent(url)}&disposition=inline&name=${encodeURIComponent(name)}`;
+  }
   // اگر فایل قدیمی محلی هست (سازگاری با گذشته)
   return url.startsWith('/') ? url : `/${url}`;
 };

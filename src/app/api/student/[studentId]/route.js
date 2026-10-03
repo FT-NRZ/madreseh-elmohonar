@@ -18,7 +18,7 @@ function resolveUserId(p) { return Number(p?.user_id ?? p?.uid ?? p?.userId ?? p
 
 export async function GET(request, { params }) {
   try {
-    const { studentId } = params;
+    const { studentId } = await params;
     const sid = Number(studentId);
     if (!sid) {
       return NextResponse.json({ success: false, error: 'شناسه دانش‌آموز نامعتبر است' }, { status: 400 });

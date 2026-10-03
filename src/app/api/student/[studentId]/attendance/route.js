@@ -61,6 +61,7 @@ export async function GET(request, { params }) {
   const ip = getClientIP(request);
   
   try {
+    const { studentId: requestedStudentId } = await params;
     // Rate limiting
     if (!checkRateLimit(ip)) {
       return NextResponse.json({ 
@@ -86,7 +87,7 @@ export async function GET(request, { params }) {
       }, { status: 401 });
     }
 
-    const studentId = parseInt(params.studentId);
+    const studentId = parseInt(requestedStudentId);
     if (isNaN(studentId)) {
       return NextResponse.json({
         success: false,

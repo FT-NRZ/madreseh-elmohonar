@@ -69,17 +69,10 @@ export default function ExamResults({ examId }) {
   const isImage = (url = '') => /\.(png|jpe?g|gif|webp|svg|bmp|tiff?|ico|avif|heic|heif)$/i.test((url || '').split('?')[0]);
 const makeFileUrl = (url = '', disposition = 'inline') => {
   if (!url) return '#';
-  // اگر URL کامل است ولی دامنه خودش است و شامل /uploads/ است → تبدیل به مسیر نسبی تا از API عبور کند
   try {
     if (/^https?:\/\//i.test(url)) {
-      const u = new URL(url);
-      if (u.pathname.startsWith('/uploads/')) {
-        const rawLocal = u.pathname.replace(/^\/+/, '');
-        const name = getFileName(url);
-        return `/api/files/download?path=${encodeURIComponent(rawLocal)}&disposition=${disposition}&name=${encodeURIComponent(name)}`;
-      }
-      // اگر دامنه دیگر است، همان را برگردان
-      return url;
+      const name = getFileName(url);
+      return `/api/files/download?path=${encodeURIComponent(url)}&disposition=${disposition}&name=${encodeURIComponent(name)}`;
     }
   } catch {}
   const raw = url.replace(/^\/+/, '');
@@ -418,9 +411,6 @@ const makeFileUrl = (url = '', disposition = 'inline') => {
                 boxShadow: `0 1px 4px ${mainGreen}11`,
                 padding: 12
               }}>
-                    <div style={{ background: '#ffeb3b', padding: 8, fontSize: 11, marginBottom: 8, wordBreak: 'break-all' }}>
-                      🔍 DEBUG: file_url = {ans.file_url}
-                    </div>
                 <div style={{ fontWeight: "bold", color: mainGreen, marginBottom: 6, fontSize: 14 }}>
                   👤 {ans.students?.users ? `${ans.students.users.first_name} ${ans.students.users.last_name}` : `دانش‌آموز ${ans.student_id}`}
                 </div>

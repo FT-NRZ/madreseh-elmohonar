@@ -3,7 +3,7 @@ import { prisma } from '@/lib/database';
 
 export async function GET(request, { params }) {
   try {
-    const { teacherId } = params;
+    const { teacherId } = await params;
     
     if (!teacherId || isNaN(parseInt(teacherId))) {
       return NextResponse.json({
