@@ -13,7 +13,7 @@ import {
 const quickActions = [
   { title: 'برنامه امروز', icon: Clock, action: 'schedule' },
   { title: 'آزمون‌ها', icon: Star, action: 'exams' },
-  { title: 'برنامه غذایی', icon: UtensilsCrossed, action: 'meals' },
+  { title: 'برنامه غذایی', icon: UtensilsCrossed, action: 'MealSchedule' },
 ];
 
 export default function StudentDashboardPage() {

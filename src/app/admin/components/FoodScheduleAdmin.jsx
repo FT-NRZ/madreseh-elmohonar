@@ -6,6 +6,7 @@ import DatePicker from "react-multi-date-picker";
 import persian from "react-date-object/calendars/persian";
 import persian_fa from "react-date-object/locales/persian_fa";
 import toast from 'react-hot-toast';
+import { Pencil, Trash2, Check, X } from 'lucide-react';
 
 const weekDays = [
   { key: 'saturday', label: 'شنبه' },
@@ -42,7 +43,8 @@ function jalaliToGregorian(jalaliDate) {
 
 function toJalali(dateStr) {
   if (!dateStr) return '';
-  const [gy, gm, gd] = dateStr.split('-').map(Number);
+  const normalized = String(dateStr).includes('T') ? String(dateStr).split('T')[0] : String(dateStr);
+  const [gy, gm, gd] = normalized.split('-').map(Number);
   if (!gy || !gm || !gd || isNaN(gy) || isNaN(gm) || isNaN(gd) || gy < 1000) return '';
   const { jy, jm, jd } = jalaali.toJalaali(gy, gm, gd);
   return `${jy}/${String(jm).padStart(2, '0')}/${String(jd).padStart(2, '0')}`;
@@ -61,12 +63,15 @@ function FoodScheduleAdmin() {
   const [schedules, setSchedules] = useState([]);
   const [weekFood, setWeekFood] = useState(() =>
     weekDays.reduce((acc, day) => {
-      acc[day.key] = { date: '', breakfast: '', lunch: '' };
+      acc[day.key] = { date: '', breakfasts: ['', '', ''], lunch: '' };
       return acc;
     }, {})
   );
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [editingMeal, setEditingMeal] = useState(null); // { id, field, value }
+  const [filterFrom, setFilterFrom] = useState('');
+  const [filterTo, setFilterTo] = useState('');
   const [reservationDate, setReservationDate] = useState('');
   const [reservationGregorianDate, setReservationGregorianDate] = useState('');
   const [reservationGradeId, setReservationGradeId] = useState('');
@@ -117,10 +122,15 @@ function FoodScheduleAdmin() {
     }
   };
 
-  const fetchSchedules = async () => {
+  const fetchSchedules = async (fromJalali = filterFrom, toJalali = filterTo) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/food-schedule`);
+      const params = new URLSearchParams();
+      const fromG = fromJalali ? jalaliToGregorian(fromJalali) : '';
+      const toG = toJalali ? jalaliToGregorian(toJalali) : '';
+      if (fromG) params.set('from', fromG);
+      if (toG) params.set('to', toG);
+      const res = await fetch(`/api/admin/food-schedule${params.toString() ? `?${params.toString()}` : ''}`);
       if (res.ok) {
         const data = await res.json();
         if (data.success) {
@@ -145,6 +155,17 @@ function FoodScheduleAdmin() {
     }));
   };
 
+  const handleBreakfastChange = (dayKey, index, value) => {
+    setWeekFood(prev => {
+      const breakfasts = [...prev[dayKey].breakfasts];
+      breakfasts[index] = value;
+      return {
+        ...prev,
+        [dayKey]: { ...prev[dayKey], breakfasts }
+      };
+    });
+  };
+
   const handleSubmit = async () => {
     setSubmitting(true);
     let successCount = 0;
@@ -152,9 +173,9 @@ function FoodScheduleAdmin() {
     const errors = [];
     try {
       for (const day of weekDays) {
-        const { breakfast, lunch, date } = weekFood[day.key];
+        const { breakfasts, lunch, date } = weekFood[day.key];
         const miladiDate = jalaliToGregorian(date);
-        if ((breakfast || lunch) && date) {
+        if ((breakfasts.some(b => b.trim()) || lunch) && date) {
           try {
             const response = await fetch('/api/admin/food-schedule', {
               method: 'POST',
@@ -162,7 +183,7 @@ function FoodScheduleAdmin() {
               body: JSON.stringify({
                 date: miladiDate,
                 weekday: day.key,
-                breakfast: breakfast || null,
+                breakfasts,
                 lunch: lunch || null
               })
             });
@@ -183,7 +204,7 @@ function FoodScheduleAdmin() {
       if (successCount > 0 && errorCount === 0) {
         toast.success(`${successCount} روز با موفقیت ثبت شد`);
         setWeekFood(weekDays.reduce((acc, day) => {
-          acc[day.key] = { date: '', breakfast: '', lunch: '' };
+          acc[day.key] = { date: '', breakfasts: ['', '', ''], lunch: '' };
           return acc;
         }, {}));
       } else if (successCount > 0 && errorCount > 0) {
@@ -198,6 +219,82 @@ function FoodScheduleAdmin() {
       toast.error('خطای کلی در ثبت برنامه غذایی');
     }
     setSubmitting(false);
+  };
+
+  const patchMeal = async (id, field, value) => {
+    try {
+      const response = await fetch('/api/admin/food-schedule', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, field, value })
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        toast.success(value ? 'وعده به‌روزرسانی شد' : 'وعده حذف شد');
+        await fetchSchedules();
+      } else {
+        toast.error(data.message || 'خطا در انجام عملیات');
+      }
+    } catch {
+      toast.error('ارتباط با سرور برقرار نشد!');
+    }
+  };
+
+  const saveMealEdit = async () => {
+    if (!editingMeal) return;
+    await patchMeal(editingMeal.id, editingMeal.field, editingMeal.value);
+    setEditingMeal(null);
+  };
+
+  const handleMealDelete = async (schedule, field) => {
+    if (!window.confirm('آیا از حذف این وعده مطمئن هستید؟')) return;
+    await patchMeal(schedule.id, field, null);
+  };
+
+  const renderMealCell = (schedule, field, value) => {
+    const isEditing = editingMeal?.id === schedule.id && editingMeal?.field === field;
+    if (isEditing) {
+      return (
+        <div className="flex items-center gap-1">
+          <input
+            autoFocus
+            value={editingMeal.value}
+            onChange={e => setEditingMeal(prev => ({ ...prev, value: e.target.value }))}
+            onKeyDown={e => { if (e.key === 'Enter') saveMealEdit(); if (e.key === 'Escape') setEditingMeal(null); }}
+            className="w-full min-w-20 px-1 py-0.5 border border-green-400 rounded text-xs"
+          />
+          <button onClick={saveMealEdit} className="text-green-600 hover:text-green-800 shrink-0" title="ذخیره">
+            <Check className="w-4 h-4" />
+          </button>
+          <button onClick={() => setEditingMeal(null)} className="text-gray-500 hover:text-gray-700 shrink-0" title="انصراف">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      );
+    }
+    return (
+      <div className="flex items-center justify-between gap-1">
+        <span className="flex-1">{value || <span className="text-gray-400">-</span>}</span>
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            onClick={() => setEditingMeal({ id: schedule.id, field, value: value || '' })}
+            className="text-blue-500 hover:text-blue-700"
+            title="ویرایش"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+          {value && (
+            <button
+              onClick={() => handleMealDelete(schedule, field)}
+              className="text-red-500 hover:text-red-700"
+              title="حذف این وعده"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+    );
   };
 
   const handleDelete = async (id) => {
@@ -248,7 +345,7 @@ function FoodScheduleAdmin() {
                 <tr>
                   <th className="p-2 border-b">روز</th>
                   <th className="p-2 border-b">تاریخ (شمسی)</th>
-                  <th className="p-2 border-b">صبحانه</th>
+                  <th className="p-2 border-b">صبحانه (۳ گزینه)</th>
                   <th className="p-2 border-b">ناهار</th>
                 </tr>
               </thead>
@@ -276,13 +373,18 @@ function FoodScheduleAdmin() {
                       />
                     </td>
                     <td className="p-2 border-b">
-                      <input
-                        type="text"
-                        value={weekFood[day.key].breakfast}
-                        onChange={e => handleChange(day.key, 'breakfast', e.target.value)}
-                        className="w-full px-2 py-1 border border-green-300 rounded text-xs"
-                        placeholder="صبحانه را وارد کنید"
-                      />
+                      <div className="flex flex-col gap-1">
+                        {[0, 1, 2].map(i => (
+                          <input
+                            key={i}
+                            type="text"
+                            value={weekFood[day.key].breakfasts[i]}
+                            onChange={e => handleBreakfastChange(day.key, i, e.target.value)}
+                            className="w-full px-2 py-1 border border-green-300 rounded text-xs"
+                            placeholder={`گزینه صبحانه ${['۱', '۲', '۳'][i]}`}
+                          />
+                        ))}
+                      </div>
                     </td>
                     <td className="p-2 border-b">
                       <input
@@ -322,13 +424,18 @@ function FoodScheduleAdmin() {
                     format="YYYY/MM/DD"
                   />
                 </div>
-                <input
-                  type="text"
-                  value={weekFood[day.key].breakfast}
-                  onChange={e => handleChange(day.key, 'breakfast', e.target.value)}
-                  className="w-full px-2 py-1 border border-green-300 rounded text-xs mb-2"
-                  placeholder="صبحانه را وارد کنید"
-                />
+                <div className="flex flex-col gap-1 mb-2">
+                  {[0, 1, 2].map(i => (
+                    <input
+                      key={i}
+                      type="text"
+                      value={weekFood[day.key].breakfasts[i]}
+                      onChange={e => handleBreakfastChange(day.key, i, e.target.value)}
+                      className="w-full px-2 py-1 border border-green-300 rounded text-xs"
+                      placeholder={`گزینه صبحانه ${['۱', '۲', '۳'][i]}`}
+                    />
+                  ))}
+                </div>
                 <input
                   type="text"
                   value={weekFood[day.key].lunch}
@@ -353,6 +460,50 @@ function FoodScheduleAdmin() {
         {/* نمایش لیست برنامه‌های غذایی هفته */}
         <div className="bg-white rounded-xl shadow-lg p-3 sm:p-6">
           <h2 className="text-lg sm:text-xl font-bold text-green-700 mb-2 sm:mb-4">لیست برنامه‌های غذایی ثبت شده</h2>
+
+          {/* فیلتر بازه تاریخ شمسی */}
+          <div className="flex flex-col sm:flex-row gap-2 mb-4 sm:items-end">
+            <div className="flex-1">
+              <label className="text-xs text-gray-600 block mb-1">از تاریخ (شمسی)</label>
+              <DatePicker
+                value={filterFrom || null}
+                onChange={dateObj => setFilterFrom(dateObj ? dateObj.format("YYYY/MM/DD") : '')}
+                calendar={persian}
+                locale={persian_fa}
+                calendarPosition="bottom-right"
+                inputClass="w-full px-2 py-1 border border-green-300 rounded text-xs"
+                placeholder="مثلاً ۱۴۰۵/۰۷/۰۱"
+                format="YYYY/MM/DD"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="text-xs text-gray-600 block mb-1">تا تاریخ (شمسی)</label>
+              <DatePicker
+                value={filterTo || null}
+                onChange={dateObj => setFilterTo(dateObj ? dateObj.format("YYYY/MM/DD") : '')}
+                calendar={persian}
+                locale={persian_fa}
+                calendarPosition="bottom-right"
+                inputClass="w-full px-2 py-1 border border-green-300 rounded text-xs"
+                placeholder="مثلاً ۱۴۰۵/۰۸/۰۱"
+                format="YYYY/MM/DD"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => fetchSchedules()}
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-xs font-bold"
+              >
+                اعمال فیلتر
+              </button>
+              <button
+                onClick={() => { setFilterFrom(''); setFilterTo(''); fetchSchedules('', ''); }}
+                className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-xs font-bold"
+              >
+                حذف فیلتر
+              </button>
+            </div>
+          </div>
           {loading ? (
             <div className="flex justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
@@ -370,24 +521,29 @@ function FoodScheduleAdmin() {
                   <tr className="bg-green-50 text-green-700">
                     <th className="py-2 px-2 border">روز</th>
                     <th className="py-2 px-2 border">تاریخ (شمسی)</th>
-                    <th className="py-2 px-2 border">صبحانه</th>
+                    <th className="py-2 px-2 border">صبحانه ۱</th>
+                    <th className="py-2 px-2 border">صبحانه ۲</th>
+                    <th className="py-2 px-2 border">صبحانه ۳</th>
                     <th className="py-2 px-2 border">ناهار</th>
-                    <th className="py-2 px-2 border">حذف</th>
+                    <th className="py-2 px-2 border">حذف روز</th>
                   </tr>
                 </thead>
                 <tbody>
                   {schedules.map((m) => (
                     <tr key={m.id} className="border-b last:border-b-0">
                       <td className="py-2 px-2 border font-bold">{weekDaysFa[m.weekday]}</td>
-                      <td className="py-2 px-2 border">{toJalali(m.date)}</td>
-                      <td className="py-2 px-2 border">{m.breakfast || '-'}</td>
-                      <td className="py-2 px-2 border">{m.lunch || '-'}</td>
+                      <td className="py-2 px-2 border whitespace-nowrap">{toJalali(m.date)}</td>
+                      {['breakfast_1', 'breakfast_2', 'breakfast_3', 'lunch'].map(field => (
+                        <td key={field} className="py-2 px-2 border min-w-32">
+                          {renderMealCell(m, field, m[field])}
+                        </td>
+                      ))}
                       <td className="py-2 px-2 border">
                         <button
                           onClick={() => handleDelete(m.id)}
                           className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs"
                         >
-                          حذف
+                          حذف روز
                         </button>
                       </td>
                     </tr>
@@ -397,24 +553,22 @@ function FoodScheduleAdmin() {
               {/* کارت‌ها در موبایل */}
               <div className="sm:hidden flex flex-col gap-3">
                 {schedules.map((m) => (
-                  <div key={m.id} className="border rounded-lg p-2 shadow-sm bg-green-50 flex flex-col gap-1">
+                  <div key={m.id} className="border rounded-lg p-2 shadow-sm bg-green-50 flex flex-col gap-2">
                     <div className="flex justify-between items-center">
                       <span className="font-bold text-green-700">{weekDaysFa[m.weekday]}</span>
                       <span className="text-xs text-gray-500">{toJalali(m.date)}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="font-semibold text-gray-600">صبحانه:</span>
-                      <span>{m.breakfast || '-'}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="font-semibold text-gray-600">ناهار:</span>
-                      <span>{m.lunch || '-'}</span>
-                    </div>
+                    {[['breakfast_1', 'صبحانه ۱'], ['breakfast_2', 'صبحانه ۲'], ['breakfast_3', 'صبحانه ۳'], ['lunch', 'ناهار']].map(([field, label]) => (
+                      <div key={field} className="flex items-center gap-2 text-xs">
+                        <span className="font-semibold text-gray-600 w-14 shrink-0">{label}:</span>
+                        <div className="flex-1">{renderMealCell(m, field, m[field])}</div>
+                      </div>
+                    ))}
                     <button
                       onClick={() => handleDelete(m.id)}
                       className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs mt-1 self-end"
                     >
-                      حذف
+                      حذف کل روز
                     </button>
                   </div>
                 ))}
@@ -476,7 +630,7 @@ function FoodScheduleAdmin() {
 
           {reservationInfo && (
             <div className="mb-4 rounded-lg bg-green-50 border border-green-200 p-3 text-sm text-green-800">
-              صبحانه: {reservationInfo.schedule?.breakfast || '-'} | ناهار ثابت: {reservationInfo.schedule?.lunch || '-'}
+              گزینه‌های صبحانه: {reservationInfo.schedule?.breakfasts?.join('، ') || '-'} | ناهار: {reservationInfo.schedule?.lunch || '-'}
               {' | '}
               وضعیت: {reservationInfo.breakfastStatus === 'expired' ? 'منقضی شده' : reservationInfo.breakfastStatus === 'open' ? 'قابل رزرو' : 'ثبت نشده'}
             </div>
@@ -496,6 +650,7 @@ function FoodScheduleAdmin() {
                     <th className="p-2 border">نام دانش‌آموز</th>
                     <th className="p-2 border">کد ملی</th>
                     <th className="p-2 border">کلاس</th>
+                    <th className="p-2 border">صبحانه رزرو شده</th>
                     <th className="p-2 border">وضعیت صبحانه</th>
                   </tr>
                 </thead>
@@ -505,6 +660,7 @@ function FoodScheduleAdmin() {
                       <td className="p-2 border">{student.firstName} {student.lastName}</td>
                       <td className="p-2 border">{student.nationalCode || '-'}</td>
                       <td className="p-2 border">{student.className}</td>
+                      <td className="p-2 border">{student.reservedOption || '-'}</td>
                       <td className="p-2 border">
                         <span className={`px-2 py-1 rounded-full text-xs font-bold ${
                           student.status === 'reserved' ? 'bg-green-100 text-green-700' :

@@ -48,7 +48,7 @@ export async function GET(request) {
 
     const schedule = await prisma.food_schedule.findFirst({
       where: { date: { gte: start, lt: end } },
-      select: { id: true, date: true, weekday: true, breakfast: true, lunch: true }
+      select: { id: true, date: true, weekday: true, breakfast_1: true, breakfast_2: true, breakfast_3: true, lunch: true }
     });
 
     const students = await prisma.students.findMany({
@@ -75,19 +75,25 @@ export async function GET(request) {
     const reservations = schedule
       ? await prisma.breakfast_reservations.findMany({
           where: { schedule_id: schedule.id, student_id: { in: students.map(student => student.id) } },
-          select: { student_id: true, reserved_at: true }
+          select: { student_id: true, reserved_at: true, option_index: true }
         })
       : [];
     const reservationMap = new Map(reservations.map(item => [item.student_id, item]));
 
     const expired = !schedule || isExpired(schedule.date);
+    const breakfastOptions = schedule ? [schedule.breakfast_1, schedule.breakfast_2, schedule.breakfast_3] : [];
+    const hasBreakfast = breakfastOptions.some(Boolean);
 
     return NextResponse.json({
       success: true,
-      schedule,
-      breakfastStatus: !schedule?.breakfast ? 'unavailable' : expired ? 'expired' : 'open',
+      schedule: schedule ? {
+        ...schedule,
+        breakfasts: breakfastOptions.filter(Boolean)
+      } : null,
+      breakfastStatus: !hasBreakfast ? 'unavailable' : expired ? 'expired' : 'open',
       students: students.map(student => {
         const reservation = reservationMap.get(student.id);
+        const reservedOption = reservation ? breakfastOptions[(reservation.option_index || 1) - 1] || null : null;
         return {
           id: student.id,
           studentNumber: student.student_number,
@@ -98,7 +104,9 @@ export async function GET(request) {
           className: student.classes?.class_name || student.classes?.class_number || 'بدون کلاس',
           reserved: Boolean(reservation),
           reservedAt: reservation?.reserved_at || null,
-          status: reservation ? 'reserved' : expired ? 'expired' : schedule?.breakfast ? 'not_reserved' : 'unavailable'
+          optionIndex: reservation?.option_index || null,
+          reservedOption,
+          status: reservation ? 'reserved' : expired ? 'expired' : hasBreakfast ? 'not_reserved' : 'unavailable'
         };
       })
     });

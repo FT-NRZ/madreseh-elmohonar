@@ -422,24 +422,27 @@ model exam_file_answers {
 }
 
 model food_schedule {
-  id         Int      @id @default(autoincrement())
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-  breakfast  String?
-  lunch      String?
-  week_start DateTime
-  weekday    String
-  date       DateTime
+  id          Int      @id @default(autoincrement())
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  breakfast_1 String?
+  breakfast_2 String?
+  breakfast_3 String?
+  lunch       String?
+  week_start  DateTime
+  weekday     String
+  date        DateTime
   breakfast_reservations breakfast_reservations[]
 }
 
 model breakfast_reservations {
-  id          Int          @id @default(autoincrement())
-  student_id  Int
-  schedule_id Int
-  reserved_at DateTime     @default(now())
-  student     students     @relation(fields: [student_id], references: [id], onDelete: Cascade)
-  schedule    food_schedule @relation(fields: [schedule_id], references: [id], onDelete: Cascade)
+  id           Int           @id @default(autoincrement())
+  student_id   Int
+  schedule_id  Int
+  option_index Int           @default(1)
+  reserved_at  DateTime      @default(now())
+  student      students      @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  schedule     food_schedule @relation(fields: [schedule_id], references: [id], onDelete: Cascade)
 
   @@unique([student_id, schedule_id])
   @@index([schedule_id])

@@ -3,6 +3,9 @@
 import React, { useEffect, useState } from 'react';
 import { Utensils, AlertTriangle } from 'lucide-react';
 import jalaali from 'jalaali-js';
+import DatePicker from "react-multi-date-picker";
+import persian from "react-date-object/calendars/persian";
+import persian_fa from "react-date-object/locales/persian_fa";
 
 function toJalali(dateStr) {
   if (!dateStr) return '';
@@ -39,6 +42,8 @@ export default function MealSchedulePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [receiptMeal, setReceiptMeal] = useState(null);
+  const [filterFrom, setFilterFrom] = useState('');
+  const [filterTo, setFilterTo] = useState('');
 
   // تنظیم کاربر و studentId
   useEffect(() => {
@@ -109,23 +114,29 @@ export default function MealSchedulePage() {
     }
   }
 
-  async function toggleBreakfast(meal) {
+  async function toggleBreakfast(meal, optionIndex) {
     if (meal.breakfastStatus === 'expired') return;
     try {
       const token = localStorage.getItem('token');
-      const method = meal.breakfastStatus === 'reserved' ? 'DELETE' : 'POST';
+      const isCancel = meal.breakfastStatus === 'reserved' && meal.reservedOption === optionIndex;
+      const method = isCancel ? 'DELETE' : 'POST';
       const response = await fetch(`/api/student/${studentId}/meals`, {
         method,
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ scheduleId: meal.id })
+        body: JSON.stringify({ scheduleId: meal.id, optionIndex })
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || 'عملیات رزرو انجام نشد');
       if (method === 'POST') {
-        setReceiptMeal({ ...meal, breakfastStatus: 'reserved' });
+        setReceiptMeal({
+          ...meal,
+          breakfastStatus: 'reserved',
+          reservedOption: optionIndex,
+          reservedBreakfast: meal.breakfasts[optionIndex - 1]
+        });
       } else if (receiptMeal?.id === meal.id) {
         setReceiptMeal(null);
       }
@@ -134,6 +145,15 @@ export default function MealSchedulePage() {
       setError(err.message || 'خطا در تغییر وضعیت رزرو');
     }
   }
+
+  // فیلتر بازه تاریخ شمسی (رشته‌های YYYY/MM/DD به‌صورت الفبایی قابل مقایسه‌اند)
+  const filteredMeals = meals.filter(m => {
+    const j = toJalali(m.date);
+    if (!j) return false;
+    if (filterFrom && j < filterFrom) return false;
+    if (filterTo && j > filterTo) return false;
+    return true;
+  });
 
   if (loading) {
     return (
@@ -210,8 +230,14 @@ export default function MealSchedulePage() {
                 <p className="mb-2">
                   ۱. در صورتی که دانش‌آموز غذایی از لیست برنامه غذایی را نپسندید، خانواده می‌توانند همراه او غذا ارسال کنند.
                 </p>
-                <p>
+                <p className="mb-2">
                   ۲. در صورت داشتن هرگونه حساسیت غذایی، لطفاً موضوع را به مدرسه اطلاع دهید.
+                </p>
+                <p className="mb-2 font-bold">
+                  ۳. رزرو صبحانه فقط با پرداخت هزینه نهایی می‌شود.
+                </p>
+                <p className="font-bold">
+                  ۴. رزرو صبحانه فقط تا دو روز قبل از آن وعده ممکن است و بعد از آن امکان رزرو وجود ندارد. اگر تمایل به رزرو کل هفته دارید، از پنجشنبه قبل از آن هفته اقدام کنید.
                 </p>
               </div>
             </div>
@@ -244,7 +270,7 @@ export default function MealSchedulePage() {
             </div>
             <div className="text-center">
               <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-                <span className="text-2xl font-bold">{meals.length}</span>
+                <span className="text-2xl font-bold">{filteredMeals.length}</span>
               </div>
               <p className="text-xs text-green-100 mt-1">روز</p>
             </div>
@@ -268,11 +294,58 @@ export default function MealSchedulePage() {
               <p className="mb-2">
                 ۱. در صورتی که دانش‌آموز غذایی از لیست برنامه غذایی را نپسندید، خانواده می‌توانند همراه او غذا ارسال کنند.
               </p>
-              <p>
+              <p className="mb-2">
                 ۲. در صورت داشتن هرگونه حساسیت غذایی، لطفاً موضوع را به مدرسه اطلاع دهید.
+              </p>
+              <p className="mb-2">
+              ۳. در صورتی که رزرو صبحانه های گرم به ده نفر نرسد کنسل خواهد شد.
+              </p>
+              <p className="mb-2 font-bold">
+                ۴. رزرو صبحانه فقط با پرداخت هزینه نهایی می‌شود.
+              </p>
+              <p className="font-bold">
+                ۵. رزرو صبحانه فقط تا دو روز قبل از آن وعده ممکن است و بعد از آن امکان رزرو وجود ندارد. اگر تمایل به رزرو کل هفته دارید، از پنجشنبه قبل از آن هفته اقدام کنید.
               </p>
             </div>
           </div>
+        </div>
+
+        {/* فیلتر بازه تاریخ شمسی */}
+        <div className="flex flex-col sm:flex-row gap-3 mb-6 sm:items-end">
+          <div className="flex-1">
+            <label className="text-xs text-gray-600 block mb-1">از تاریخ (شمسی)</label>
+            <DatePicker
+              value={filterFrom || null}
+              onChange={dateObj => setFilterFrom(dateObj ? dateObj.format("YYYY/MM/DD") : '')}
+              calendar={persian}
+              locale={persian_fa}
+              calendarPosition="bottom-right"
+              inputClass="w-full px-3 py-2 border border-green-300 rounded-lg text-sm"
+              placeholder="مثلاً ۱۴۰۵/۰۷/۰۱"
+              format="YYYY/MM/DD"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="text-xs text-gray-600 block mb-1">تا تاریخ (شمسی)</label>
+            <DatePicker
+              value={filterTo || null}
+              onChange={dateObj => setFilterTo(dateObj ? dateObj.format("YYYY/MM/DD") : '')}
+              calendar={persian}
+              locale={persian_fa}
+              calendarPosition="bottom-right"
+              inputClass="w-full px-3 py-2 border border-green-300 rounded-lg text-sm"
+              placeholder="مثلاً ۱۴۰۵/۰۸/۰۱"
+              format="YYYY/MM/DD"
+            />
+          </div>
+          {(filterFrom || filterTo) && (
+            <button
+              onClick={() => { setFilterFrom(''); setFilterTo(''); }}
+              className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-xs font-bold"
+            >
+              حذف فیلتر
+            </button>
+          )}
         </div>
 
         <div className="overflow-x-auto">
@@ -281,48 +354,70 @@ export default function MealSchedulePage() {
               <tr className="bg-green-50 text-green-700">
                 <th className="py-3 px-4 text-right border-b font-bold">روز</th>
                 <th className="py-3 px-4 text-right border-b font-bold">تاریخ</th>
-                <th className="py-3 px-4 text-right border-b font-bold">صبحانه و رزرو</th>
+                <th className="py-3 px-4 text-right border-b font-bold">گزینه‌های صبحانه و رزرو</th>
                 <th className="py-3 px-4 text-right border-b font-bold">ناهار</th>
               </tr>
             </thead>
             <tbody>
-              {meals.map((m) => (
+              {filteredMeals.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="py-8 text-center text-gray-500">
+                    در این بازه تاریخی برنامه غذایی ثبت نشده است
+                  </td>
+                </tr>
+              )}
+              {filteredMeals.map((m) => (
                 <tr key={m.id} className="border-b last:border-b-0 hover:bg-green-50 transition-colors">
                   <td className="py-3 px-4 font-bold text-green-700">
                     {weekDaysFa[m.weekday] || m.weekday}
                   </td>
                   <td className="py-3 px-4 text-gray-600">
-                    {toJalali(m.date)}
+                    <div>{toJalali(m.date)}</div>
+                    {m.reservationDeadline && (
+                      <div className={`text-xs mt-1 ${m.breakfastStatus === 'expired' ? 'text-red-500 font-bold' : 'text-gray-500'}`}>
+                        مهلت رزرو: {toJalali(m.reservationDeadline)}
+                      </div>
+                    )}
                   </td>
                   <td className="py-3 px-4 space-y-2">
-                    <div className="bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-xs font-medium inline-block">
-                      {m.breakfast || '-'}
-                    </div>
-                    <div>
-                      <button
-                        onClick={() => toggleBreakfast(m)}
-                        disabled={!m.breakfast || m.breakfastStatus === 'expired'}
-                        className={`px-3 py-1 rounded-lg text-xs font-bold disabled:cursor-not-allowed ${
-                          m.breakfastStatus === 'reserved'
-                            ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                            : m.breakfastStatus === 'expired'
-                              ? 'bg-gray-200 text-gray-500'
-                              : 'bg-green-100 text-green-700 hover:bg-green-200'
-                        }`}
-                      >
-                        {m.breakfastStatus === 'reserved' ? 'رزرو شده؛ لغو رزرو' :
-                          m.breakfastStatus === 'expired' ? 'منقضی شده' : 'رزرو صبحانه'}
-                      </button>
-                      {m.breakfastStatus === 'reserved' && (
-                        <button
-                          type="button"
-                          onClick={() => setReceiptMeal(receiptMeal?.id === m.id ? null : m)}
-                          className="mr-2 px-3 py-1 rounded-lg text-xs font-bold bg-blue-100 text-blue-700 hover:bg-blue-200"
-                        >
-                          مشاهده رسید
-                        </button>
-                      )}
-                    </div>
+                    {m.breakfasts?.some(Boolean) ? (
+                      <div className="space-y-2">
+                        {m.breakfasts.map((b, i) => b ? (
+                          <div key={i} className="flex items-center gap-2 flex-wrap">
+                            <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-xs font-medium">
+                              {b}
+                            </span>
+                            {(m.breakfastStatus !== 'expired' && !(m.breakfastStatus === 'reserved' && m.reservedOption !== i + 1)) && (
+                              <button
+                                onClick={() => toggleBreakfast(m, i + 1)}
+                                className={`px-3 py-1 rounded-lg text-xs font-bold ${
+                                  m.breakfastStatus === 'reserved' && m.reservedOption === i + 1
+                                    ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                                    : 'bg-green-100 text-green-700 hover:bg-green-200'
+                                }`}
+                              >
+                                {m.breakfastStatus === 'reserved' && m.reservedOption === i + 1
+                                  ? 'رزرو شده؛ لغو رزرو'
+                                  : 'رزرو این گزینه'}
+                              </button>
+                            )}
+                          </div>
+                        ) : null)}
+                        {m.breakfastStatus === 'reserved' && (
+                          <div>
+                            <button
+                              type="button"
+                              onClick={() => setReceiptMeal(receiptMeal?.id === m.id ? null : m)}
+                              className="px-3 py-1 rounded-lg text-xs font-bold bg-blue-100 text-blue-700 hover:bg-blue-200"
+                            >
+                              مشاهده رسید
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
                   </td>
                   <td className="py-3 px-4">
                     {m.lunch ? (
@@ -355,7 +450,7 @@ export default function MealSchedulePage() {
               <p><span className="font-bold">روز:</span> {weekDaysFa[receiptMeal.weekday] || receiptMeal.weekday}</p>
               <p><span className="font-bold">تاریخ:</span> {toJalali(receiptMeal.date)}</p>
               <p><span className="font-bold">وعده:</span> صبحانه</p>
-              <p><span className="font-bold">غذا:</span> {receiptMeal.breakfast || '-'}</p>
+              <p><span className="font-bold">غذای رزرو شده:</span> {receiptMeal.reservedBreakfast || '-'}</p>
               <p className="sm:col-span-2 text-green-700 font-bold">وضعیت: رزرو شده</p>
             </div>
           </div>

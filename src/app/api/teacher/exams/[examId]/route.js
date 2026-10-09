@@ -42,7 +42,8 @@ export async function GET(request, { params }) {
     const teacher = await getTeacherByUser(userId);
     if (!teacher) return NextResponse.json({ success: false, error: 'اطلاعات معلم یافت نشد' }, { status: 404 });
 
-    const id = Number(params.examId);
+    const { examId } = await params;
+    const id = Number(examId);
     if (!id) return NextResponse.json({ success: false, error: 'شناسه نامعتبر' }, { status: 400 });
 
     const exam = await prisma.exams.findFirst({
@@ -70,7 +71,8 @@ export async function PUT(request, { params }) {
     const teacher = await getTeacherByUser(userId);
     if (!teacher) return NextResponse.json({ success: false, error: 'اطلاعات معلم یافت نشد' }, { status: 404 });
 
-    const id = Number(params.examId);
+    const { examId } = await params;
+    const id = Number(examId);
     if (!id) return NextResponse.json({ success: false, error: 'شناسه نامعتبر' }, { status: 400 });
 
     const body = await request.json().catch(() => ({}));
@@ -101,7 +103,8 @@ export async function DELETE(request, { params }) {
     const teacher = await getTeacherByUser(userId);
     if (!teacher) return NextResponse.json({ success: false, error: 'اطلاعات معلم یافت نشد' }, { status: 404 });
 
-    const id = Number(params.examId);
+    const { examId } = await params;
+    const id = Number(examId);
     if (!id) return NextResponse.json({ success: false, error: 'شناسه نامعتبر' }, { status: 400 });
 
     const result = await prisma.$transaction(async (tx) => {
